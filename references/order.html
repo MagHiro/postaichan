@@ -1,0 +1,379 @@
+<!DOCTYPE html><html lang="id" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Bara &amp; Burn - Mobile Order</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Google Fonts: Plus Jakarta Sans & Public Sans -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Public+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#ec5b13",
+            "background-light": "#FAF8F5",
+            "background-dark": "#18181B",
+          },
+          fontFamily: {
+            "display": ["Plus Jakarta Sans", "Public Sans", "sans-serif"]
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "2xl": "1rem",
+            "3xl": "1.5rem",
+            "full": "9999px"
+          },
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-stone-200 min-h-screen flex justify-center text-[#18181B] antialiased selection:bg-[#FF381E] selection:text-white">
+<!-- Mobile Container Mockup (Width constrained for standard modern device view) -->
+<div class="w-full max-w-[440px] bg-[#FAF8F5] min-h-screen shadow-2xl relative flex flex-col pb-28 border-x border-stone-200">
+<!-- Top System & Status Header -->
+<header class="sticky top-0 z-30 bg-[#FAF8F5]/90 backdrop-blur-md px-4 pt-3 pb-2 border-b border-stone-200/80">
+<!-- Top Brand Bar -->
+<div class="flex items-center justify-between py-1">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-[#18181B] flex items-center justify-center text-white shadow-sm">
+<span class="material-symbols-outlined text-sm text-[#FF381E]" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="text-xs font-black tracking-wider uppercase text-[#18181B]">BARA &amp; BURN</span>
+<span class="w-1.5 h-1.5 rounded-full bg-[#FF381E] animate-pulse"></span>
+</div>
+<p class="text-[11px] text-stone-500 font-medium flex items-center gap-0.5"><span class="material-symbols-outlined text-[13px] text-emerald-600">schedule</span> Buka Sekarang</p>
+</div>
+</div>
+<button class="w-9 h-9 rounded-full bg-white border border-stone-200 text-[#18181B] flex items-center justify-center hover:bg-stone-50 transition-colors shadow-xs">
+<span class="material-symbols-outlined text-[19px]">notifications</span>
+</button>
+</div>
+<!-- Segmented Pill Toggle: Makan di Tempat / Takeaway -->
+<div class="mt-3 bg-stone-100 p-1 rounded-xl flex items-center border border-stone-200/70">
+<button class="flex-1 py-1.5 text-xs font-bold text-center rounded-lg bg-white text-[#18181B] shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5" id="tab-dinein" onclick="switchOrderType('dinein')">
+<span class="material-symbols-outlined text-xs text-[#FF381E]" style="font-variation-settings: 'FILL' 1;">table_restaurant</span>
+          Makan di Tempat
+        </button>
+<button class="flex-1 py-1.5 text-xs font-semibold text-center rounded-lg text-stone-500 hover:text-[#18181B] transition-all duration-200 flex items-center justify-center gap-1.5" id="tab-takeaway" onclick="switchOrderType('takeaway')">
+<span class="material-symbols-outlined text-xs">takeout_dining</span>
+          Takeaway (Bungkus)
+        </button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 px-4 pt-3">
+<!-- Greeting Banner -->
+<div class="mb-4">
+<h1 class="text-2xl font-extrabold tracking-tight text-[#18181B]">
+          Makan di sini, yuk. <span class="inline-block hover:scale-110 transition-transform">🔥</span>
+</h1>
+<p class="text-xs text-stone-500 mt-0.5 font-normal">Bikin nagih dari suapan pertama</p>
+</div>
+<!-- Minimal Search Bar -->
+<div class="relative mb-4">
+<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+<span class="material-symbols-outlined text-lg">search</span>
+</div>
+<input class="w-full bg-white text-sm text-[#18181B] placeholder-stone-400 pl-10 pr-10 py-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#FF381E] focus:border-transparent transition-all shadow-xs" placeholder="Cari sate taichan, rice bowl, sambal..." type="text">
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+<button class="p-1 rounded-md text-stone-400 hover:text-stone-700">
+<span class="material-symbols-outlined text-base">tune</span>
+</button>
+</div>
+</div>
+<!-- Horizontal Categories Bar -->
+<div class="relative mb-5 -mx-4 px-4 overflow-x-auto no-scrollbar flex items-center gap-2">
+<button class="shrink-0 px-4 py-2 rounded-full bg-[#18181B] text-white text-xs font-bold tracking-tight shadow-sm">
+          Semua Menu
+        </button>
+<button class="shrink-0 px-4 py-2 rounded-full bg-white text-stone-700 border border-stone-200 hover:border-stone-400 text-xs font-semibold tracking-tight transition-colors">
+          Sate Taichan
+        </button>
+<button class="shrink-0 px-4 py-2 rounded-full bg-white text-stone-700 border border-stone-200 hover:border-stone-400 text-xs font-semibold tracking-tight transition-colors">
+          Rice Bowl
+        </button>
+<button class="shrink-0 px-4 py-2 rounded-full bg-white text-stone-700 border border-stone-200 hover:border-stone-400 text-xs font-semibold tracking-tight transition-colors">
+          Gorengan &amp; Kulit
+        </button>
+<button class="shrink-0 px-4 py-2 rounded-full bg-white text-stone-700 border border-stone-200 hover:border-stone-400 text-xs font-semibold tracking-tight transition-colors">
+          Minuman Segar
+        </button>
+<button class="shrink-0 px-4 py-2 rounded-full bg-white text-[#FF381E] border border-red-200 bg-red-50/50 text-xs font-bold tracking-tight transition-colors">
+          Paket Hemat 🔥
+        </button>
+</div>
+<!-- Section Title: Menu Paling Nagih -->
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-1.5">
+<h2 class="text-sm font-black uppercase tracking-wider text-[#18181B]">Menu Pilihan Hari Ini</h2>
+<span class="px-1.5 py-0.5 bg-[#FF381E]/10 text-[#FF381E] text-[10px] font-bold rounded">PEDAS GURIH</span>
+</div>
+<span class="text-xs text-stone-400 font-medium">6 Menu</span>
+</div>
+<!-- 2-Column Food Card Grid -->
+<div class="grid grid-cols-2 gap-3">
+<!-- Food Card 1: Sate Taichan 10 Tusuk -->
+<div class="bg-white rounded-2xl p-2.5 border border-stone-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
+<div>
+<div class="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-stone-100">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Close up mouthwatering Indonesian Sate Taichan chicken skewers grilled perfectly with savory white sheen, served with bright fiery red sambal chili paste and fresh cut key lime wedges on a clean minimalist slate plate. High-contrast studio lighting, warm soft ambiance, editorial food photography with vibrant warm colors." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCk4U4uGx4BjfiDZQIm7Febbqmph1KNL-oIkk8fY30fQI1kLQXIHlEM7Yn6Bl7aaYLTSH981QnU4i6FnDthH6tL2sjq0uRHf2vqnIiDWiOcqzAsrVuxhVNA06YDbV4h6ZmFbqRdvikq21A-M_RK_rFf8CAeOV5UKKJVtMyPuiI_duUpDz3cl1XEmijXGJT-w6yuHA07vIcq1JQSHTvjP7GWSYhm3Uc6JKoWBm7n-qvblPtQluuo9CX3Bg">
+<span class="absolute top-2 left-2 px-2 py-0.5 bg-[#FF381E] text-white text-[10px] font-extrabold uppercase rounded-full tracking-wider shadow-sm flex items-center gap-0.5">
+                FAVORIT 🔥
+              </span>
+<div class="absolute bottom-1.5 left-2 bg-black/60 backdrop-blur-xs px-1.5 py-0.5 rounded text-[10px] text-white font-medium flex items-center gap-0.5">
+<span class="">🌶️🌶️🌶️</span>
+</div>
+</div>
+<h3 class="text-xs font-bold text-[#18181B] leading-snug line-clamp-1">Sate Taichan 10 Tusuk</h3>
+<p class="text-[10px] text-stone-500 mt-1 line-clamp-2 leading-relaxed">
+              Ayam juicy panggang gurih, sambal taichan khas ulek pedas nampol &amp; jeruk limau segar.
+            </p>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2 border-t border-stone-100">
+<div>
+<span class="text-[10px] text-stone-400 block font-medium">Harga</span>
+<span class="text-xs font-black text-[#18181B]">Rp 28.000</span>
+</div>
+<button class="w-8 h-8 rounded-full bg-[#18181B] text-white flex items-center justify-center hover:bg-[#FF381E] active:scale-95 transition-all shadow-sm" onclick="addToCart('Sate Taichan 10 Tusuk', 28000)">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+</div>
+<!-- Food Card 2: Rice Bowl Taichan -->
+<div class="bg-white rounded-2xl p-2.5 border border-stone-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
+<div>
+<div class="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-stone-100">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Top-down presentation of an appetizing Indonesian Rice Bowl topped with shredded savory grilled Taichan chicken, golden soft fried egg with runny yolk, generous spicy red sambal, and sliced scallions on warm jasmine rice. Clean modern ceramic bowl with warm off-white minimalist background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfgm49s64RAWrx7zkOIeAUjlUOYDuQu2FmG1ILxxMTr8zPFj9_22SOna8LrT-PAPD9MgXcJNk3WyBM-Fxm1zEOeS8GNuIFOOP9U4elH21vQT33JSN1qDsSVmup9BaWXvm7_FdjDS8gqzqRnsoqOoUUi0uHjeXYD1-hIPkmZOB7gdq1lQbkIDMrTt_fqk0BTU5UCLNkG-cZUxSxeSvELJ3rpwD0CpuPqmLJPpn1-Tn1P3_VHnpPxOJY3Q">
+<span class="absolute top-2 left-2 px-2 py-0.5 bg-[#18181B] text-white text-[10px] font-extrabold uppercase rounded-full tracking-wider shadow-sm">
+                KENYANG
+              </span>
+<div class="absolute bottom-1.5 left-2 bg-black/60 backdrop-blur-xs px-1.5 py-0.5 rounded text-[10px] text-white font-medium flex items-center gap-0.5">
+<span class="">🌶️🌶️</span>
+</div>
+</div>
+<h3 class="text-xs font-bold text-[#18181B] leading-snug line-clamp-1">Rice Bowl Taichan</h3>
+<p class="text-[10px] text-stone-500 mt-1 line-clamp-2 leading-relaxed">
+              Nasi pulen hangat, sate taichan suwir empuk, telur ceplok krispi, sambal melimpah.
+            </p>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2 border-t border-stone-100">
+<div>
+<span class="text-[10px] text-stone-400 block font-medium">Harga</span>
+<span class="text-xs font-black text-[#18181B]">Rp 27.000</span>
+</div>
+<button class="w-8 h-8 rounded-full bg-[#18181B] text-white flex items-center justify-center hover:bg-[#FF381E] active:scale-95 transition-all shadow-sm" onclick="addToCart('Rice Bowl Taichan', 27000)">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+</div>
+<!-- Food Card 3: Sate Kulit Crispy -->
+<div class="bg-white rounded-2xl p-2.5 border border-stone-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
+<div>
+<div class="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-stone-100">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Golden crisp fried chicken skin skewers stacked delicately with a light dusting of savory salt seasoning and chili dipping sauce on the side. High definition food photography, sharp contrast, glossy crunchy texture, clean minimalist warm studio styling." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqI_I7RKM9lwCFSkgQa-glAh0UCcqJ7Fkjdw0PdqOjLEED4MpSKXU6uOH85y7BDaMCrmF4rdFWB5lNjekZhR9yK--HV7NK8Pc1NRfL0zBGDDiOVXyMHTgNBOD-_G_aLBXV8U57LrStFiUVitfIwkHWKZ9-9xpn6VoaZ5a7fb2bsexxjVvC3AQLA2Iig7pk3x93i2xXe3F82ggT9s_dy5X_gnq286WYrep9IxnHjb9vIonOxDfFWlHtHQ">
+<span class="absolute top-2 left-2 px-2 py-0.5 bg-amber-500 text-white text-[10px] font-extrabold uppercase rounded-full tracking-wider shadow-sm">
+                CRISPY ✨
+              </span>
+<div class="absolute bottom-1.5 left-2 bg-black/60 backdrop-blur-xs px-1.5 py-0.5 rounded text-[10px] text-white font-medium flex items-center gap-0.5">
+<span class="">🌶️</span>
+</div>
+</div>
+<h3 class="text-xs font-bold text-[#18181B] leading-snug line-clamp-1">Sate Kulit Crispy</h3>
+<p class="text-[10px] text-stone-500 mt-1 line-clamp-2 leading-relaxed">
+              Kulit ayam renyah keemasan gurih berbumbu pedas asin sedap tanpa alot.
+            </p>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2 border-t border-stone-100">
+<div>
+<span class="text-[10px] text-stone-400 block font-medium">Harga</span>
+<span class="text-xs font-black text-[#18181B]">Rp 22.000</span>
+</div>
+<button class="w-8 h-8 rounded-full bg-[#18181B] text-white flex items-center justify-center hover:bg-[#FF381E] active:scale-95 transition-all shadow-sm" onclick="addToCart('Sate Kulit Crispy', 22000)">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+</div>
+<!-- Food Card 4: Sate Taichan 5 Tusuk -->
+<div class="bg-white rounded-2xl p-2.5 border border-stone-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
+<div>
+<div class="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-stone-100">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Five skewers of freshly charred Indonesian Taichan chicken satay placed neatly on a dark matte plate with sliced chili and lime. Clean warm editorial food photography with deep shadows and vibrant colors." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYa8CKo179HTeVbbJpTuDefT0BliDRRhGTtq3FpNqJ3Ep7_Pbk2xZ3S5wsL_3iDtFmMkmzrQtjsG2AHggvTmuC2EQNlYdCD-1Lx7P2SaWyFvbStdzvuaI5TyMKARY3Yy_pqiDs7WSq9ACaDC9f-Is8ZsCVUSWHaXj_bPcq8tDfFDJ7O6QJxfwHORj4I9SR-CgDJXyzNjajG8mvzKNcSeyPiFwpLuNwTY5oUV0I79xNp9j3j7QR9aJwLQ">
+<div class="absolute bottom-1.5 left-2 bg-black/60 backdrop-blur-xs px-1.5 py-0.5 rounded text-[10px] text-white font-medium flex items-center gap-0.5">
+<span class="">🌶️🌶️🌶️</span>
+</div>
+</div>
+<h3 class="text-xs font-bold text-[#18181B] leading-snug line-clamp-1">Sate Taichan 5 Tusuk</h3>
+<p class="text-[10px] text-stone-500 mt-1 line-clamp-2 leading-relaxed">
+              Porsi pas camilan santai, sambal khas nampol &amp; taburan kaldu gurih.
+            </p>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2 border-t border-stone-100">
+<div>
+<span class="text-[10px] text-stone-400 block font-medium">Harga</span>
+<span class="text-xs font-black text-[#18181B]">Rp 17.000</span>
+</div>
+<button class="w-8 h-8 rounded-full bg-[#18181B] text-white flex items-center justify-center hover:bg-[#FF381E] active:scale-95 transition-all shadow-sm" onclick="addToCart('Sate Taichan 5 Tusuk', 17000)">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+</div>
+<!-- Food Card 5: Lontong & Nasi Putih -->
+<div class="bg-white rounded-2xl p-2.5 border border-stone-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
+<div>
+<div class="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-stone-100">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Artisanal banana leaf wrapped rice cake sliced neatly into bite-sized rounds alongside a small bowl of steaming fragrant white jasmine rice. Minimalist studio lighting, clean cream textured backdrop, warm natural lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAc_TOYEpKqCOKAVuMD2XUGU73zBF4EVeJ6DAynIQLwvbgpFhmUbIZnhnPaZAYr-8BjldctHi_eLvxk7BVrfPRJ7SxExl8GvT9DYlNQcx1xWvs4t-jGuMsvqchAxY9WdeWYgZwHgvytl34oatTg9ggljgJuprHolnBlpIyEKQQ_5VZewCIZlInGFlLBGfW5vJUrEQepl_mRYdTuWPp5K4YZTpaWgD7mzARq8tjb7p3z7xEWLsc_XYcwyA">
+</div>
+<h3 class="text-xs font-bold text-[#18181B] leading-snug line-clamp-1">Lontong Daun / Nasi</h3>
+<p class="text-[10px] text-stone-500 mt-1 line-clamp-2 leading-relaxed">
+              Pilihan lontong daun pulen kenyal atau nasi putih hangat pelengkap taichan.
+            </p>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2 border-t border-stone-100">
+<div>
+<span class="text-[10px] text-stone-400 block font-medium">Harga</span>
+<span class="text-xs font-black text-[#18181B]">Rp 6.000</span>
+</div>
+<button class="w-8 h-8 rounded-full bg-[#18181B] text-white flex items-center justify-center hover:bg-[#FF381E] active:scale-95 transition-all shadow-sm" onclick="addToCart('Lontong Daun / Nasi', 6000)">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+</div>
+<!-- Food Card 6: Es Jeruk Limau Segar -->
+<div class="bg-white rounded-2xl p-2.5 border border-stone-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
+<div>
+<div class="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-stone-100">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="A tall condensation-covered glass of iced freshly squeezed Indonesian key lime juice with ice cubes and floating sliced calamansi citrus. Bright natural lighting, refreshing beverage styling, minimalist warm composition with deep contrasts." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4DrTuXlwpt62yoEkdBc7dqjCgklM0Rg1dK0PKbJTwzujTFQjcuTsKMVkpYF_u8BMcc270TVU9288rlXxOnJZiQNrm0IbIH0eMSyoqSO-1gGfUK0D9_vzccUgenFroyJsGyB7ThBfUY-hDVUi8RPuPXU0ze4c06EsGkoT6WqMftBO3_fwCQ8kLYb31FP1kEw2rUH-MnVxLfQKCCzBqgpoKA0CmG4WIb8qBzVYVCtk1sJGXXVlKxg_voQ">
+<span class="absolute top-2 left-2 px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-extrabold uppercase rounded-full tracking-wider shadow-sm">
+                SEGER 🧊
+              </span>
+</div>
+<h3 class="text-xs font-bold text-[#18181B] leading-snug line-clamp-1">Es Jeruk Limau Murni</h3>
+<p class="text-[10px] text-stone-500 mt-1 line-clamp-2 leading-relaxed">
+              Perasan jeruk limau asli dingin segar, peredam pedas paling ampuh.
+            </p>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2 border-t border-stone-100">
+<div>
+<span class="text-[10px] text-stone-400 block font-medium">Harga</span>
+<span class="text-xs font-black text-[#18181B]">Rp 10.000</span>
+</div>
+<button class="w-8 h-8 rounded-full bg-[#18181B] text-white flex items-center justify-center hover:bg-[#FF381E] active:scale-95 transition-all shadow-sm" onclick="addToCart('Es Jeruk Limau Murni', 10000)">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Level Pedas & Notes Section -->
+<div class="mt-5 p-3.5 rounded-2xl bg-white border border-stone-200/90 flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-9 h-9 rounded-xl bg-red-50 text-[#FF381E] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">restaurant</span>
+</div>
+<div>
+<h4 class="text-xs font-bold text-[#18181B]">Sambal Dipisah / Campur?</h4>
+<p class="text-[11px] text-stone-500">Atur selera pedasmu di halaman checkout</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-stone-400 text-lg">chevron_right</span>
+</div>
+</main>
+<!-- Floating Bottom Sticky Cart Bar -->
+<div class="fixed bottom-3 inset-x-0 mx-auto w-full max-w-[420px] px-3 z-40">
+<div class="bg-[#18181B] text-white rounded-2xl p-2.5 pl-4 shadow-2xl flex items-center justify-between border border-stone-800">
+<!-- Cart Summary Info -->
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="w-10 h-10 rounded-xl bg-stone-800/90 flex items-center justify-center text-white border border-stone-700">
+<span class="material-symbols-outlined text-xl">shopping_bag</span>
+</div>
+<span class="absolute -top-1 -right-1 bg-[#FF381E] text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-[#18181B]" id="cart-count">
+              2
+            </span>
+</div>
+<div>
+<div class="text-[11px] text-stone-400 font-semibold uppercase tracking-wider flex items-center gap-1">
+<span id="cart-items-text" class="">2 Menu</span> • Meja No. 04
+            </div>
+<div class="text-sm font-extrabold tracking-tight text-white" id="cart-total">
+              Rp 55.000
+            </div>
+</div>
+</div>
+<!-- Action Checkout CTA -->
+<button class="bg-[#FF381E] hover:bg-[#e03018] text-white font-bold text-xs py-2.5 px-4 rounded-xl flex items-center gap-1.5 shadow-md active:scale-95 transition-all">
+<span class="">Lihat Pesanan</span>
+<span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Interactive script for toggle and cart feedback -->
+<script>
+    let currentTotal = 55000;
+    let itemCount = 2;
+
+    function switchOrderType(type) {
+      const dineInBtn = document.getElementById('tab-dinein');
+      const takeawayBtn = document.getElementById('tab-takeaway');
+
+      if (type === 'dinein') {
+        dineInBtn.className = "flex-1 py-1.5 text-xs font-bold text-center rounded-lg bg-white text-[#18181B] shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5";
+        takeawayBtn.className = "flex-1 py-1.5 text-xs font-semibold text-center rounded-lg text-stone-500 hover:text-[#18181B] transition-all duration-200 flex items-center justify-center gap-1.5";
+      } else {
+        takeawayBtn.className = "flex-1 py-1.5 text-xs font-bold text-center rounded-lg bg-white text-[#18181B] shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5";
+        dineInBtn.className = "flex-1 py-1.5 text-xs font-semibold text-center rounded-lg text-stone-500 hover:text-[#18181B] transition-all duration-200 flex items-center justify-center gap-1.5";
+      }
+    }
+
+    function addToCart(title, price) {
+      itemCount += 1;
+      currentTotal += price;
+      
+      document.getElementById('cart-count').textContent = itemCount;
+      document.getElementById('cart-items-text').textContent = itemCount + " Menu";
+      document.getElementById('cart-total').textContent = "Rp " + currentTotal.toLocaleString('id-ID');
+      
+      // Light bounce animation on cart badge
+      const badge = document.getElementById('cart-count');
+      badge.classList.add('scale-125');
+      setTimeout(() => {
+        badge.classList.remove('scale-125');
+      }, 150);
+    }
+  </script>
+
+
+</body></html>

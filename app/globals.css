@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #18181b;
+  --muted: #78716c;
+  --paper: #faf8f5;
+  --surface: #ffffff;
+  --line: #e7e3dc;
+  --accent: #ff381e;
+  --accent-dark: #e02b13;
+  --green: #2f8062;
+  --warm: #f5f3ef;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  html, body { overflow-x: hidden; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background: var(--paper);
+    font-family: var(--font-jakarta), var(--font-public), "Plus Jakarta Sans", "Public Sans", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, input, textarea, select { font: inherit; }
+  button { cursor: pointer; }
+
+  @media (max-width: 640px) {
+    body { min-width: 320px; }
+  }
+}
+
+@layer components {
+  .scrollbar-hidden::-webkit-scrollbar { display: none; }
+  .scrollbar-hidden { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .input { width: 100%; border: 1px solid #e5ddd5; border-radius: 10px; background: #ffffff; padding: 10px 12px; font-size: 12px; outline: none; }
+  .input:focus { border-color: #ed5b38; box-shadow: 0 0 0 3px rgba(237, 91, 56, 0.1); }
+
+  /* ---- Order UI: calm minimal motion ---- */
+  .ord-rise { animation: ord-rise 0.3s cubic-bezier(0.22, 0.8, 0.32, 1) both; }
+  .ord-sheet { animation: ord-sheet-in 0.28s cubic-bezier(0.22, 0.8, 0.32, 1) both; }
+  .ord-backdrop { animation: ord-backdrop-in 0.2s ease-out both; }
+  .ord-toast { animation: ord-toast-in 0.2s ease-out both; }
+  .ord-bar { animation: ord-rise 0.25s ease-out both; }
+
+  .ord-skeleton {
+    background: linear-gradient(90deg, #ece5da 25%, #f5f0e8 40%, #ece5da 55%);
+    background-size: 800px 100%;
+    animation: ord-shimmer 1.4s linear infinite;
+  }
+
+  .ord-row {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ord-rise,
+    .ord-sheet,
+    .ord-backdrop,
+    .ord-toast,
+    .ord-bar,
+    .ord-skeleton {
+      animation: none;
+    }
+  }
+}
+
+/* ---- Order UI: calm minimal motion ---- */
+@keyframes ord-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ord-sheet-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ord-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ord-toast-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ord-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
