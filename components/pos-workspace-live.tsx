@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { BookOpen, LayoutDashboard, Minus, Plus, ReceiptText, Search, ShoppingBag, TrendingUp, X } from "lucide-react";
-import { categories, products as fallbackProducts } from "@/lib/data";
 import { formatCompactIDR, formatCountdown, formatIDR } from "@/lib/format";
 import type { Order, Product } from "@/lib/types";
 import type { DailyReport } from "@/lib/reports";
@@ -22,8 +21,8 @@ type Detail = {
     created_at: string;
     restaurant_tables?: { label?: string } | Array<{ label?: string }> | null;
     payments?:
-      | { method?: string; provider?: string; status?: string; amount_idr?: number; fee_idr?: number; expires_at?: string | null; settled_at?: string | null; created_at?: string | null }
-      | Array<{ method?: string; provider?: string; status?: string; amount_idr?: number; fee_idr?: number; expires_at?: string | null; settled_at?: string | null; created_at?: string | null }>
+      | { method?: string; provider?: string; status?: string; amount_idr?: number; fee_idr?: number; expires_at?: string | null; settled_at?: string | null; created_at?: string | null; qr_image_url?: string | null }
+      | Array<{ method?: string; provider?: string; status?: string; amount_idr?: number; fee_idr?: number; expires_at?: string | null; settled_at?: string | null; created_at?: string | null; qr_image_url?: string | null }>
       | null;
   };
   items: Array<{
@@ -121,7 +120,7 @@ export function PosWorkspaceLive() {
 
   async function advanceOrder(order: Order) {
     const next =
-      order.status === "New" ? "processing" : order.status === "Preparing" ? "ready" : order.status === "Ready" ? "completed" : null;
+      order.status === "New" ? "accepted" : order.status === "Preparing" ? "ready" : order.status === "Ready" ? "completed" : null;
     if (!next) return;
     const response = await fetch(`/api/pos/orders/${order.id}/status`, {
       method: "PATCH",
@@ -694,7 +693,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
   const payExpiresMs = payment?.expires_at ? new Date(payment.expires_at).getTime() : null;
   const payRemainingMs = payExpiresMs !== null ? payExpiresMs - nowMs : null;
   const [checkingPay, setCheckingPay] = useState(false);
-  const [resumeQr, setResumeQr] = useState<{ qrString: string; expiresAt: string } | null>(null);
+  const [resumeQr, setResumeQr] = useState<{ qrString?: string; qrImageUrl?: string; expiresAt: string } | null>(null);
 
   async function checkPaymentNow() {
     setCheckingPay(true);
@@ -736,11 +735,11 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
         onSettled?.(detailId);
         return;
       }
-      if (!payload.qrString || payload.paymentStatus !== "pending") {
+      if ((!payload.qrString && !payload.qrImageUrl) || payload.paymentStatus !== "pending") {
         onShowNotice("QR sudah tidak berlaku. Buat pesanan baru.");
         return;
       }
-      setResumeQr({ qrString: payload.qrString, expiresAt: payload.expiresAt });
+      setResumeQr({ qrString: payload.qrString ?? undefined, qrImageUrl: payload.qrImageUrl ?? undefined, expiresAt: payload.expiresAt });
     } finally {
       setCheckingPay(false);
     }
@@ -887,6 +886,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
         {resumeQr && (
           <ResumeQrOverlay
             qrString={resumeQr.qrString}
+            qrImageUrl={resumeQr.qrImageUrl}
             expiresAt={resumeQr.expiresAt}
             orderNumber={detail.order.order_number}
             totalIdr={detail.order.total_idr}
@@ -901,10 +901,14 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
 
 /* ================= Cashier ================= */
 
-function ResumeQrOverlay({ qrString, expiresAt, orderNumber, totalIdr, onClose }: { qrString: string; expiresAt: string; orderNumber: string; totalIdr: number; onClose: () => void }) {
+function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalIdr, onClose }: { qrString?: string; qrImageUrl?: string; expiresAt: string; orderNumber: string; totalIdr: number; onClose: () => void }) {
   const [qr, setQr] = useState("");
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
+    if (!qrString) {
+      setQr("");
+      return;
+    }
     QRCode.toDataURL(qrString, { width: 320, margin: 2, color: { dark: "#18181B", light: "#ffffff" } })
       .then(setQr)
       .catch(() => setQr(""));
@@ -924,7 +928,9 @@ function ResumeQrOverlay({ qrString, expiresAt, orderNumber, totalIdr, onClose }
         aria-label={`QRIS ${orderNumber}`}
       >
         <p className="text-xs text-neutral-400">QRIS · {orderNumber}</p>
-        {qr ? (
+        {qrImageUrl ? (
+          <img src={qrImageUrl} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-neutral-100 p-2" />
+        ) : qr ? (
           <img src={qr} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-neutral-100 p-2" />
         ) : (
           <div className="ord-skeleton mx-auto mt-4 h-48 w-48 rounded-2xl" />
@@ -941,119 +947,37 @@ function ResumeQrOverlay({ qrString, expiresAt, orderNumber, totalIdr, onClose }
   );
 }
 
-type PosTable = { id: string; label: string; code: string; active: boolean };
-
-function TableQrSection() {
-  const [tables, setTables] = useState<PosTable[]>([]);
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
-  const [qr, setQr] = useState("");
-  const [origin, setOrigin] = useState("");
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-    fetch("/api/pos/tables", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload) => {
-        const list: PosTable[] = payload?.tables ?? [];
-        setTables(list);
-        if (list.length) setSelectedCode((current) => current ?? list[0].code);
-      })
-      .catch(() => undefined);
-  }, []);
-
-  const selected = tables.find((table) => table.code === selectedCode) ?? null;
-  const customerUrl = selected && origin ? `${origin}/order/t/${selected.code}` : "";
-
-  useEffect(() => {
-    if (!customerUrl) {
-      setQr("");
-      return;
-    }
-    QRCode.toDataURL(customerUrl, { width: 320, margin: 2, color: { dark: "#18181B", light: "#ffffff" } })
-      .then(setQr)
-      .catch(() => setQr(""));
-  }, [customerUrl]);
-
-  if (!tables.length) return null;
-
-  function downloadQr() {
-    if (!qr || !selected) return;
-    const link = document.createElement("a");
-    link.href = qr;
-    link.download = `${selected.code.toLowerCase()}-qr.png`;
-    link.click();
-  }
-
-  return (
-    <section className="mt-10 border-t border-neutral-100 pt-6">
-      <h3 className="text-sm font-medium">QR Meja</h3>
-      <p className="mt-1 text-[13px] text-neutral-500">Pindai untuk membuka menu di meja.</p>
-      <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1">
-        {tables.map((table) => (
-          <button
-            key={table.code}
-            onClick={() => setSelectedCode(table.code)}
-            aria-pressed={table.code === selectedCode}
-            className={cn(
-              "flex h-10 shrink-0 items-center rounded-full border px-4 text-[13px] transition active:scale-[0.98]",
-              table.code === selectedCode ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-200 font-normal text-neutral-500",
-            )}
-          >
-            {table.label}
-          </button>
-        ))}
-      </div>
-      {selected && (
-        <div className="mt-6 flex flex-col items-center text-center">
-          <div className="shadow-soft w-fit rounded-3xl border border-neutral-100 bg-white p-4">
-            {qr ? (
-              <img src={qr} alt={`QR ${selected.label}`} className="h-56 w-56 rounded-2xl" />
-            ) : (
-              <div className="ord-skeleton h-56 w-56 rounded-2xl" />
-            )}
-          </div>
-          <p className="mt-3 text-[13px] font-medium">
-            {selected.label} · {selected.code}
-          </p>
-          <p className="mt-0.5 text-xs text-neutral-400">{selected.active ? "Aktif" : "Nonaktif"}</p>
-          <div className="mt-3 flex items-center gap-5">
-            <button onClick={downloadQr} className="text-[13px] font-medium text-neutral-900 active:scale-[0.98]">
-              Unduh
-            </button>
-            <a href={customerUrl} target="_blank" rel="noreferrer" className="text-[13px] font-normal text-neutral-500">
-              Uji
-            </a>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
 type CartLine = { product: Product; quantity: number };
 
 function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void }) {
-  const [menu, setMenu] = useState<Product[]>(fallbackProducts);
+  const [menu, setMenu] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<"qris" | "cash">("qris");
+  const [paymentSettings, setPaymentSettings] = useState({ qrisEnabled: false, cashEnabled: false });
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [category, setCategory] = useState<string>("Semua");
+  const [category, setCategory] = useState<string>("Semua Menu");
   const [query, setQuery] = useState("");
   const [orderType, setOrderType] = useState<"dine_in" | "takeaway">("dine_in");
-  const [payment, setPayment] = useState<{ orderId: string; qrString: string; orderNumber: string; totalIdr: number; expiresAt: string } | null>(null);
+  const [payment, setPayment] = useState<{ orderId: string; qrString?: string; qrImageUrl?: string; orderNumber: string; totalIdr: number; expiresAt: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const intentKey = useRef<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/menu")
+    fetch("/api/menu", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
         if (payload?.products?.length) setMenu(payload.products);
+        setCategories(["Semua Menu", ...(payload?.categories ?? []).map((item: { name: string }) => item.name)]);
+        setPaymentSettings(payload?.settings ?? { qrisEnabled: false, cashEnabled: false });
+        if (payload?.settings?.qrisEnabled === false) setPaymentMethod("cash");
       })
       .catch(() => undefined);
   }, []);
 
   const filtered = menu.filter(
     (product) =>
-      (category === "Semua" || product.category === category) &&
+      (category === "Semua Menu" || product.category === category) &&
       `${product.name} ${product.description ?? ""}`.toLowerCase().includes(query.toLowerCase()),
   );
   const total = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
@@ -1061,6 +985,8 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
 
   function add(product: Product) {
     if (!product.available) return;
+    if ((product.modifierGroups ?? []).some((group) => group.required)) { onShowNotice("Produk ini membutuhkan pilihan modifier. Gunakan customer order atau lengkapi konfigurasi POS."); return; }
+    intentKey.current = null;
     setCart((current) => {
       const found = current.find((item) => item.product.id === product.id);
       return found
@@ -1070,6 +996,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
   }
 
   function setQty(id: string, delta: number) {
+    intentKey.current = null;
     setCart((current) =>
       current
         .map((item) => (item.product.id === id ? { ...item, quantity: item.quantity + delta } : item))
@@ -1079,23 +1006,29 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
 
   async function createOrder() {
     if (!cart.length || saving) return;
+    if (paymentMethod === "qris" && !paymentSettings.qrisEnabled) { onShowNotice("QRIS sedang tidak tersedia."); return; }
+    if (paymentMethod === "cash" && !paymentSettings.cashEnabled) { onShowNotice("Pembayaran tunai sedang tidak tersedia."); return; }
     setSaving(true);
     try {
       const response = await fetch("/api/pos/orders", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: intentKey.current ?? (intentKey.current = crypto.randomUUID()),
           orderType,
+          paymentMethod,
           items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
         }),
       });
       const payload = await response.json();
-      if (!response.ok || !payload.qrString) {
+      if (!response.ok || (paymentMethod === "qris" && !payload.qrString && !payload.qrImageUrl)) {
         onShowNotice(payload.error ?? "Pesanan gagal dibuat.");
         return;
       }
-      setPayment({ orderId: payload.orderId, qrString: payload.qrString, orderNumber: payload.orderNumber, totalIdr: payload.totalIdr, expiresAt: payload.expiresAt });
+      if (paymentMethod === "cash") {
+        setCart([]); intentKey.current = null; setCartOpen(false); onShowNotice(`${payload.orderNumber} lunas tunai.`); return;
+      }
+      setPayment({ orderId: payload.orderId, qrString: payload.qrString ?? undefined, qrImageUrl: payload.qrImageUrl ?? undefined, orderNumber: payload.orderNumber, totalIdr: payload.totalIdr, expiresAt: payload.expiresAt });
       setCart([]);
       setCartOpen(false);
     } catch {
@@ -1108,7 +1041,11 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
   return (
     <div>
       <div className="hidden lg:block">
-        <PageHead title="Kasir" sub={orderType === "dine_in" ? "Dine in · QRIS" : "Takeaway · QRIS"} />
+        <PageHead title="Kasir" sub={`${orderType === "dine_in" ? "Dine in" : "Takeaway"} · ${paymentMethod === "cash" ? "Tunai" : "QRIS"}`} />
+      </div>
+
+      <div className="mt-3 flex max-w-md gap-2">
+        {([{ key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }, { key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }] as const).map((method) => <button key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-10 flex-1 rounded-full border text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-200 text-neutral-500")}>{method.label}</button>)}
       </div>
 
       <div className="flex max-w-md rounded-2xl bg-neutral-100 p-1 lg:mt-6 lg:rounded-full">
@@ -1154,7 +1091,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
           {filtered.length ? (
             <div className="mt-6">
               <div className="flex items-baseline justify-between">
-                <h3 className="text-sm font-medium">{category === "Semua" ? "Semua menu" : category}</h3>
+              <h3 className="text-sm font-medium">{category}</h3>
                 <span className="text-xs tabular-nums text-neutral-400">{filtered.length} item</span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1246,8 +1183,6 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
           )}
         </aside>
       </div>
-
-      <TableQrSection />
 
       {/* Cart — mobile bar */}
       {cart.length > 0 && !cartOpen && (
@@ -1356,7 +1291,7 @@ function CashierPayment({
   onClose,
   onSettled,
 }: {
-  payment: { orderId: string; qrString: string; orderNumber: string; totalIdr: number; expiresAt: string };
+  payment: { orderId: string; qrString?: string; qrImageUrl?: string; orderNumber: string; totalIdr: number; expiresAt: string };
   onClose: () => void;
   onSettled?: () => void;
 }) {
@@ -1366,6 +1301,10 @@ function CashierPayment({
   const settledRef = useRef(false);
 
   useEffect(() => {
+    if (!payment.qrString) {
+      setQr("");
+      return;
+    }
     QRCode.toDataURL(payment.qrString, { width: 320, margin: 2, color: { dark: "#18181B", light: "#ffffff" } })
       .then(setQr)
       .catch(() => setQr(""));
@@ -1448,6 +1387,8 @@ function CashierPayment({
             </p>
           ) : state === "failed" ? (
             <p className="flex h-56 w-56 items-center justify-center px-6 text-center text-[13px] text-neutral-500">Pembayaran gagal. Coba lagi.</p>
+          ) : payment.qrImageUrl ? (
+            <img src={payment.qrImageUrl} alt="QRIS pembayaran" className="h-56 w-56 rounded-2xl" />
           ) : qr ? (
             <img src={qr} alt="QRIS pembayaran" className="h-56 w-56 rounded-2xl" />
           ) : (
@@ -1634,7 +1575,9 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
 /* ================= Helpers ================= */
 
 function jakartaToday() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function formatLongDate(date: string) {

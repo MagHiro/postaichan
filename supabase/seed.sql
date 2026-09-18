@@ -81,6 +81,10 @@ cross join (values
 where c.name = p.category_name
   and not exists (select 1 from public.products existing where existing.name = p.name and existing.category_id = c.id);
 
+update public.products
+set popular = true
+where name in ('Sate Taichan 10 Tusuk', 'Rice Bowl Taichan');
+
 insert into public.product_variant_groups (product_id, group_id)
 select p.id, vg.id
 from public.products p

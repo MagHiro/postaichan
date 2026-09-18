@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { authorizeStaff } from "@/lib/auth/authorize-staff";
 import { getDailyReport } from "@/lib/reports";
 import { formatIDR } from "@/lib/format";
+import { noStoreHeaders } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
@@ -41,13 +42,14 @@ function makePdf(report: Awaited<ReturnType<typeof getDailyReport>>) {
 
 export async function GET(request: Request) {
   const auth = await authorizeStaff();
-  if (!auth.allowed) return NextResponse.json({ error: "Staff authorization required." }, { status: 401 });
+  if (!auth.allowed) return NextResponse.json({ error: "Staff authorization required." }, { status: 401, headers: noStoreHeaders() });
   try {
     const date = new URL(request.url).searchParams.get("date") ?? undefined;
     const pdf = await makePdf(await getDailyReport(createAdminClient(), date));
-    return new Response(new Uint8Array(pdf), { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="tempat-taichan-daily-${date ?? "report"}.pdf"`, "cache-control": "no-store" } });
+    return new Response(new Uint8Array(pdf), { headers: { ...noStoreHeaders(), "content-type": "application/pdf", "content-disposition": `attachment; filename="tempat-taichan-daily-${date ?? "report"}.pdf"` } });
   } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_REPORT_DATE") return NextResponse.json({ error: "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });
     console.error("daily_pdf_failed", error);
-    return NextResponse.json({ error: "Daily PDF could not be generated." }, { status: 503 });
+    return NextResponse.json({ error: "Daily PDF could not be generated." }, { status: 503, headers: noStoreHeaders() });
   }
 }

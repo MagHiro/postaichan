@@ -1,5 +1,6 @@
 import "server-only";
 import type { CreatePaymentInput, CreatePaymentResult, PaymentProvider } from "./provider";
+import { providerQrImageUrl } from "./qr";
 
 type MidtransConfig = { serverKey: string; baseUrl: string };
 
@@ -24,17 +25,28 @@ export class MidtransProvider implements PaymentProvider {
         qris: { acquirer: "gopay" },
       }),
       cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) throw new Error("Payment provider unavailable.");
-    const data = (await response.json()) as { transaction_id?: string; qr_string?: string; status_code?: string | number };
+    const data = (await response.json()) as { transaction_id?: string; qr_string?: string; status_code?: string | number; actions?: Array<{ name?: string; url?: string }> };
     // Midtrans returns status_code as "201" (string) in sandbox and 201
     // (number) in some production responses — compare loosely.
-    if (String(data.status_code) !== "201" || !data.qr_string) throw new Error("Payment provider rejected the transaction.");
-    return { providerTransactionId: data.transaction_id, qrString: data.qr_string, providerOrderId: input.providerOrderId, expiresAt: input.expiresAt };
+    const qrImageUrl = data.actions?.find((action) => action.name === "generate-qr-code-v2")?.url ?? data.actions?.find((action) => action.name === "generate-qr-code")?.url;
+    let safeQrImageUrl: string | undefined;
+    if (qrImageUrl) {
+      try {
+        const parsed = new URL(qrImageUrl);
+        if (providerQrImageUrl(parsed.toString())) safeQrImageUrl = parsed.toString();
+      } catch {
+        safeQrImageUrl = undefined;
+      }
+    }
+    if (String(data.status_code) !== "201" || (!data.qr_string && !safeQrImageUrl)) throw new Error("Payment provider returned no QR data.");
+    return { providerTransactionId: data.transaction_id, qrString: data.qr_string, qrImageUrl: safeQrImageUrl, providerOrderId: input.providerOrderId, expiresAt: input.expiresAt };
   }
 
   async getPaymentStatus(providerOrderId: string) {
-    const response = await fetch(`${this.config.baseUrl}/v2/${encodeURIComponent(providerOrderId)}/status`, { headers: { authorization: `Basic ${Buffer.from(`${this.config.serverKey}:`).toString("base64")}` }, cache: "no-store" });
+    const response = await fetch(`${this.config.baseUrl}/v2/${encodeURIComponent(providerOrderId)}/status`, { headers: { authorization: `Basic ${Buffer.from(`${this.config.serverKey}:`).toString("base64")}` }, cache: "no-store", signal: AbortSignal.timeout(10_000) });
     if (!response.ok) throw new Error("Payment provider unavailable.");
     const data = await response.json() as { transaction_status?: string };
     if (["settlement", "capture"].includes(data.transaction_status ?? "")) return "settled" as const;
@@ -43,6 +55,25 @@ export class MidtransProvider implements PaymentProvider {
     return "pending" as const;
   }
 
-  async expirePayment(providerOrderId: string) { void providerOrderId; }
-  async refundPayment(providerOrderId: string, amountIdr: number) { void providerOrderId; void amountIdr; }
+  async expirePayment(providerOrderId: string) {
+    const response = await fetch(`${this.config.baseUrl}/v2/${encodeURIComponent(providerOrderId)}/expire`, {
+      method: "POST",
+      headers: { authorization: `Basic ${Buffer.from(`${this.config.serverKey}:`).toString("base64")}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok && response.status !== 412 && response.status !== 404) throw new Error("Payment expiry was rejected by provider.");
+  }
+
+  async refundPayment(providerOrderId: string, amountIdr: number, refundKey?: string) {
+    if (!Number.isSafeInteger(amountIdr) || amountIdr <= 0) throw new Error("Refund amount is invalid.");
+    const response = await fetch(`${this.config.baseUrl}/v2/${encodeURIComponent(providerOrderId)}/refund`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Basic ${Buffer.from(`${this.config.serverKey}:`).toString("base64")}` },
+      body: JSON.stringify({ refund_key: refundKey ?? `refund-${providerOrderId}-${amountIdr}`, amount: amountIdr }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new Error("Payment refund was rejected by provider.");
+  }
 }

@@ -31,8 +31,13 @@ export function PaymentView({
     "Menunggu pembayaran terverifikasi",
   );
   const paidRef = useRef(false);
+  const checkingRef = useRef(false);
 
   useEffect(() => {
+    if (!payment.qrString) {
+      setQrDataUrl("");
+      return;
+    }
     QRCode.toDataURL(payment.qrString, { width: 640, margin: 2 })
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(""));
@@ -48,7 +53,8 @@ export function PaymentView({
   const isExpired = expired || remainingMs <= 0;
 
   const checkPayment = useCallback(async () => {
-    if (paidRef.current) return;
+    if (paidRef.current || checkingRef.current) return;
+    checkingRef.current = true;
     setChecking(true);
     try {
       const response = await fetch(
@@ -76,7 +82,10 @@ export function PaymentView({
           "Belum terdeteksi. Kalau sudah bayar, cek lagi.",
         );
       }
+    } catch {
+      setStatusMessage("Koneksi sedang bermasalah. Kami akan mencoba lagi tanpa mengubah status pembayaran.");
     } finally {
+      checkingRef.current = false;
       setChecking(false);
     }
   }, [payment.orderId, sessionToken, onPaid]);
@@ -112,7 +121,9 @@ export function PaymentView({
               : `Berlaku ${formatCountdown(remainingMs)}`}
           </p>
           <div className="shadow-soft mx-auto mt-8 w-fit rounded-3xl border border-neutral-100 bg-white p-4">
-            {qrDataUrl && !isExpired ? (
+            {payment.qrImageUrl && !isExpired ? (
+              <img src={payment.qrImageUrl} alt="QRIS payment code" className="h-[220px] w-[220px] rounded-2xl bg-white" />
+            ) : qrDataUrl && !isExpired ? (
               <img
                 src={qrDataUrl}
                 alt="QRIS payment code"

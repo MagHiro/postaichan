@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
+import { TableManager } from "@/components/table-manager";
 
-export default function TablesPage() {
-  redirect("/pos");
-}
+export default function TablesPage() { return <TableManager />; }

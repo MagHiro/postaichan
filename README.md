@@ -14,15 +14,17 @@ Operational POS and QR self-ordering foundation for one Tempat Taichan branch.
   - live operational overview from Supabase
   - orders needing attention with server-persisted status progression
   - live order detail drawer with item/modifier snapshots
-  - cashier POS that creates a server-side QRIS attempt
+  - cashier POS with server-side QRIS and cash settlement when enabled
   - menu CRUD and availability toggles
+  - admin-only table management and QR rotation
   - Jakarta daily report with downloadable PDF close report
-- Supabase migration in `supabase/migrations/001_initial.sql`
+- Supabase migrations in `supabase/migrations/001_initial.sql` through `003_production_domain.sql`
   - integer IDR money fields
   - explicit order/payment enums
   - immutable order and modifier snapshots
   - idempotency key and unique provider references
-  - customer session boundaries separate from table identity
+  - opaque customer/table tokens, token versioning, and durable rate-limit buckets
+  - transactional checkout, payment-attempt, refund, and order-transition RPCs
   - audit and adjustment tables
   - role-aware RLS policies
 - Server-only seams for checkout and Midtrans webhooks
@@ -47,27 +49,37 @@ cp .env.example .env.local
 npm run dev
 ```
 
-The visual demo works without Supabase credentials. Checkout API calls require a configured Supabase project and Midtrans server key.
+The application requires a configured Supabase project for menu, sessions, staff, and orders. QRIS checkout additionally requires a Midtrans server key; local development can use the explicit `ALLOW_DEV_STAFF_BYPASS=true` flag only with `NODE_ENV=development`.
 
 ## Domain decisions
 
-- `/order` is the general guest entry point; a production table QR should resolve to a signed/opaque table token and create a separate customer session.
-- Browser prices are never accepted by checkout. The server reloads menu rows and calculates totals from current authoritative data.
-- A settled payment changes an order to `paid` only through verified provider notification. Duplicate webhook events are ignored by `payment_events.provider_event_key`.
+- `/order` is the general guest entry point. Table URLs are opaque, hashed server-side, versioned, and invalidated on rotation or deactivation.
+- Browser prices and modifier names are never accepted by checkout. The server reloads menu rows, modifier relationships and settings through the transactional `create_checkout_intent` RPC and calculates totals from current authoritative data.
+- A settled payment changes an order to `paid` only through the monotonic `apply_payment_transition` RPC, used by webhooks and provider polling. Duplicate and out-of-order notifications are harmless.
 - Historical order lines keep product/modifier names, selling prices and estimated costs so menu edits never rewrite reporting history.
 - Payment attempts are separate records. Expired QRIS attempts are never overwritten by a retry.
+- A guest session has at most one live QR attempt; a retry resumes it or creates a distinct attempt only after expiry/failure.
+- Operational transitions are `awaiting_payment → paid → accepted → processing → ready → completed`; settled orders require the refund path for money to leave reports.
 - Estimated gross profit is revenue less snapshot COGS and known payment fees; it is not accounting net profit.
 
 ## Production completion checklist
 
 Before treating this as the restaurant's authoritative POS:
 
-1. Apply the Supabase migration and seed the real categories, menu, tables and staff profiles.
-2. Add the server-side session/token issuance route for general and table QR flows.
-3. Move modifier validation and order/payment creation into a Postgres transaction or RPC so line snapshots and payment intent creation cannot partially commit.
-4. Wire the Midtrans QR string to the provider's current QRIS response contract and verify merchant credentials in sandbox.
-5. Add authenticated staff sign-in, middleware, rate limiting and a report/export route.
-6. Add database backups and a tested restore procedure before launch.
+1. Apply migrations `001_initial.sql`, `002_relax_dine_in.sql`, and `003_production_domain.sql`; seed real categories, menu, tables and pre-provisioned staff profiles.
+2. Use `/admin/tables` as an administrator to rotate every seeded table QR and print/copy each opaque ordering URL. The seeded hashes are intentionally not reversible.
+3. Configure Midtrans webhook delivery to `/api/webhooks/midtrans`, verify sandbox settlement, and confirm the merchant's refund permissions before enabling refunds operationally.
+4. Set production-only secrets (`SUPABASE_SECRET_KEY`, `MIDTRANS_SERVER_KEY`) in the deployment secret store. Keep `ALLOW_DEV_STAFF_BYPASS` unset or `false`.
+5. Configure database backups, monitoring, and a tested restore procedure before launch.
+
+## Verification
+
+```bash
+npm run typecheck
+npm run test
+npm run lint
+npm run build
+```
 
 ## Project shape
 
@@ -78,13 +90,12 @@ app/
   order/page.tsx
   pos/page.tsx
 components/
-  order-experience.tsx
-  pos-workspace.tsx
+  order/
+  pos-workspace-live.tsx
+  table-manager.tsx
 lib/
-  data.ts / format.ts / schemas.ts / types.ts
+  domain/ / security/ / format.ts / schemas.ts / types.ts
   payments/provider.ts / payments/midtrans.ts
   supabase/admin.ts / supabase/server.ts
-supabase/migrations/001_initial.sql
+supabase/migrations/001_initial.sql … 003_production_domain.sql
 ```
-
-Build verification: `npm run typecheck` and `npm run build` pass.

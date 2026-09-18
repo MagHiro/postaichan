@@ -32,7 +32,7 @@ export function CartSheet({
                 {item.product.name}
               </p>
               <p className="mt-0.5 truncate text-xs text-neutral-400">
-                {[item.variant, ...item.addons].filter(Boolean).join(" · ") ||
+                {[...item.variantLabels, ...item.addonLabels].filter(Boolean).join(" · ") ||
                   "Original"}
                 {item.note ? ` · “${item.note}”` : ""}
               </p>

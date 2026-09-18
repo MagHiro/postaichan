@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { authorizeStaff } from "@/lib/auth/authorize-staff";
+import { uuidParamSchema } from "@/lib/schemas";
+import { noStoreHeaders } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authorizeStaff();
-  if (!auth.allowed) return NextResponse.json({ error: "Staff authorization required." }, { status: 401 });
+  if (!auth.allowed) return NextResponse.json({ error: "Staff authorization required." }, { status: 401, headers: noStoreHeaders() });
   const { id } = await params;
+  if (!uuidParamSchema.safeParse(id).success) return NextResponse.json({ error: "Order not found." }, { status: 400, headers: noStoreHeaders() });
   try {
     const supabase = createAdminClient();
     const [{ data: order, error: orderError }, { data: items, error: itemError }] = await Promise.all([
@@ -16,9 +19,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     ]);
     if (orderError) throw orderError;
     if (itemError) throw itemError;
-    return NextResponse.json({ order, items: items ?? [] });
+    return NextResponse.json({ order, items: items ?? [] }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("pos_order_detail_failed", error);
-    return NextResponse.json({ error: "Order detail could not be loaded." }, { status: 503 });
+    return NextResponse.json({ error: "Order detail could not be loaded." }, { status: 503, headers: noStoreHeaders() });
   }
 }

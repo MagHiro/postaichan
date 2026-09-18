@@ -2,13 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Home, ReceiptText, Search, X } from "lucide-react";
-import { products } from "@/lib/data";
 import { formatCompactIDR } from "@/lib/format";
 import type { CartItem, Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
-  ORDER_CATEGORIES,
-  formatTableShort,
   matchesOrderCategory,
   type OrderCategory,
   type OrderStep,
@@ -22,14 +19,13 @@ import { SuccessView } from "./SuccessView";
 import { CartSheet } from "./CartSheet";
 import { EmptyState, SkeletonCard } from "./ui";
 
-const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
-
 export function OrderExperience({ tableToken }: { tableToken?: string }) {
-  // Start empty so the cart can never capture the local fallback IDs
-  // ("taichan-10", …) which the checkout API rejects (it requires UUIDs).
-  // The fallback list is only used when /api/menu is unreachable (offline demo).
+  // The customer surface renders only the server catalog. Offline/demo
+  // products are never sent to checkout because they have no authoritative IDs.
   const [menuProducts, setMenuProducts] = useState<Product[]>([]);
   const [menuLoading, setMenuLoading] = useState(true);
+  const [menuError, setMenuError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
   const [category, setCategory] = useState<OrderCategory>("Semua Menu");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -43,21 +39,23 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
   const [session, setSession] = useState<{
     token: string;
     orderType: "dine_in" | "takeaway";
+    tableLabel: string | null;
   } | null>(null);
   const [payment, setPayment] = useState<PaymentAttempt | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [variant, setVariant] = useState("Medium");
-  const [rice, setRice] = useState("Rice");
-  const [addons, setAddons] = useState<string[]>([]);
+  const [variantOptionIds, setVariantOptionIds] = useState<string[]>([]);
+  const [addonOptionIds, setAddonOptionIds] = useState<string[]>([]);
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [logoFailed, setLogoFailed] = useState(false);
 
-  const shortTable = useMemo(() => formatTableShort(tableToken), [tableToken]);
-  const tableLabel = shortTable ?? "Dine in";
+  const tableLabel = session?.tableLabel ?? "Dine in";
   const toastTimer = useRef<number | null>(null);
+  const checkoutIntentKey = useRef<string | null>(null);
+
+  function resetCheckoutIntent() { checkoutIntentKey.current = null; }
 
   useEffect(() => {
     let active = true;
@@ -65,15 +63,13 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
         if (!active) return;
-        // Server menu carries real UUIDs required by /api/checkout.
-        // Fall back to the bundled demo list only when the server menu
-        // is unreachable/empty (offline demo) — those items cannot be
-        // checked out and are blocked with a clear message in beginCheckout.
-        if (payload?.products?.length) setMenuProducts(payload.products);
-        else setMenuProducts(products);
+        if (payload?.products?.length) {
+          setMenuProducts(payload.products);
+          setCategories(["Semua Menu", ...(payload.categories ?? []).map((item: { name: string }) => item.name), ...(payload.products.some((item: Product) => item.popular) ? ["Paket Hemat"] : [])]);
+        } else setMenuError("Menu belum tersedia.");
       })
       .catch(() => {
-        if (active) setMenuProducts(products);
+        if (active) setMenuError("Menu belum dapat dimuat. Coba lagi.");
       })
       .finally(() => {
         if (active) setMenuLoading(false);
@@ -90,6 +86,16 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
   useEffect(() => {
     const want = orderType === "Dine in" ? "dine_in" : "takeaway";
     let active = true;
+    const stored = window.sessionStorage.getItem(`tt-session-${want}`);
+    if (stored) {
+      try {
+        const value = JSON.parse(stored) as { token: string; tableToken?: string; tableLabel?: string | null; expiresAt?: string };
+        if (value.tableToken === tableToken && (!value.expiresAt || new Date(value.expiresAt).getTime() > Date.now())) {
+          setSession({ token: value.token, orderType: want, tableLabel: value.tableLabel ?? null });
+          return () => { active = false; };
+        }
+      } catch { window.sessionStorage.removeItem(`tt-session-${want}`); }
+    }
     setSession(null);
     fetch("/api/customer/session", {
       method: "POST",
@@ -98,8 +104,10 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
-        if (active && payload?.sessionToken)
-          setSession({ token: payload.sessionToken, orderType: want });
+        if (active && payload?.sessionToken) {
+          setSession({ token: payload.sessionToken, orderType: want, tableLabel: payload.tableLabel ?? null });
+          window.sessionStorage.setItem(`tt-session-${want}`, JSON.stringify({ token: payload.sessionToken, tableToken, tableLabel: payload.tableLabel ?? null, expiresAt: payload.expiresAt }));
+        }
       })
       .catch(() => {
         if (active) setSession(null);
@@ -108,6 +116,31 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
       active = false;
     };
   }, [orderType, tableToken]);
+
+  useEffect(() => {
+    if (!session) return;
+    const activePayment = window.sessionStorage.getItem("tt-active-payment");
+    if (!activePayment) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const reference = JSON.parse(activePayment) as { orderId?: string; idempotencyKey?: string };
+        if (!reference.orderId) return;
+        if (reference.idempotencyKey) checkoutIntentKey.current = reference.idempotencyKey;
+        const response = await fetch(`/api/customer/payments/${reference.orderId}`, { headers: { "x-order-access-token": session.token }, cache: "no-store" });
+        const payload = await response.json().catch(() => null);
+        if (cancelled || !response.ok || !payload) return;
+        if (payload.paymentStatus === "pending" && (payload.qrString || payload.qrImageUrl)) {
+          setPayment({ orderId: reference.orderId!, orderNumber: payload.orderNumber, amountIdr: payload.amountIdr, qrString: payload.qrString ?? undefined, qrImageUrl: payload.qrImageUrl ?? undefined, expiresAt: payload.expiresAt });
+          setStep("payment");
+        } else if (payload.paymentStatus === "settled") {
+          setPayment({ orderId: reference.orderId!, orderNumber: payload.orderNumber, amountIdr: payload.amountIdr, expiresAt: payload.expiresAt });
+          setStep("success");
+        }
+      } catch { /* A new checkout can recover if the stored payment is gone. */ }
+    })();
+    return () => { cancelled = true; };
+  }, [session]);
 
   useEffect(() => {
     if (!toast) return;
@@ -144,9 +177,8 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
   function openProduct(product: Product) {
     if (!product.available) return;
     setSelectedProduct(product);
-    setVariant("Medium");
-    setRice("Rice");
-    setAddons([]);
+    setVariantOptionIds([]);
+    setAddonOptionIds([]);
     setQuantity(1);
     setNote("");
     setStep("configure");
@@ -154,22 +186,18 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
 
   function addToCart() {
     if (!selectedProduct) return;
-    const modifierPrice =
-      addons.length * 5000 + (rice === "Lontong" ? 2000 : 0);
-    const key = `${selectedProduct.id}-${variant}-${rice}-${addons.join("-")}-${note.trim()}`;
+    const selectedOptions = (selectedProduct.modifierGroups ?? []).flatMap((group) => group.options.filter((option) => (group.type === "variant" ? variantOptionIds : addonOptionIds).includes(option.id)));
+    const key = `${selectedProduct.id}-${[...variantOptionIds].sort().join("-")}-${[...addonOptionIds].sort().join("-")}-${note.trim()}`;
     const nextItem: CartItem = {
       key,
       product: selectedProduct,
       quantity,
-      variant:
-        selectedProduct.options === "spice"
-          ? variant
-          : selectedProduct.options === "rice"
-            ? rice
-            : undefined,
-      addons,
+      variantOptionIds,
+      addonOptionIds,
+      variantLabels: selectedOptions.filter((option) => (selectedProduct.modifierGroups ?? []).find((group) => group.options.some((candidate) => candidate.id === option.id))?.type === "variant").map((option) => option.name),
+      addonLabels: selectedOptions.filter((option) => (selectedProduct.modifierGroups ?? []).find((group) => group.options.some((candidate) => candidate.id === option.id))?.type === "addon").map((option) => option.name),
       note: note.trim() || undefined,
-      unitPrice: selectedProduct.price + modifierPrice,
+      unitPrice: selectedProduct.price + selectedOptions.reduce((sum, option) => sum + option.priceAdjustmentIdr, 0),
     };
     setCart((current) => {
       const existing = current.find((item) => item.key === key);
@@ -181,13 +209,14 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
         );
       return [...current, nextItem];
     });
+    resetCheckoutIntent();
     setStep("menu");
     showToast(`${selectedProduct.name} ditambahkan`);
   }
 
   function quickAdd(product: Product) {
     if (!product.available) return;
-    if (product.options && product.options !== "none")
+    if ((product.modifierGroups ?? []).length > 0)
       return openProduct(product);
     setCart((current) => {
       const existing = current.find((item) => item.key === product.id);
@@ -203,7 +232,10 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
           key: product.id,
           product,
           quantity: 1,
-          addons: [],
+          variantOptionIds: [],
+          addonOptionIds: [],
+          variantLabels: [],
+          addonLabels: [],
           unitPrice: product.price,
         },
       ];
@@ -212,6 +244,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
   }
 
   function updateQuantity(key: string, delta: number) {
+    resetCheckoutIntent();
     setCart((current) =>
       current.flatMap((item) => {
         if (item.key !== key) return [item];
@@ -223,21 +256,6 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
 
   async function beginCheckout() {
     if (cart.length === 0) return;
-    // Demo fallback items use non-UUID ids ("taichan-10", …) which the
-    // server rejects. Block early with a clear message instead of the
-    // generic validation error, and refresh from the server menu.
-    if (cart.some((item) => !UUID_RE.test(item.product.id))) {
-      setCheckoutError(
-        "Menu belum termuat dari server. Tarik untuk memuat ulang lalu pilih menu lagi.",
-      );
-      try {
-        const menuResponse = await fetch("/api/menu", { cache: "no-store" });
-        const menuPayload = menuResponse.ok ? await menuResponse.json() : null;
-        if (menuPayload?.products?.length)
-          setMenuProducts(menuPayload.products);
-      } catch {}
-      return;
-    }
     setCheckoutLoading(true);
     setCheckoutError(null);
     try {
@@ -259,21 +277,22 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
             sessionPayload.error ?? "We couldn't start your order.",
           );
         activeSessionToken = sessionPayload.sessionToken as string;
-        setSession({ token: activeSessionToken as string, orderType: want });
+          setSession({ token: activeSessionToken as string, orderType: want, tableLabel: session?.tableLabel ?? null });
       }
+      if (!checkoutIntentKey.current) checkoutIntentKey.current = crypto.randomUUID();
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: checkoutIntentKey.current,
           sessionToken: activeSessionToken,
           orderType: orderType === "Dine in" ? "dine_in" : "takeaway",
           tableToken,
           items: cart.map((item) => ({
             productId: item.product.id,
             quantity: item.quantity,
-            variantNames: item.variant ? [item.variant] : [],
-            addonNames: item.addons,
+            variantOptionIds: item.variantOptionIds,
+            addonOptionIds: item.addonOptionIds,
             note: item.note,
           })),
         }),
@@ -281,14 +300,17 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
       const payload = await response.json();
       if (!response.ok)
         throw new Error(payload.error ?? "We couldn't start payment.");
+      if (!payload.qrString && !payload.qrImageUrl) throw new Error("Pembayaran belum siap. Coba lagi dengan tombol yang sama.");
       setPayment({
         orderId: payload.orderId,
         orderNumber: payload.orderNumber,
         amountIdr: payload.totalIdr,
-        qrString: payload.qrString,
+        qrString: payload.qrString ?? undefined,
+        qrImageUrl: payload.qrImageUrl ?? undefined,
         expiresAt: payload.expiresAt,
       });
       setStep("payment");
+      window.sessionStorage.setItem("tt-active-payment", JSON.stringify({ orderId: payload.orderId, idempotencyKey: checkoutIntentKey.current }));
     } catch (error) {
       setCheckoutError(
         error instanceof Error ? error.message : "We couldn't start payment.",
@@ -305,15 +327,16 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
         sessionToken={session.token}
         orderType={orderType}
         tableLabel={tableLabel}
-        // Back keeps the cart intact and drops the stale QR: returning and
-        // checking out again creates a NEW order (fresh UUID), so no
-        // double-charge against the abandoned attempt.
+        // Keep the intent key with the cart. Returning to checkout resumes the
+        // same server-side payment intent instead of creating a second order.
         onBack={() => {
           setPayment(null);
           setStep("menu");
           setActiveTab("orders");
         }}
         onPaid={() => {
+          window.sessionStorage.removeItem("tt-active-payment");
+          resetCheckoutIntent();
           setPlacedOrders((current) => [
             {
               orderNumber: payment.orderNumber,
@@ -350,12 +373,14 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
         amount={payment?.amountIdr ?? subtotal}
         orderNumber={payment?.orderNumber ?? "—"}
         onHome={() => {
+          window.sessionStorage.removeItem("tt-active-payment");
           setCart([]);
           setPayment(null);
           setStep("menu");
           setActiveTab("home");
         }}
         onViewOrders={() => {
+          window.sessionStorage.removeItem("tt-active-payment");
           setCart([]);
           setPayment(null);
           setStep("menu");
@@ -374,7 +399,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
           <div className="px-5 pb-3 pt-4">
             <div className="relative flex items-center justify-center">
               {logoFailed ? (
-                <p className="text-[15px] font-semibold tracking-tight">
+                <p className="text-[15px] font-medium tracking-tight">
                   Bara &amp; Burn
                 </p>
               ) : (
@@ -385,15 +410,15 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                   className="h-11 w-auto max-w-[240px] object-contain"
                 />
               )}
-              {dineIn && shortTable && (
+              {dineIn && session?.tableLabel && (
                 <p className="absolute right-0 text-xs text-neutral-400">
-                  {shortTable}
+                  {session.tableLabel}
                 </p>
               )}
             </div>
             <div className="mt-3 flex rounded-full bg-neutral-100 p-1">
               <button
-                onClick={() => setOrderType("Dine in")}
+                onClick={() => { resetCheckoutIntent(); setOrderType("Dine in"); }}
                 className={cn(
                   "flex-1 rounded-full py-1.5 text-center text-[13px] transition",
                   dineIn
@@ -404,7 +429,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                 Dine in
               </button>
               <button
-                onClick={() => setOrderType("Takeaway")}
+                onClick={() => { resetCheckoutIntent(); setOrderType("Takeaway"); }}
                 className={cn(
                   "flex-1 rounded-full py-1.5 text-center text-[13px] transition",
                   !dineIn
@@ -453,7 +478,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
             </div>
 
             <div className="no-scrollbar -mx-5 mt-5 flex gap-2 overflow-x-auto px-5">
-              {ORDER_CATEGORIES.map((item) => (
+              {categories.map((item) => (
                 <button
                   key={item}
                   onClick={() => setCategory(item)}
@@ -482,10 +507,10 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                   <SkeletonCard key={i} />
                 ))}
               </div>
-            ) : filteredProducts.length === 0 ? (
+            ) : menuError || filteredProducts.length === 0 ? (
               <EmptyState
-                title="Tidak ketemu"
-                hint="Coba kata lain atau ganti kategori."
+                title={menuError ?? "Tidak ketemu"}
+                hint={menuError ? "Coba muat ulang halaman." : "Coba kata lain atau ganti kategori."}
               />
             ) : (
               <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-7">
@@ -638,12 +663,10 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
           product={selectedProduct}
           quantity={quantity}
           setQuantity={setQuantity}
-          variant={variant}
-          setVariant={setVariant}
-          rice={rice}
-          setRice={setRice}
-          addons={addons}
-          setAddons={setAddons}
+          variantOptionIds={variantOptionIds}
+          setVariantOptionIds={setVariantOptionIds}
+          addonOptionIds={addonOptionIds}
+          setAddonOptionIds={setAddonOptionIds}
           note={note}
           setNote={setNote}
           onClose={() => setStep("menu")}

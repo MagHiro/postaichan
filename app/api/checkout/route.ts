@@ -1,72 +1,79 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkoutSchema } from "@/lib/schemas";
 import { MidtransProvider } from "@/lib/payments/midtrans";
+import { presentQrMaterial } from "@/lib/payments/qr";
+import { hashOpaqueToken } from "@/lib/domain/tokens";
+import { consumeRateLimit, noStoreHeaders } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
-function hashToken(token: string) { return createHash("sha256").update(token).digest("hex"); }
+function fingerprint(input: unknown) {
+  return createHash("sha256").update(JSON.stringify(input)).digest("hex");
+}
+
+function rpcErrorStatus(message: string) {
+  if (message === "SESSION_EXPIRED") return 401;
+  if (["MENU_CONFLICT", "INVALID_MODIFIERS", "INVALID_QUANTITY", "DUPLICATE_MODIFIER", "MONEY_LIMIT", "EMPTY_OR_LARGE_CART", "INVALID_NOTE"].includes(message)) return 409;
+  if (["QRIS_DISABLED", "CASH_DISABLED", "CASH_NOT_GUEST", "ACTIVE_PAYMENT_EXISTS", "TAKEAWAY_TABLE_CONFLICT", "ORDER_TYPE_CONFLICT", "TABLE_NOT_AVAILABLE", "IDEMPOTENCY_KEY_REUSED"].includes(message)) return 409;
+  return 503;
+}
 
 export async function POST(request: Request) {
   const parsed = checkoutSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    console.error("checkout_validation_failed", parsed.error.issues);
-    return NextResponse.json({ error: "Pesanan belum lengkap. Periksa kembali item dan pilihanmu." }, { status: 400 });
-  }
+  if (!parsed.success) return NextResponse.json({ error: "Pesanan belum lengkap. Periksa kembali item dan pilihanmu." }, { status: 400, headers: noStoreHeaders() });
   const input = parsed.data;
-
   try {
+    const sessionHash = hashOpaqueToken(input.sessionToken);
+    if (!(await consumeRateLimit(request, "checkout", 8, 60, sessionHash.slice(0, 24)))) {
+      return NextResponse.json({ error: "Terlalu banyak percobaan. Coba lagi sebentar." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "60" } });
+    }
     const supabase = createAdminClient();
-    const { data: existing } = await supabase.from("orders").select("id, order_number, total_idr, status").eq("idempotency_key", input.idempotencyKey).maybeSingle();
-    if (existing) return NextResponse.json({ orderId: existing.id, orderNumber: existing.order_number, totalIdr: existing.total_idr, status: existing.status, replayed: true });
-
-    const productIds = input.items.map((item) => item.productId);
-    const { data: session, error: sessionError } = await supabase.from("customer_sessions").select("id, order_type, table_id, expires_at").eq("access_token_hash", hashToken(input.sessionToken)).gt("expires_at", new Date().toISOString()).maybeSingle();
-    if (sessionError || !session || session.order_type !== input.orderType) return NextResponse.json({ error: "Sesi order sudah tidak berlaku. Scan QR lagi untuk melanjutkan." }, { status: 401 });
-    const { data: menu, error: menuError } = await supabase.from("products").select("id, name, price_idr, estimated_cost_idr, available, active").in("id", productIds);
-    if (menuError) throw menuError;
-    const byId = new Map((menu ?? []).map((product) => [product.id, product]));
-    for (const item of input.items) {
-      const product = byId.get(item.productId);
-      if (!product || !product.active || !product.available) return NextResponse.json({ error: `${product?.name ?? "Salah satu menu"} sudah tidak tersedia. Silakan perbarui pesananmu.` }, { status: 409 });
+    const { data, error } = await supabase.rpc("create_checkout_intent", {
+      p_idempotency_key: input.idempotencyKey,
+      p_idempotency_fingerprint: fingerprint({ orderType: input.orderType, items: input.items }),
+      p_session_hash: sessionHash,
+      p_order_type: input.orderType,
+      p_table_id: null,
+      p_actor_id: null,
+      p_payment_method: "qris",
+      p_items: input.items,
+    });
+    if (error) {
+      const message = String(error.message || "").split(":")[0];
+      return NextResponse.json({ error: message === "MENU_CONFLICT" ? "Menu berubah. Periksa kembali keranjangmu." : message === "QRIS_DISABLED" ? "Pembayaran QRIS sedang tidak tersedia." : message === "ACTIVE_PAYMENT_EXISTS" ? "Masih ada pembayaran aktif. Lanjutkan pembayaran sebelumnya atau tunggu sampai kedaluwarsa." : "Kami belum bisa membuat pembayaran." }, { status: rpcErrorStatus(message), headers: noStoreHeaders() });
     }
+    const intent = Array.isArray(data) ? data[0] : data;
+    if (!intent) return NextResponse.json({ error: "Pembayaran belum dapat dibuat." }, { status: 503, headers: noStoreHeaders() });
 
-    const variantNames = [...new Set(input.items.flatMap((item) => item.variantNames))];
-    const addonNames = [...new Set(input.items.flatMap((item) => item.addonNames))];
-    const [{ data: variants, error: variantsError }, { data: addons, error: addonsError }] = await Promise.all([
-      variantNames.length ? supabase.from("variant_options").select("name, price_adjustment_idr, cost_adjustment_idr").in("name", variantNames).eq("available", true) : Promise.resolve({ data: [], error: null }),
-      addonNames.length ? supabase.from("addon_options").select("name, price_adjustment_idr, cost_adjustment_idr").in("name", addonNames).eq("available", true) : Promise.resolve({ data: [], error: null }),
-    ]);
-    if (variantsError) throw variantsError;
-    if (addonsError) throw addonsError;
-    const variantByName = new Map((variants ?? []).map((option) => [option.name, option]));
-    const addonByName = new Map((addons ?? []).map((option) => [option.name, option]));
-    for (const item of input.items) {
-      if (item.variantNames.some((name) => !variantByName.has(name)) || item.addonNames.some((name) => !addonByName.has(name))) return NextResponse.json({ error: "One of the selected options is no longer available. Please review your cart." }, { status: 409 });
+    const { data: storedPayment, error: storedPaymentError } = await supabase.from("payments").select("qr_string").eq("id", intent.payment_id).maybeSingle();
+    if (storedPaymentError) throw storedPaymentError;
+    const storedQr = (storedPayment?.qr_string ?? intent.qr_string) as string | null;
+    let { qrString, qrImageUrl } = presentQrMaterial(storedQr);
+    let expiresAt = intent.expires_at as string | null;
+    if (intent.payment_status === "pending" && !qrString && !qrImageUrl) {
+      const { data: claimed, error: claimError } = await supabase.rpc("claim_payment_provider_create", { p_payment_id: intent.payment_id });
+      if (claimError) throw claimError;
+      if (claimed === true) {
+        try {
+          const providerPayment = await new MidtransProvider().createPayment({ providerOrderId: intent.provider_order_id, amountIdr: intent.amount_idr, expiresAt: new Date(intent.expires_at) });
+          const { error: updateError } = await supabase.from("payments").update({ provider_transaction_id: providerPayment.providerTransactionId ?? null, qr_string: providerPayment.qrString ?? providerPayment.qrImageUrl ?? null, expires_at: providerPayment.expiresAt.toISOString(), provider_created_at: new Date().toISOString(), provider_error: null, provider_creation_claimed_at: null }).eq("id", intent.payment_id).eq("status", "pending");
+          if (updateError) throw updateError;
+          qrString = providerPayment.qrString ?? null;
+          qrImageUrl = providerPayment.qrImageUrl ?? null;
+          expiresAt = providerPayment.expiresAt.toISOString();
+        } catch (providerError) {
+          await supabase.rpc("release_payment_provider_create", { p_payment_id: intent.payment_id, p_error: providerError instanceof Error ? providerError.message : "provider_error" });
+          return NextResponse.json({ error: "Pembayaran QRIS belum dapat dibuat. Coba lagi dengan tombol yang sama.", retryable: true, orderId: intent.order_id }, { status: 503, headers: noStoreHeaders() });
+        }
+      } else {
+        return NextResponse.json({ error: "Pembayaran sedang disiapkan. Coba lagi sebentar dengan tombol yang sama.", retryable: true, orderId: intent.order_id }, { status: 503, headers: noStoreHeaders() });
+      }
     }
-    const modifierForItem = (item: typeof input.items[number]) => [...item.variantNames.map((name) => ({ type: "variant", name, price: variantByName.get(name)!.price_adjustment_idr, cost: variantByName.get(name)!.cost_adjustment_idr })), ...item.addonNames.map((name) => ({ type: "addon", name, price: addonByName.get(name)!.price_adjustment_idr, cost: addonByName.get(name)!.cost_adjustment_idr }))];
-    const lines = input.items.map((item) => { const product = byId.get(item.productId)!; const modifiers = modifierForItem(item); const modifierPrice = modifiers.reduce((sum, modifier) => sum + modifier.price, 0); const modifierCost = modifiers.reduce((sum, modifier) => sum + modifier.cost, 0); return { product_id: product.id, product_name_snapshot: product.name, quantity: item.quantity, unit_price_idr: product.price_idr + modifierPrice, unit_cost_snapshot_idr: product.estimated_cost_idr + modifierCost, line_total_idr: (product.price_idr + modifierPrice) * item.quantity, note: item.note ?? null, modifiers }; });
-    const subtotal = lines.reduce((sum, line) => sum + line.line_total_idr, 0);
-    const { data: nextNumber, error: numberError } = await supabase.rpc("next_order_number");
-    if (numberError || !nextNumber) throw numberError ?? new Error("Order number could not be created.");
-    const { data: order, error: orderError } = await supabase.from("orders").insert({ order_number: nextNumber, idempotency_key: input.idempotencyKey, customer_session_id: session.id, table_id: session.table_id, order_type: input.orderType === "dine_in" ? "dine_in" : "takeaway", status: "awaiting_payment", subtotal_idr: subtotal, total_idr: subtotal, estimated_cost_idr: lines.reduce((sum, line) => sum + line.unit_cost_snapshot_idr * line.quantity, 0) }).select("id, order_number, total_idr").single();
-    if (orderError || !order) throw orderError ?? new Error("Order could not be created.");
-    const { error: lineError } = await supabase.from("order_items").insert(lines.map((line) => { const { modifiers: _modifiers, ...snapshot } = line; return { ...snapshot, order_id: order.id }; }));
-    if (lineError) throw lineError;
-    const { data: createdItems } = await supabase.from("order_items").select("id, product_name_snapshot").eq("order_id", order.id).order("created_at", { ascending: true });
-    const modifierRows = lines.flatMap((line, index) => (line.modifiers ?? []).map((modifier) => ({ order_item_id: createdItems?.[index]?.id, modifier_type: modifier.type, modifier_name_snapshot: modifier.name, price_adjustment_idr: modifier.price, cost_adjustment_snapshot_idr: modifier.cost })).filter((row) => row.order_item_id));
-    if (modifierRows.length) { const { error: modifierError } = await supabase.from("order_item_modifiers").insert(modifierRows); if (modifierError) throw modifierError; }
-
-    const paymentOrderId = `${order.order_number}-${randomUUID().slice(0, 8)}`;
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    const provider = new MidtransProvider();
-    const payment = await provider.createPayment({ providerOrderId: paymentOrderId, amountIdr: subtotal, expiresAt });
-    const { error: paymentError } = await supabase.from("payments").insert({ order_id: order.id, provider: "midtrans", method: "qris", status: "pending", amount_idr: subtotal, provider_order_id: payment.providerOrderId, provider_transaction_id: payment.providerTransactionId, qr_string: payment.qrString, expires_at: payment.expiresAt.toISOString() });
-    if (paymentError) throw paymentError;
-    return NextResponse.json({ orderId: order.id, orderNumber: order.order_number, totalIdr: order.total_idr, qrString: payment.qrString, expiresAt: payment.expiresAt.toISOString() }, { status: 201 });
+    return NextResponse.json({ orderId: intent.order_id, orderNumber: intent.order_number, totalIdr: intent.amount_idr, qrString, qrImageUrl, expiresAt, paymentId: intent.payment_id, status: intent.payment_status, replayed: intent.replayed }, { status: intent.replayed ? 200 : 201, headers: noStoreHeaders() });
   } catch (error) {
-    console.error("checkout_failed", error);
-    return NextResponse.json({ error: "Kami belum bisa membuat pembayaran. Coba lagi sebentar." }, { status: 503 });
+    console.error("checkout_failed", error instanceof Error ? error.message : "unknown");
+    return NextResponse.json({ error: "Kami belum bisa membuat pembayaran. Coba lagi sebentar." }, { status: 503, headers: noStoreHeaders() });
   }
 }

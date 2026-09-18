@@ -2,60 +2,41 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { authorizeStaff } from "@/lib/auth/authorize-staff";
 import { MidtransProvider } from "@/lib/payments/midtrans";
+import { presentQrMaterial } from "@/lib/payments/qr";
+import { uuidParamSchema } from "@/lib/schemas";
+import { noStoreHeaders } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
-// Staff polling for cashier QRIS payments. Webhooks are the source of truth,
-// so this reconciles with Midtrans when the row is still pending and the
-// local expiry has passed (webhook delayed or missed), then reports state.
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authorizeStaff();
-  if (!auth.allowed) return NextResponse.json({ error: "Staff authorization required." }, { status: 401 });
+  if (!auth.allowed) return NextResponse.json({ error: "Staff authorization required." }, { status: 401, headers: noStoreHeaders() });
   const { id } = await params;
+  if (!uuidParamSchema.safeParse(id).success) return NextResponse.json({ error: "Order not found." }, { status: 400, headers: noStoreHeaders() });
   try {
     const supabase = createAdminClient();
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .select("id, order_number, status, payments(id, method, provider, status, amount_idr, fee_idr, qr_string, expires_at, provider_order_id, settled_at)")
-      .eq("id", id)
-      .single();
-    if (orderError || !order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
-
-    const payment = Array.isArray(order.payments) ? order.payments[0] : order.payments;
-    if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404 });
-
+    const { data: order, error: orderError } = await supabase.from("orders").select("id, order_number, status, payments(id, method, provider, status, amount_idr, qr_string, expires_at, provider_order_id, settled_at, created_at)").eq("id", id).maybeSingle();
+    if (orderError) throw orderError;
+    if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404, headers: noStoreHeaders() });
+    const payments = Array.isArray(order.payments) ? order.payments : order.payments ? [order.payments] : [];
+    const payment = payments.sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0];
+    if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404, headers: noStoreHeaders() });
     let status = payment.status as string;
-    // Reconcile once: if Midtrans says settled, persist it so the order
-    // flips to paid even when the webhook never arrived.
     if (status === "pending" && payment.provider === "midtrans" && payment.provider_order_id) {
       try {
         const providerStatus = await new MidtransProvider().getPaymentStatus(payment.provider_order_id);
-        if (providerStatus === "settled") {
-          status = "settled";
-          const now = new Date().toISOString();
-          await supabase.from("payments").update({ status: "settled", last_provider_status: "settlement", settled_at: now }).eq("id", payment.id);
-          await supabase.from("orders").update({ status: "paid" }).eq("id", order.id).in("status", ["awaiting_payment", "draft", "expired"]);
-        } else if (providerStatus === "expired" || providerStatus === "failed") {
-          status = providerStatus;
-          await supabase.from("payments").update({ status, last_provider_status: providerStatus }).eq("id", payment.id);
-        }
+        const next = providerStatus === "settled" ? "settled" : providerStatus === "expired" ? "expired" : providerStatus === "failed" ? "failed" : "pending";
+        const { data: transitionData, error } = await supabase.rpc("apply_payment_transition", { p_payment_id: payment.id, p_next_status: next, p_provider_status: providerStatus, p_provider_transaction_id: null, p_fee_idr: 0, p_settled_at: next === "settled" ? new Date().toISOString() : null });
+        if (error) throw error;
+        const transitionRow = Array.isArray(transitionData) ? transitionData[0] : transitionData;
+        status = transitionRow?.payment_status ?? status;
       } catch {
-        // Provider unreachable — report the stored state; the client retries.
+        // Keep the stored state during provider outages.
       }
     }
-
-    return NextResponse.json({
-      orderNumber: order.order_number,
-      orderStatus: status === "settled" ? "paid" : order.status,
-      paymentStatus: status,
-      expiresAt: payment.expires_at,
-      amountIdr: payment.amount_idr,
-      // Returned so staff can re-display the pending QR from the drawer;
-      // only valid while the payment is still pending.
-      qrString: status === "pending" ? (payment.qr_string ?? null) : null,
-    });
+    return NextResponse.json({ orderNumber: order.order_number, orderStatus: status === "settled" ? "paid" : order.status, paymentStatus: status, expiresAt: payment.expires_at, amountIdr: payment.amount_idr, ...presentQrMaterial(status === "pending" ? payment.qr_string : null) }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("pos_payment_status_failed", error);
-    return NextResponse.json({ error: "Payment status could not be checked." }, { status: 503 });
+    console.error("pos_payment_status_failed", error instanceof Error ? error.message : "unknown");
+    return NextResponse.json({ error: "Payment status could not be checked." }, { status: 503, headers: noStoreHeaders() });
   }
 }

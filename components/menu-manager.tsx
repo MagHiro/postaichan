@@ -91,6 +91,12 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
     await loadMenu(); onShowNotice(`${product.name} diarsipkan.`);
   }
 
+  async function restoreProduct(product: AdminProduct) {
+    const response = await fetch(`/api/admin/menu/${product.id}`, { method: "POST" });
+    if (!response.ok) { onShowNotice("Produk gagal dipulihkan."); return; }
+    await loadMenu(); onShowNotice(`${product.name} dipulihkan.`);
+  }
+
   return (
     <div>
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
@@ -214,7 +220,12 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
               : (product) => {
                   setEditor(null);
                   void archiveProduct(product);
-                }
+              }
+          }
+          onRestore={
+            editor !== "create" && !(editor as AdminProduct).active
+              ? (product) => { setEditor(null); void restoreProduct(product); }
+              : undefined
           }
         />
       )}
@@ -222,7 +233,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
   );
 }
 
-function ProductEditor({ editor, form, setForm, categories, saving, onClose, onSave, onArchive }: { editor: "create" | AdminProduct; form: FormState; setForm: (form: FormState) => void; categories: Category[]; saving: boolean; onClose: () => void; onSave: () => void; onArchive?: (product: AdminProduct) => void }) {
+function ProductEditor({ editor, form, setForm, categories, saving, onClose, onSave, onArchive, onRestore }: { editor: "create" | AdminProduct; form: FormState; setForm: (form: FormState) => void; categories: Category[]; saving: boolean; onClose: () => void; onSave: () => void; onArchive?: (product: AdminProduct) => void; onRestore?: (product: AdminProduct) => void }) {
   const isCreate = editor === "create";
   return (
     <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 sm:items-center sm:p-5" onClick={onClose}>
@@ -291,6 +302,7 @@ function ProductEditor({ editor, form, setForm, categories, saving, onClose, onS
               Arsipkan produk
             </button>
           )}
+          {!isCreate && onRestore && <button onClick={() => onRestore(editor as AdminProduct)} className="h-11 w-full rounded-full bg-neutral-900 text-[13px] font-medium text-white active:scale-[0.98]">Pulihkan produk</button>}
           <button onClick={onClose} className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500 active:bg-neutral-50">
             Batal
           </button>
