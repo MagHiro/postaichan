@@ -94,9 +94,9 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
   return (
     <div>
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-        <div>
-          <h2 className="text-[22px] font-medium leading-snug tracking-tight">Menu</h2>
-          <p className="mt-1 text-[13px] text-neutral-500">{activeCount} produk aktif · perubahan berlaku saat checkout</p>
+        <div className="min-w-0">
+          <h2 className="hidden text-[22px] font-medium leading-snug tracking-tight lg:block">Menu</h2>
+          <p className="text-[13px] text-neutral-500 lg:mt-1">{activeCount} produk aktif · perubahan berlaku saat checkout</p>
         </div>
         <button
           onClick={openCreate}
@@ -125,7 +125,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
         )}
       </div>
 
-      <div className="mt-5 flex gap-2">
+      <div className="mt-4 flex gap-2">
         {(
           [
             { key: false, label: "Aktif" },
@@ -135,9 +135,10 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           <button
             key={label}
             onClick={() => setShowArchived(key)}
+            aria-pressed={showArchived === key}
             className={cn(
-              "rounded-full px-3.5 py-1.5 text-[13px] transition active:scale-[0.98]",
-              showArchived === key ? "bg-[#FDBD2C]/15 font-medium text-neutral-900" : "font-normal text-neutral-500",
+              "flex h-10 items-center rounded-full border px-4 text-[13px] transition active:scale-[0.98]",
+              showArchived === key ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-200 font-normal text-neutral-500",
             )}
           >
             {label}
@@ -153,9 +154,13 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
         ) : visibleProducts.length ? (
           <div className="divide-y divide-neutral-100">
             {visibleProducts.map((product) => (
-              <div key={product.id} className="flex items-center justify-between gap-3 py-3.5">
-                <button onClick={() => openEdit(product)} className="min-w-0 flex-1 text-left">
-                  <p className="truncate text-[13px] font-medium">
+              <div key={product.id} className="flex items-center gap-3 py-2">
+                <button
+                  onClick={() => openEdit(product)}
+                  className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left active:bg-neutral-50"
+                  aria-label={`Ubah ${product.name}`}
+                >
+                  <p className="truncate text-[14px] font-medium">
                     {product.name}
                     {!product.available && product.active ? <span className="font-normal text-neutral-400"> · Habis</span> : ""}
                   </p>
@@ -163,21 +168,26 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                     {product.categoryName} · {formatCompactIDR(product.priceIdr)}
                   </p>
                 </button>
-                <div className="flex shrink-0 items-center gap-4">
-                  {product.active && (
-                    <button onClick={() => void toggleAvailability(product)} className="text-[13px] font-normal text-neutral-500">
-                      {product.available ? "Tersedia" : "Habis"}
-                    </button>
-                  )}
-                  <button onClick={() => openEdit(product)} className="text-[13px] font-medium text-neutral-900">
+                {product.active ? (
+                  <button
+                    onClick={() => void toggleAvailability(product)}
+                    aria-label={`${product.name}: ${product.available ? "tersedia" : "habis"}`}
+                    aria-pressed={product.available}
+                    className={cn(
+                      "flex h-11 shrink-0 items-center rounded-full px-5 text-[13px] font-medium active:scale-[0.98]",
+                      product.available ? "bg-neutral-100 text-neutral-900" : "bg-neutral-900 text-white",
+                    )}
+                  >
+                    {product.available ? "Tersedia" : "Habis"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => openEdit(product)}
+                    className="flex h-11 shrink-0 items-center rounded-full px-5 text-[13px] font-medium text-neutral-900 active:bg-neutral-50"
+                  >
                     Ubah
                   </button>
-                  {product.active && (
-                    <button onClick={() => void archiveProduct(product)} className="text-[13px] font-normal text-neutral-400">
-                      Arsip
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
             ))}
           </div>
@@ -189,12 +199,30 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
         )}
       </div>
 
-      {editor && <ProductEditor editor={editor} form={form} setForm={setForm} categories={categories} saving={saving} onClose={() => setEditor(null)} onSave={() => void saveProduct()} />}
+      {editor && (
+        <ProductEditor
+          editor={editor}
+          form={form}
+          setForm={setForm}
+          categories={categories}
+          saving={saving}
+          onClose={() => setEditor(null)}
+          onSave={() => void saveProduct()}
+          onArchive={
+            editor === "create" || !(editor as AdminProduct).active
+              ? undefined
+              : (product) => {
+                  setEditor(null);
+                  void archiveProduct(product);
+                }
+          }
+        />
+      )}
     </div>
   );
 }
 
-function ProductEditor({ editor, form, setForm, categories, saving, onClose, onSave }: { editor: "create" | AdminProduct; form: FormState; setForm: (form: FormState) => void; categories: Category[]; saving: boolean; onClose: () => void; onSave: () => void }) {
+function ProductEditor({ editor, form, setForm, categories, saving, onClose, onSave, onArchive }: { editor: "create" | AdminProduct; form: FormState; setForm: (form: FormState) => void; categories: Category[]; saving: boolean; onClose: () => void; onSave: () => void; onArchive?: (product: AdminProduct) => void }) {
   const isCreate = editor === "create";
   return (
     <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 sm:items-center sm:p-5" onClick={onClose}>
@@ -210,7 +238,7 @@ function ProductEditor({ editor, form, setForm, categories, saving, onClose, onS
             <p className="text-xs text-neutral-400">{isCreate ? "Produk baru" : "Ubah produk"}</p>
             <h2 className="mt-1 text-lg font-medium tracking-tight">{isCreate ? "Tambah ke menu" : (editor as AdminProduct).name}</h2>
           </div>
-          <button onClick={onClose} aria-label="Tutup" className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95">
+          <button onClick={onClose} aria-label="Tutup" className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95">
             <X size={15} />
           </button>
         </div>
@@ -251,11 +279,19 @@ function ProductEditor({ editor, form, setForm, categories, saving, onClose, onS
           <button
             onClick={onSave}
             disabled={saving || !form.name || !form.categoryId || !form.priceIdr}
-            className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+            className="h-[52px] w-full rounded-2xl bg-[#FDBD2C] text-[15px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
           >
             {saving ? "Menyimpan…" : isCreate ? "Tambah" : "Simpan"}
           </button>
-          <button onClick={onClose} className="h-12 w-full rounded-full text-sm font-normal text-neutral-500">
+          {!isCreate && onArchive && (
+            <button
+              onClick={() => onArchive(editor as AdminProduct)}
+              className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-400 active:bg-neutral-50"
+            >
+              Arsipkan produk
+            </button>
+          )}
+          <button onClick={onClose} className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500 active:bg-neutral-50">
             Batal
           </button>
         </div>

@@ -185,20 +185,22 @@ export function PosWorkspaceLive() {
 
       <div className="min-w-0 flex-1">
         {/* Mobile top bar */}
-        <header className="sticky top-0 z-30 border-b border-neutral-100 bg-white/90 px-5 pb-3 pt-4 backdrop-blur-md lg:hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[15px] font-medium tracking-tight">Tempat Taichan</p>
-              <p className="mt-0.5 text-xs text-neutral-400">
+        <header className="sticky top-0 z-30 border-b border-neutral-100 bg-white/90 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md lg:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-[15px] font-medium tracking-tight">{pageTitle(nav)}</p>
+              <p className="mt-0.5 text-xs tabular-nums text-neutral-400">
                 {activeCount} aktif · {date}
               </p>
             </div>
-            <button
-              onClick={() => setNav("POS")}
-              className="flex h-9 items-center rounded-full bg-[#FDBD2C] px-4 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
-            >
-              Baru
-            </button>
+            {nav !== "POS" && (
+              <button
+                onClick={() => setNav("POS")}
+                className="flex h-10 shrink-0 items-center rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+              >
+                Baru
+              </button>
+            )}
           </div>
         </header>
 
@@ -224,7 +226,12 @@ export function PosWorkspaceLive() {
         </header>
 
         {/* Content */}
-        <main className="mx-auto max-w-[1120px] px-5 pb-36 pt-6 lg:px-8 lg:pb-20 lg:pt-10">
+        <main
+          className={cn(
+            "mx-auto max-w-[1120px] px-5 pt-6 lg:px-8 lg:pb-20 lg:pt-10",
+            nav === "POS" ? "pb-[calc(208px+env(safe-area-inset-bottom))]" : "pb-[calc(128px+env(safe-area-inset-bottom))]",
+          )}
+        >
           <div key={nav} className="ord-rise">
             {nav === "Overview" && (
               <LiveOverview
@@ -244,17 +251,29 @@ export function PosWorkspaceLive() {
       </div>
 
       {/* Mobile bottom tabs */}
-      <nav className="shadow-sheet fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-white/95 px-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
-        <div className="mx-auto grid max-w-[440px] grid-cols-5">
+      <nav className="shadow-sheet fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-white/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
+        <div className="mx-auto grid max-w-[440px] grid-cols-5 gap-1">
           {(Object.keys(NAV_LABEL) as NavItem[]).map((item) => {
             const Icon = NAV_ICON[item];
             const active = nav === item;
             return (
-              <button key={item} onClick={() => setNav(item)} className="relative flex flex-col items-center gap-1 py-2.5">
-                <Icon size={20} strokeWidth={active ? 2 : 1.6} className={active ? "text-neutral-900" : "text-neutral-400"} />
-                <span className={cn("text-[11px]", active ? "font-medium text-neutral-900" : "font-normal text-neutral-400")}>
+              <button
+                key={item}
+                onClick={() => setNav(item)}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-2xl py-2",
+                  active ? "bg-neutral-100" : "active:bg-neutral-50",
+                )}
+              >
+                <Icon size={21} strokeWidth={active ? 2.2 : 1.6} className={active ? "text-neutral-900" : "text-neutral-400"} />
+                <span className={cn("flex items-center gap-1 text-[11px] leading-none", active ? "font-medium text-neutral-900" : "font-normal text-neutral-400")}>
                   {NAV_LABEL[item]}
-                  {item === "Orders" && activeCount > 0 ? ` · ${activeCount}` : ""}
+                  {item === "Orders" && activeCount > 0 && (
+                    <span className="rounded-full bg-[#FDBD2C] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-neutral-900">
+                      {activeCount > 99 ? "99+" : activeCount}
+                    </span>
+                  )}
                 </span>
               </button>
             );
@@ -263,8 +282,8 @@ export function PosWorkspaceLive() {
       </nav>
 
       {notice && (
-        <div className="fixed inset-x-0 bottom-24 z-[60] flex justify-center px-5">
-          <p className="ord-toast shadow-soft rounded-full bg-neutral-900 px-4 py-2 text-[13px] text-white">{notice}</p>
+        <div className="pointer-events-none fixed inset-x-0 top-[max(4.5rem,env(safe-area-inset-top))] z-[60] flex justify-center px-5 lg:top-20">
+          <p className="ord-toast shadow-soft pointer-events-auto max-w-[440px] truncate rounded-full bg-neutral-900 px-4 py-2.5 text-[13px] text-white">{notice}</p>
         </div>
       )}
     </div>
@@ -281,9 +300,9 @@ function pageTitle(nav: NavItem) {
 function PageHead({ title, sub, action }: { title: string; sub?: string; action?: React.ReactNode }) {
   return (
     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-      <div>
-        <h2 className="text-[22px] font-medium leading-snug tracking-tight">{title}</h2>
-        {sub && <p className="mt-1 text-[13px] text-neutral-500">{sub}</p>}
+      <div className="min-w-0">
+        <h2 className="hidden text-[22px] font-medium leading-snug tracking-tight lg:block">{title}</h2>
+        {sub && <p className="text-[13px] text-neutral-500 lg:mt-1">{sub}</p>}
       </div>
       {action}
     </div>
@@ -292,10 +311,10 @@ function PageHead({ title, sub, action }: { title: string; sub?: string; action?
 
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div>
-      <p className="text-xs text-neutral-400">{label}</p>
-      <p className="mt-1 text-[22px] font-medium tabular-nums tracking-tight">{value}</p>
-      <p className="mt-0.5 text-[13px] text-neutral-500">{detail}</p>
+    <div className="min-w-0">
+      <p className="truncate text-xs text-neutral-400">{label}</p>
+      <p className="mt-1 break-words text-lg font-medium tabular-nums leading-snug tracking-tight sm:text-[22px]">{value}</p>
+      <p className="mt-0.5 truncate text-xs text-neutral-500 sm:text-[13px]">{detail}</p>
     </div>
   );
 }
@@ -321,13 +340,13 @@ function SearchField({ value, onChange, placeholder }: { value: string; onChange
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-full bg-neutral-100 py-2.5 pl-10 pr-10 text-sm outline-none placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
+        className="h-11 w-full rounded-2xl bg-neutral-100 pl-10 pr-10 text-sm outline-none placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50 lg:rounded-full"
       />
       {value && (
         <button
           onClick={() => onChange("")}
           aria-label="Hapus pencarian"
-          className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400"
+          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400 active:bg-neutral-200"
         >
           <X size={14} />
         </button>
@@ -337,23 +356,23 @@ function SearchField({ value, onChange, placeholder }: { value: string; onChange
 }
 
 function QtyStepper({ count, onMinus, onPlus, large = false }: { count: number; onMinus: () => void; onPlus: () => void; large?: boolean }) {
-  const size = large ? "h-10 w-10" : "h-7 w-7";
+  const size = large ? "h-11 w-11" : "h-9 w-9";
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-3">
       <button
         onClick={onMinus}
         aria-label="Kurangi"
         className={cn("flex items-center justify-center rounded-full border border-neutral-200 text-neutral-500 active:scale-95", size)}
       >
-        <Minus size={13} />
+        <Minus size={15} />
       </button>
-      <span className={cn("text-center font-medium tabular-nums", large ? "w-5 text-sm" : "w-4 text-[13px]")}>{count}</span>
+      <span className={cn("text-center font-medium tabular-nums", large ? "w-6 text-[15px]" : "w-5 text-sm")}>{count}</span>
       <button
         onClick={onPlus}
         aria-label="Tambah"
         className={cn("flex items-center justify-center rounded-full bg-neutral-900 text-white active:scale-95", size)}
       >
-        <Plus size={13} />
+        <Plus size={15} />
       </button>
     </div>
   );
@@ -375,102 +394,109 @@ function LiveOverview({
   onOpenOrders: () => void;
 }) {
   const active = orders.filter((order) => order.status !== "Completed");
+  const dateLabel = summary?.date ?? jakartaToday();
 
   return (
     <div>
-      <PageHead
-        title="Hari ini"
-        sub={summary ? `${summary.date} · Waktu Jakarta` : "Waktu Jakarta"}
-        action={
-          <a href={`/api/reports/daily.pdf?date=${summary?.date ?? jakartaToday()}`} className="text-[13px] font-normal text-neutral-500">
-            Unduh PDF
-          </a>
-        }
-      />
+      <PageHead title="Hari ini" />
 
-      <div className="mt-8 grid grid-cols-2 gap-x-3 gap-y-8 xl:grid-cols-4">
-        <Metric label="Pendapatan" value={summary ? formatCompactIDR(summary.revenueIdr) : "—"} detail="Pembayaran lunas" />
-        <Metric label="Pesanan lunas" value={summary ? String(summary.orderCount) : "—"} detail="Terkonfirmasi" />
-        <Metric label="Estimasi laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Pendapatan − COGS − fee" />
-        <Metric label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Dine in + takeaway" />
+      <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-100 lg:mt-6 xl:grid-cols-4">
+        <div className="bg-white p-4 sm:p-5">
+          <Metric label="Pendapatan" value={summary ? formatCompactIDR(summary.revenueIdr) : "—"} detail="Lunas" />
+        </div>
+        <div className="bg-white p-4 sm:p-5">
+          <Metric label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" />
+        </div>
+        <div className="bg-white p-4 sm:p-5">
+          <Metric label="Est. laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah COGS + fee" />
+        </div>
+        <div className="bg-white p-4 sm:p-5">
+          <Metric label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" />
+        </div>
       </div>
 
-      <div className="mt-10 grid gap-10 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <section>
-          <div className="flex items-baseline justify-between">
-            <h3 className="text-sm font-medium">Perlu tindakan</h3>
+      <section className="mt-8 border-t border-neutral-100 pt-6">
+        <div className="flex items-baseline justify-between">
+          <h3 className="text-sm font-medium">
+            Perlu tindakan
+            {active.length > 0 && <span className="ml-2 font-normal tabular-nums text-neutral-400">{active.length}</span>}
+          </h3>
+          {active.length > 5 && (
             <button onClick={onOpenOrders} className="text-[13px] font-normal text-neutral-500">
               Semua
             </button>
-          </div>
-          <div className="mt-2">
-            {loading ? (
-              <LoadingBlock label="Memuat pesanan…" />
-            ) : active.length ? (
-              <div className="divide-y divide-neutral-100">
-                {active.slice(0, 5).map((order) => (
-                  <div key={order.id} className="flex items-center justify-between gap-3 py-3.5">
-                    <div className="min-w-0">
-                      <p className="truncate text-[13px] font-medium">
-                        {order.number} <span className="font-normal text-neutral-400">· {STATUS_LABEL[order.status]}</span>
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-neutral-400">
-                        {order.type}
-                        {order.table ? ` · ${order.table}` : ""} · {order.items} item · {order.time}
-                        {order.paymentStatus !== "Paid" ? " · Belum bayar" : ""}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-4">
-                      <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(order.total)}</span>
-                      <button onClick={() => onAdvance(order)} className="text-[13px] font-medium text-neutral-900 active:scale-[0.98]">
-                        {order.status === "New" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyBlock title="Tidak ada pesanan aktif." sub="Pesanan lunas baru akan muncul di sini." />
-            )}
-          </div>
-        </section>
-
-        <section>
-          <h3 className="text-sm font-medium">Terlaris</h3>
-          <p className="mt-1 text-[13px] text-neutral-500">Porsi lunas hari ini</p>
-          {summary?.bestSellers.length ? (
-            <div className="mt-2 divide-y divide-neutral-100">
-              {summary.bestSellers.slice(0, 5).map((item, index) => (
-                <div key={item.name} className="flex items-center justify-between gap-3 py-3">
-                  <div className="flex min-w-0 items-baseline gap-3">
-                    <span className="w-5 shrink-0 text-xs tabular-nums text-neutral-400">{String(index + 1).padStart(2, "0")}</span>
-                    <div className="min-w-0">
-                      <p className="truncate text-[13px] font-medium">{item.name}</p>
-                      <p className="mt-0.5 text-xs text-neutral-400">{item.quantity} porsi</p>
-                    </div>
-                  </div>
-                  <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.revenueIdr)}</span>
+          )}
+        </div>
+        <div className="mt-1">
+          {loading ? (
+            <LoadingBlock label="Memuat pesanan…" />
+          ) : active.length ? (
+            <div className="divide-y divide-neutral-100">
+              {active.slice(0, 5).map((order) => (
+                <div key={order.id} className="flex items-center gap-3 py-2">
+                  <button
+                    onClick={onOpenOrders}
+                    className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left active:bg-neutral-50"
+                    aria-label={`Lihat ${order.number}`}
+                  >
+                    <p className="truncate text-[14px] font-medium">
+                      {order.number} <span className="font-normal text-neutral-400">· {STATUS_LABEL[order.status]}</span>
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-neutral-400">
+                      {order.table ?? order.type} · {order.items} item · {order.time}
+                      {order.paymentStatus !== "Paid" ? " · Belum bayar" : ""}
+                    </p>
+                    <p className="mt-1 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(order.total)}</p>
+                  </button>
+                  <button
+                    onClick={() => onAdvance(order)}
+                    aria-label={`Lanjut ${order.number}`}
+                    className="flex h-11 shrink-0 items-center rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98]"
+                  >
+                    {order.status === "New" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
+                  </button>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="py-10 text-center text-[13px] text-neutral-500">Belum ada penjualan lunas.</p>
+            <EmptyBlock title="Tidak ada pesanan aktif." sub="Pesanan baru akan muncul di sini." />
           )}
-        </section>
-      </div>
+        </div>
+      </section>
 
-      <div className="mt-10 border-t border-neutral-100 pt-6">
-        <h3 className="text-sm font-medium">Tutup kasir</h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-neutral-500">Unduh PDF setelah memastikan pembayaran terakhir.</p>
+      <section className="mt-8 border-t border-neutral-100 pt-6">
+        <h3 className="text-sm font-medium">Terlaris</h3>
+        {summary?.bestSellers.length ? (
+          <div className="mt-1 divide-y divide-neutral-100">
+            {summary.bestSellers.slice(0, 5).map((item) => (
+              <div key={item.name} className="flex items-center justify-between gap-3 py-3.5">
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-medium">{item.name}</p>
+                  <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{item.quantity} porsi</p>
+                </div>
+                <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.revenueIdr)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="py-10 text-center text-[13px] text-neutral-500">Belum ada penjualan lunas.</p>
+        )}
+      </section>
+
+      <section className="mt-8 flex flex-col gap-3 border-t border-neutral-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm font-medium">Tutup kasir</h3>
+          <p className="mt-1 text-[13px] text-neutral-500">Pastikan pembayaran terakhir lunas.</p>
+        </div>
         <button
           onClick={() => {
-            if (window.confirm("Unduh laporan harian Jakarta?")) window.location.href = `/api/reports/daily.pdf?date=${summary?.date ?? jakartaToday()}`;
+            if (window.confirm("Unduh laporan harian Jakarta?")) window.location.href = `/api/reports/daily.pdf?date=${dateLabel}`;
           }}
-          className="mt-4 h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] sm:max-w-[280px]"
+          className="h-10 shrink-0 rounded-full bg-[#FDBD2C] px-5 text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
         >
-          Tutup & unduh PDF
+          Unduh PDF
         </button>
-      </div>
+      </section>
     </div>
   );
 }
@@ -531,7 +557,7 @@ function LiveOrders({
         <SearchField value={query} onChange={setQuery} placeholder="Cari nomor atau meja…" />
       </div>
 
-      <div className="no-scrollbar -mx-5 mt-5 flex gap-2 overflow-x-auto px-5">
+      <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1">
         {FILTERS.map(({ key, label }) => {
           const n = counts.find((c) => c.key === key)?.n ?? 0;
           const isActive = filter === key;
@@ -539,12 +565,13 @@ function LiveOrders({
             <button
               key={key}
               onClick={() => setFilter(key)}
+              aria-pressed={isActive}
               className={cn(
-                "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] transition active:scale-[0.98]",
-                isActive ? "bg-[#FDBD2C]/15 font-medium text-neutral-900" : "font-normal text-neutral-500",
+                "flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-[13px] transition active:scale-[0.98]",
+                isActive ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-200 font-normal text-neutral-500",
               )}
             >
-              {label} <span className="tabular-nums text-neutral-400">{n}</span>
+              {label} <span className={cn("tabular-nums", isActive ? "text-neutral-300" : "text-neutral-400")}>{n}</span>
             </button>
           );
         })}
@@ -556,41 +583,36 @@ function LiveOrders({
         ) : filtered.length ? (
           <div className="divide-y divide-neutral-100">
             {filtered.map((order) => (
-              <button key={order.id} onClick={() => void openDetail(order)} className="grid w-full gap-1 py-3.5 text-left active:scale-[0.99] md:grid-cols-[1.6fr_1fr_0.9fr] md:items-center">
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium">{order.number}</p>
+              <div key={order.id} className="flex items-center gap-3 py-2">
+                <button
+                  onClick={() => void openDetail(order)}
+                  className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left active:bg-neutral-50"
+                  aria-label={`Detail ${order.number}`}
+                >
+                  <p className="truncate text-[14px] font-medium">{order.number}</p>
                   <p className="mt-0.5 truncate text-xs text-neutral-400">
-                    {order.type}
-                    {order.table ? ` · ${order.table}` : ""} · {order.items} item · {order.time}
+                    {order.table ?? order.type} · {order.items} item · {order.time}
                   </p>
-                </div>
-                <p className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(order.total)}</p>
-                <div className="flex items-center justify-between gap-2 md:justify-end">
-                  <span className="text-xs text-neutral-400">
-                    {STATUS_LABEL[order.status]}
-                    {order.paymentStatus !== "Paid" && order.status !== "Completed" ? " · Belum bayar" : ""}
-                  </span>
-                  {order.status !== "Completed" && (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onAdvance(order);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.stopPropagation();
-                          onAdvance(order);
-                        }
-                      }}
-                      className="text-[13px] font-medium text-neutral-900"
-                    >
-                      Lanjut
+                  <p className="mt-1 text-[13px] tabular-nums text-neutral-500">
+                    {formatCompactIDR(order.total)}
+                    <span className="ml-2 text-xs font-normal text-neutral-400">
+                      {STATUS_LABEL[order.status]}
+                      {order.paymentStatus !== "Paid" && order.status !== "Completed" ? " · Belum bayar" : ""}
                     </span>
-                  )}
-                </div>
-              </button>
+                  </p>
+                </button>
+                {order.status !== "Completed" ? (
+                  <button
+                    onClick={() => onAdvance(order)}
+                    aria-label={`Lanjut ${order.number}`}
+                    className="flex h-11 shrink-0 items-center rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98]"
+                  >
+                    {order.status === "New" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
+                  </button>
+                ) : (
+                  <span className="shrink-0 px-2 text-xs text-neutral-300">Selesai</span>
+                )}
+              </div>
             ))}
           </div>
         ) : (
@@ -766,7 +788,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
             onClick={onClose}
             aria-label="Tutup detail"
             autoFocus
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
           >
             <X size={15} />
           </button>
@@ -835,32 +857,32 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
           </section>
         </div>
 
-        <div className="border-t border-neutral-100 bg-white/95 px-5 py-4 backdrop-blur">
+        <div className="border-t border-neutral-100 bg-white/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+          <button
+            onClick={onAdvance}
+            disabled={done}
+            className="h-[52px] w-full rounded-2xl bg-[#FDBD2C] text-[15px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+          >
+            {nextActionLabel(detail.order.status)}
+          </button>
           {payment?.status === "pending" && (
-            <div className="mb-1 grid grid-cols-2 gap-2">
+            <div className="mt-1 grid grid-cols-2 gap-2">
               <button
                 onClick={() => void checkPaymentNow()}
                 disabled={checkingPay}
-                className="h-12 w-full rounded-full text-sm font-normal text-neutral-500 disabled:opacity-60"
+                className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500 active:bg-neutral-50 disabled:opacity-60"
               >
                 {checkingPay ? "Mengecek…" : "Cek pembayaran"}
               </button>
               <button
                 onClick={() => void resumeQrCode()}
                 disabled={checkingPay}
-                className="h-12 w-full rounded-full text-sm font-normal text-neutral-500 disabled:opacity-60"
+                className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500 active:bg-neutral-50 disabled:opacity-60"
               >
                 Tampilkan QR
               </button>
             </div>
           )}
-          <button
-            onClick={onAdvance}
-            disabled={done}
-            className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
-          >
-            {nextActionLabel(detail.order.status)}
-          </button>
         </div>
         {resumeQr && (
           <ResumeQrOverlay
@@ -966,14 +988,15 @@ function TableQrSection() {
     <section className="mt-10 border-t border-neutral-100 pt-6">
       <h3 className="text-sm font-medium">QR Meja</h3>
       <p className="mt-1 text-[13px] text-neutral-500">Pindai untuk membuka menu di meja.</p>
-      <div className="no-scrollbar -mx-5 mt-5 flex gap-2 overflow-x-auto px-5">
+      <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1">
         {tables.map((table) => (
           <button
             key={table.code}
             onClick={() => setSelectedCode(table.code)}
+            aria-pressed={table.code === selectedCode}
             className={cn(
-              "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] transition active:scale-[0.98]",
-              table.code === selectedCode ? "bg-[#FDBD2C]/15 font-medium text-neutral-900" : "font-normal text-neutral-500",
+              "flex h-10 shrink-0 items-center rounded-full border px-4 text-[13px] transition active:scale-[0.98]",
+              table.code === selectedCode ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-200 font-normal text-neutral-500",
             )}
           >
             {table.label}
@@ -1084,9 +1107,11 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
 
   return (
     <div>
-      <PageHead title="Kasir" sub={orderType === "dine_in" ? "Dine in · QRIS" : "Takeaway · QRIS"} />
+      <div className="hidden lg:block">
+        <PageHead title="Kasir" sub={orderType === "dine_in" ? "Dine in · QRIS" : "Takeaway · QRIS"} />
+      </div>
 
-      <div className="mt-6 flex max-w-md rounded-full bg-neutral-100 p-1">
+      <div className="flex max-w-md rounded-2xl bg-neutral-100 p-1 lg:mt-6 lg:rounded-full">
         {(
           [
             { key: "dine_in", label: "Dine in" },
@@ -1096,8 +1121,9 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
           <button
             key={key}
             onClick={() => setOrderType(key)}
+            aria-pressed={orderType === key}
             className={cn(
-              "flex-1 rounded-full py-1.5 text-center text-[13px] transition active:scale-[0.98]",
+              "h-11 flex-1 rounded-xl text-center text-sm transition active:scale-[0.98] lg:rounded-full lg:text-[13px]",
               orderType === key ? "bg-white font-medium shadow-xs" : "font-normal text-neutral-500",
             )}
           >
@@ -1109,14 +1135,15 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
       <div className="mt-8 grid items-start gap-10 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section>
           <SearchField value={query} onChange={setQuery} placeholder="Cari menu…" />
-          <div className="no-scrollbar -mx-5 mt-5 flex gap-2 overflow-x-auto px-5">
+          <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1">
             {categories.map((item) => (
               <button
                 key={item}
                 onClick={() => setCategory(item)}
+                aria-pressed={category === item}
                 className={cn(
-                  "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] transition active:scale-[0.98]",
-                  category === item ? "bg-[#FDBD2C]/15 font-medium text-neutral-900" : "font-normal text-neutral-500",
+                  "flex h-10 shrink-0 items-center rounded-full border px-4 text-[13px] transition active:scale-[0.98]",
+                  category === item ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-200 font-normal text-neutral-500",
                 )}
               >
                 {item}
@@ -1128,13 +1155,23 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
             <div className="mt-6">
               <div className="flex items-baseline justify-between">
                 <h3 className="text-sm font-medium">{category === "Semua" ? "Semua menu" : category}</h3>
-                <span className="text-xs text-neutral-400">{filtered.length} item</span>
+                <span className="text-xs tabular-nums text-neutral-400">{filtered.length} item</span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3">
-                {filtered.map((product) => (
-                  <article key={product.id} className={cn("flex min-w-0 flex-col", !product.available && "opacity-60")}>
-                    <button onClick={() => add(product)} disabled={!product.available} className="text-left" aria-label={`Tambah ${product.name}`}>
-                      <div className="aspect-square w-full overflow-hidden rounded-2xl bg-neutral-100">
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {filtered.map((product) => {
+                  const qty = cart.find((item) => item.product.id === product.id)?.quantity ?? 0;
+                  return (
+                    <button
+                      key={product.id}
+                      onClick={() => add(product)}
+                      disabled={!product.available}
+                      aria-label={product.available ? `Tambah ${product.name}` : `${product.name} habis`}
+                      className={cn(
+                        "min-w-0 rounded-2xl border p-2 text-left transition active:scale-[0.98] disabled:opacity-60",
+                        qty > 0 ? "border-neutral-900" : "border-neutral-100",
+                      )}
+                    >
+                      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-neutral-100">
                         {product.imageUrl ? (
                           <img src={product.imageUrl} alt={product.name} loading="lazy" className="h-full w-full object-cover" />
                         ) : (
@@ -1142,29 +1179,22 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
                             {product.name.slice(0, 1)}
                           </div>
                         )}
+                        {qty > 0 && (
+                          <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-neutral-900 px-2 text-xs font-medium tabular-nums text-white">
+                            ×{qty}
+                          </span>
+                        )}
+                        {!product.available && (
+                          <span className="absolute inset-x-2 bottom-2 rounded-full bg-white/95 py-1 text-center text-xs font-medium text-neutral-500">
+                            Habis
+                          </span>
+                        )}
                       </div>
-                      <p className="mt-2 truncate text-[13px] font-medium leading-snug">{product.name}</p>
-                      <p className="mt-0.5 text-[13px] tabular-nums text-neutral-500">
-                        {product.available ? formatCompactIDR(product.price) : "Habis"}
-                      </p>
+                      <p className="mt-2 truncate px-1 text-[13px] font-medium leading-snug">{product.name}</p>
+                      <p className="mt-0.5 px-1 pb-1 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(product.price)}</p>
                     </button>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-xs tabular-nums text-neutral-400">
-                        {cart.find((item) => item.product.id === product.id)?.quantity
-                          ? `×${cart.find((item) => item.product.id === product.id)?.quantity}`
-                          : ""}
-                      </span>
-                      <button
-                        onClick={() => add(product)}
-                        disabled={!product.available}
-                        aria-label={`Tambah ${product.name}`}
-                        className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-200 active:scale-95 disabled:opacity-30"
-                      >
-                        <Plus size={13} />
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : (
@@ -1220,20 +1250,21 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
       <TableQrSection />
 
       {/* Cart — mobile bar */}
-      {cart.length > 0 && (
-        <div className="fixed inset-x-0 bottom-[64px] z-40 mx-auto max-w-[440px] px-5 xl:hidden">
-          <div className="shadow-soft flex items-center justify-between gap-3 rounded-full border border-neutral-100 bg-white py-2 pl-4 pr-2">
-            <button onClick={() => setCartOpen(true)} className="min-w-0 flex-1 text-left" aria-label="Buka keranjang">
+      {cart.length > 0 && !cartOpen && (
+        <div className="fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-30 mx-auto max-w-[440px] px-4 xl:hidden">
+          <button
+            onClick={() => setCartOpen(true)}
+            aria-label={`Buka keranjang, ${count} item, ${formatIDR(total)}`}
+            className="shadow-soft flex w-full items-center justify-between gap-3 rounded-2xl border border-neutral-900 bg-neutral-900 py-3 pl-4 pr-3 text-white active:scale-[0.99]"
+          >
+            <span className="min-w-0 flex-1 text-left">
               <span className="block text-xs tabular-nums text-neutral-400">{count} item</span>
               <span className="block truncate text-[15px] font-medium tabular-nums">{formatIDR(total)}</span>
-            </button>
-            <button
-              onClick={() => setCartOpen(true)}
-              className="h-10 shrink-0 rounded-full bg-[#FDBD2C] px-5 text-sm font-medium text-neutral-900 active:scale-[0.98]"
-            >
+            </span>
+            <span className="flex h-10 shrink-0 items-center rounded-xl bg-[#FDBD2C] px-5 text-sm font-medium text-neutral-900">
               Lihat
-            </button>
-          </div>
+            </span>
+          </button>
         </div>
       )}
 
@@ -1243,33 +1274,38 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
           <section
             className="ord-sheet flex max-h-[88vh] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[28px] bg-white"
             onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Keranjang"
           >
             <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-neutral-200" />
             <div className="flex items-start justify-between px-5 pb-3 pt-2">
               <div>
-                <p className="text-xs text-neutral-400">Pesanan berjalan</p>
-                <h2 className="mt-1 text-lg font-medium tracking-tight">{orderType === "dine_in" ? "Dine in" : "Takeaway"}</h2>
+                <p className="text-xs text-neutral-400">
+                  Pesanan berjalan · {orderType === "dine_in" ? "Dine in" : "Takeaway"}
+                </p>
+                <h2 className="mt-1 text-lg font-medium tabular-nums tracking-tight">
+                  {count} item · {formatIDR(total)}
+                </h2>
               </div>
               <button
                 onClick={() => setCartOpen(false)}
                 aria-label="Tutup keranjang"
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-5">
               {cart.length ? (
                 <div className="divide-y divide-neutral-100">
                   {cart.map((item) => (
-                    <div key={item.product.id} className="flex gap-3 py-3.5">
+                    <div key={item.product.id} className="flex items-center gap-3 py-4">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium">{item.product.name}</p>
+                        <p className="truncate text-[14px] font-medium">{item.product.name}</p>
                         <p className="mt-0.5 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.product.price * item.quantity)}</p>
-                        <div className="mt-2">
-                          <QtyStepper count={item.quantity} onMinus={() => setQty(item.product.id, -1)} onPlus={() => setQty(item.product.id, 1)} />
-                        </div>
                       </div>
+                      <QtyStepper count={item.quantity} onMinus={() => setQty(item.product.id, -1)} onPlus={() => setQty(item.product.id, 1)} />
                     </div>
                   ))}
                 </div>
@@ -1277,18 +1313,26 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
                 <p className="py-10 text-center text-[13px] text-neutral-500">Keranjang kosong.</p>
               )}
             </div>
-            <div className="border-t border-neutral-100 bg-white px-5 py-4">
+            <div className="border-t border-neutral-100 bg-white px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
               <div className="mb-3 flex items-baseline justify-between">
                 <span className="text-[13px] text-neutral-500">Total · {count} item</span>
-                <span className="text-[15px] font-medium tabular-nums">{formatIDR(total)}</span>
+                <span className="text-base font-medium tabular-nums">{formatIDR(total)}</span>
               </div>
               <button
                 disabled={!cart.length || saving}
                 onClick={() => void createOrder()}
-                className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+                className="h-[52px] w-full rounded-2xl bg-[#FDBD2C] text-[15px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
               >
-                {saving ? "Membuat…" : "Buat pembayaran"}
+                {saving ? "Membuat…" : `Buat pembayaran · ${formatCompactIDR(total)}`}
               </button>
+              {cart.length > 0 && (
+                <button
+                  onClick={() => setCart([])}
+                  className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-400 active:bg-neutral-50"
+                >
+                  Kosongkan
+                </button>
+              )}
             </div>
           </section>
         </div>
@@ -1389,7 +1433,7 @@ function CashierPayment({
           <button
             onClick={onClose}
             aria-label="Tutup pembayaran"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
           >
             <X size={15} />
           </button>
@@ -1425,7 +1469,7 @@ function CashierPayment({
         </p>
         <button
           onClick={onClose}
-          className="mt-8 h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+          className="mb-[max(0.25rem,env(safe-area-inset-bottom))] mt-8 h-[52px] w-full rounded-2xl bg-[#FDBD2C] text-[15px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
         >
           {state === "settled" ? "Lanjut kasir" : "Tutup"}
         </button>
@@ -1461,18 +1505,27 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
         title="Laporan"
         sub="Hari bisnis Jakarta · pembayaran lunas"
         action={
-          <div className="flex items-center gap-4">
-            <input
-              type="date"
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              className="h-10 rounded-full bg-neutral-100 px-4 text-[13px] font-normal outline-none focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
-            />
-            <button onClick={() => void load()} className="text-[13px] font-normal text-neutral-500">
-              {loading ? "Memuat…" : "Muat"}
-            </button>
-            <a href={`/api/reports/daily.pdf?date=${date}`} className="text-[13px] font-medium text-neutral-900">
-              PDF
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+                aria-label="Tanggal laporan"
+                className="h-11 flex-1 rounded-2xl bg-neutral-100 px-4 text-sm font-normal outline-none focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50 sm:h-10 sm:flex-none sm:rounded-full sm:text-[13px]"
+              />
+              <button
+                onClick={() => void load()}
+                className="flex h-11 items-center rounded-2xl bg-neutral-900 px-5 text-sm font-medium text-white active:scale-[0.98] sm:h-10 sm:rounded-full sm:text-[13px]"
+              >
+                {loading ? "Memuat…" : "Muat"}
+              </button>
+            </div>
+            <a
+              href={`/api/reports/daily.pdf?date=${date}`}
+              className="flex h-11 items-center justify-center rounded-2xl border border-neutral-200 text-sm font-medium text-neutral-900 active:bg-neutral-50 sm:h-10 sm:rounded-full sm:border-0 sm:text-[13px]"
+            >
+              Unduh PDF
             </a>
           </div>
         }
@@ -1480,54 +1533,59 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
 
       {report ? (
         <>
-          <div className="mt-8 grid grid-cols-2 gap-x-3 gap-y-8 xl:grid-cols-4">
-            <Metric label="Pendapatan" value={formatCompactIDR(report.revenueIdr)} detail={`${report.orderCount} pesanan`} />
-            <Metric label="Estimasi COGS" value={formatCompactIDR(report.estimatedCogsIdr)} detail="Snapshot biaya" />
-            <Metric label="Fee" value={formatCompactIDR(report.paymentFeesIdr)} detail="Fee provider" />
-            <Metric label="Estimasi laba" value={formatCompactIDR(report.estimatedGrossProfitIdr)} detail="Bukan laba bersih" />
+          <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-100 xl:grid-cols-4">
+            <div className="bg-white p-4 sm:p-5">
+              <Metric label="Pendapatan" value={formatCompactIDR(report.revenueIdr)} detail={`${report.orderCount} pesanan`} />
+            </div>
+            <div className="bg-white p-4 sm:p-5">
+              <Metric label="Est. COGS" value={formatCompactIDR(report.estimatedCogsIdr)} detail="Snapshot biaya" />
+            </div>
+            <div className="bg-white p-4 sm:p-5">
+              <Metric label="Fee" value={formatCompactIDR(report.paymentFeesIdr)} detail="Fee provider" />
+            </div>
+            <div className="bg-white p-4 sm:p-5">
+              <Metric label="Est. laba" value={formatCompactIDR(report.estimatedGrossProfitIdr)} detail="Bukan laba bersih" />
+            </div>
           </div>
 
-          <div className="mt-10 grid gap-10 xl:grid-cols-2">
-            <section>
-              <h3 className="text-sm font-medium">Komposisi</h3>
-              <p className="mt-1 text-[13px] text-neutral-500">Dine in vs takeaway</p>
-              <div className="mt-2 divide-y divide-neutral-100">
-                <div className="flex items-center justify-between py-3">
-                  <span className="text-[13px] font-medium">Dine in</span>
-                  <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.dineInRevenueIdr)}</span>
-                </div>
-                <div className="flex items-center justify-between py-3">
-                  <span className="text-[13px] font-medium">Takeaway</span>
-                  <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.takeawayRevenueIdr)}</span>
-                </div>
-                <div className="flex items-center justify-between py-3">
-                  <span className="text-[13px] text-neutral-400">Rata-rata</span>
-                  <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.averageOrderValueIdr)}</span>
-                </div>
+          <section className="mt-8 border-t border-neutral-100 pt-6">
+            <h3 className="text-sm font-medium">Komposisi</h3>
+            <div className="mt-1 divide-y divide-neutral-100">
+              <div className="flex items-center justify-between py-3">
+                <span className="text-[13px] font-medium">Dine in</span>
+                <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.dineInRevenueIdr)}</span>
               </div>
-            </section>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-[13px] font-medium">Takeaway</span>
+                <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.takeawayRevenueIdr)}</span>
+              </div>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-[13px] text-neutral-400">Rata-rata</span>
+                <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.averageOrderValueIdr)}</span>
+              </div>
+            </div>
+          </section>
 
-            <section>
-              <h3 className="text-sm font-medium">Terlaris</h3>
-              <p className="mt-1 text-[13px] text-neutral-500">{report.date} · porsi lunas</p>
-              {report.bestSellers.length ? (
-                <div className="mt-2 divide-y divide-neutral-100">
-                  {report.bestSellers.map((item) => (
-                    <div key={item.name} className="flex items-center justify-between gap-3 py-3">
-                      <span className="truncate text-[13px] font-medium">{item.name}</span>
-                      <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">
-                        {item.quantity} · {formatCompactIDR(item.revenueIdr)}
-                      </span>
+          <section className="mt-8 border-t border-neutral-100 pt-6">
+            <h3 className="text-sm font-medium">Terlaris</h3>
+            {report.bestSellers.length ? (
+              <div className="mt-1 divide-y divide-neutral-100">
+                {report.bestSellers.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between gap-3 py-3.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-medium">{item.name}</p>
+                      <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{item.quantity} porsi</p>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="py-10 text-center text-[13px] text-neutral-500">Belum ada penjualan lunas.</p>
-              )}
-            </section>
-          </div>
+                    <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.revenueIdr)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-10 text-center text-[13px] text-neutral-500">Belum ada penjualan lunas.</p>
+            )}
+          </section>
 
-          <section className="mt-10">
+          <section className="mt-8 border-t border-neutral-100 pt-6">
             <div className="flex items-baseline justify-between">
               <h3 className="text-sm font-medium">Pesanan lunas</h3>
               <span className="text-xs text-neutral-400">{report.orders.length} baris</span>
