@@ -2,14 +2,14 @@
 
 :root {
   --ink: #18181b;
-  --muted: #78716c;
-  --paper: #faf8f5;
+  --muted: #737373;
+  --paper: #ffffff;
   --surface: #ffffff;
-  --line: #e7e3dc;
+  --line: #f5f5f5;
   --accent: #fdbd2c;
   --accent-dark: #eca90f;
   --green: #2f8062;
-  --warm: #f5f3ef;
+  --warm: #ffffff;
 }
 
 @layer base {
@@ -30,7 +30,7 @@
   }
   button, input, textarea, select { font: inherit; }
   button { cursor: pointer; }
-  ::selection { background: #ff381e; color: #ffffff; }
+  ::selection { background: #FDBD2C; color: #18181b; }
 
   @media (max-width: 640px) {
     body { min-width: 320px; }
@@ -42,8 +42,11 @@
   .scrollbar-hidden { scrollbar-width: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  .input { width: 100%; border: 1px solid #e5ddd5; border-radius: 10px; background: #ffffff; padding: 10px 12px; font-size: 14px; font-weight: 500; letter-spacing: 0.011em; outline: none; }
-  .input:focus { border-color: #ed5b38; box-shadow: 0 0 0 3px rgba(237, 91, 56, 0.1); }
+  .shadow-soft { box-shadow: 0 8px 24px rgba(24, 24, 27, 0.06); }
+  .shadow-sheet { box-shadow: 0 -12px 32px rgba(24, 24, 27, 0.1); }
+  .input { width: 100%; border: none; border-radius: 16px; background: #f5f5f5; padding: 12px 16px; font-size: 14px; font-weight: 400; letter-spacing: 0.011em; outline: none; }
+  .input:focus { background: #ffffff; box-shadow: 0 0 0 2px rgba(253, 189, 44, 0.5); }
+  .input::placeholder { color: #a3a3a3; }
 
   /* ---- POS workspace: modern SaaS motion (CSS only) ---- */
   .pos-rise { animation: pos-rise 0.45s cubic-bezier(0.22, 0.8, 0.32, 1) both; animation-delay: var(--d, 0ms); }
@@ -84,7 +87,7 @@
     .pos-press, .pos-lift, .pos-grow { transition: none; }
   }
   .ord-rise { animation: ord-rise 0.3s cubic-bezier(0.22, 0.8, 0.32, 1) both; }
-  .ord-sheet { animation: ord-sheet-in 0.28s cubic-bezier(0.22, 0.8, 0.32, 1) both; }
+  .ord-sheet { animation: ord-sheet-in 0.28s cubic-bezier(0.22, 0.8, 0.32, 1) both; box-shadow: 0 -12px 32px rgba(24, 24, 27, 0.1); }
   .ord-backdrop { animation: ord-backdrop-in 0.2s ease-out both; }
   .ord-toast { animation: ord-toast-in 0.2s ease-out both; }
   .ord-bar { animation: ord-rise 0.25s ease-out both; }

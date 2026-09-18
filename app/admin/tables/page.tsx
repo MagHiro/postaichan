@@ -1,5 +1,5 @@
-import { QrManager } from "@/components/qr-manager";
+import { redirect } from "next/navigation";
 
 export default function TablesPage() {
-  return <QrManager />;
+  redirect("/pos");
 }

@@ -547,7 +547,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
         )}
 
         <nav className="fixed inset-x-0 bottom-0 z-40">
-          <div className="mx-auto flex max-w-[440px] border-t border-neutral-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
+          <div className="shadow-sheet mx-auto flex max-w-[440px] border-t border-neutral-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
             <button
               onClick={() => setActiveTab("home")}
               className={cn(
@@ -599,7 +599,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
 
         {toast && (
           <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-5">
-            <p className="ord-toast rounded-full bg-neutral-900 px-4 py-2 text-[13px] text-white">
+            <p className="ord-toast shadow-soft rounded-full bg-neutral-900 px-4 py-2 text-[13px] text-white">
               {toast}
             </p>
           </div>

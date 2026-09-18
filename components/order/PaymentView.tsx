@@ -111,7 +111,7 @@ export function PaymentView({
               ? "Kode kedaluwarsa"
               : `Berlaku ${formatCountdown(remainingMs)}`}
           </p>
-          <div className="mx-auto mt-8 w-fit rounded-3xl border border-neutral-100 p-4">
+          <div className="shadow-soft mx-auto mt-8 w-fit rounded-3xl border border-neutral-100 bg-white p-4">
             {qrDataUrl && !isExpired ? (
               <img
                 src={qrDataUrl}
