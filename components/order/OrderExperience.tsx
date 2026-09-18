@@ -22,8 +22,13 @@ import { SuccessView } from "./SuccessView";
 import { CartSheet } from "./CartSheet";
 import { EmptyState, SkeletonCard } from "./ui";
 
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+
 export function OrderExperience({ tableToken }: { tableToken?: string }) {
-  const [menuProducts, setMenuProducts] = useState(products);
+  // Start empty so the cart can never capture the local fallback IDs
+  // ("taichan-10", …) which the checkout API rejects (it requires UUIDs).
+  // The fallback list is only used when /api/menu is unreachable (offline demo).
+  const [menuProducts, setMenuProducts] = useState<Product[]>([]);
   const [menuLoading, setMenuLoading] = useState(true);
   const [category, setCategory] = useState<OrderCategory>("Semua Menu");
   const [search, setSearch] = useState("");
@@ -59,10 +64,17 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
     fetch("/api/menu", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
-        if (active && payload?.products?.length)
-          setMenuProducts(payload.products);
+        if (!active) return;
+        // Server menu carries real UUIDs required by /api/checkout.
+        // Fall back to the bundled demo list only when the server menu
+        // is unreachable/empty (offline demo) — those items cannot be
+        // checked out and are blocked with a clear message in beginCheckout.
+        if (payload?.products?.length) setMenuProducts(payload.products);
+        else setMenuProducts(products);
       })
-      .catch(() => {})
+      .catch(() => {
+        if (active) setMenuProducts(products);
+      })
       .finally(() => {
         if (active) setMenuLoading(false);
       });
@@ -211,6 +223,21 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
 
   async function beginCheckout() {
     if (cart.length === 0) return;
+    // Demo fallback items use non-UUID ids ("taichan-10", …) which the
+    // server rejects. Block early with a clear message instead of the
+    // generic validation error, and refresh from the server menu.
+    if (cart.some((item) => !UUID_RE.test(item.product.id))) {
+      setCheckoutError(
+        "Menu belum termuat dari server. Tarik untuk memuat ulang lalu pilih menu lagi.",
+      );
+      try {
+        const menuResponse = await fetch("/api/menu", { cache: "no-store" });
+        const menuPayload = menuResponse.ok ? await menuResponse.json() : null;
+        if (menuPayload?.products?.length)
+          setMenuProducts(menuPayload.products);
+      } catch {}
+      return;
+    }
     setCheckoutLoading(true);
     setCheckoutError(null);
     try {

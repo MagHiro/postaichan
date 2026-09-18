@@ -10,7 +10,10 @@ function hashToken(token: string) { return createHash("sha256").update(token).di
 
 export async function POST(request: Request) {
   const parsed = checkoutSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Pesanan belum lengkap. Periksa kembali item dan pilihanmu." }, { status: 400 });
+  if (!parsed.success) {
+    console.error("checkout_validation_failed", parsed.error.issues);
+    return NextResponse.json({ error: "Pesanan belum lengkap. Periksa kembali item dan pilihanmu." }, { status: 400 });
+  }
   const input = parsed.data;
 
   try {
