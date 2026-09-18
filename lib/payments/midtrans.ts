@@ -15,12 +15,21 @@ export class MidtransProvider implements PaymentProvider {
     const response = await fetch(`${this.config.baseUrl}/v2/charge`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Basic ${Buffer.from(`${this.config.serverKey}:`).toString("base64")}` },
-      body: JSON.stringify({ payment_type: "qris", transaction_details: { order_id: input.providerOrderId, gross_amount: input.amountIdr }, qris: { acquirer: "gopay" } }),
+      body: JSON.stringify({
+        payment_type: "qris",
+        transaction_details: { order_id: input.providerOrderId, gross_amount: input.amountIdr },
+        // Keep the provider window identical to the app window (15 min) so the
+        // QR the customer scans never outlives the countdown we display.
+        custom_expiry: { expiry_duration: 15, unit: "minute" },
+        qris: { acquirer: "gopay" },
+      }),
       cache: "no-store",
     });
     if (!response.ok) throw new Error("Payment provider unavailable.");
-    const data = await response.json() as { transaction_id?: string; qr_string?: string; status_code?: string };
-    if (data.status_code !== "201" || !data.qr_string) throw new Error("Payment provider rejected the transaction.");
+    const data = (await response.json()) as { transaction_id?: string; qr_string?: string; status_code?: string | number };
+    // Midtrans returns status_code as "201" (string) in sandbox and 201
+    // (number) in some production responses — compare loosely.
+    if (String(data.status_code) !== "201" || !data.qr_string) throw new Error("Payment provider rejected the transaction.");
     return { providerTransactionId: data.transaction_id, qrString: data.qr_string, providerOrderId: input.providerOrderId, expiresAt: input.expiresAt };
   }
 

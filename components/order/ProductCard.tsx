@@ -27,13 +27,13 @@ export function ProductCard({
           >
             {badge && (
               <span
-                className={`absolute left-2 top-2 flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-sm ${badge.className}`}
+                className={`absolute left-2 top-2 flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-extrabold uppercase tracking-wider shadow-sm ${badge.className}`}
               >
                 {badge.label}
               </span>
             )}
             {spice > 0 && (
-              <div className="absolute bottom-1.5 left-2 flex items-center gap-0.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+              <div className="absolute bottom-1.5 left-2 flex items-center gap-0.5 rounded bg-black/60 px-1.5 py-0.5 text-[13px] font-semibold text-white">
                 <span>{"🌶️".repeat(spice)}</span>
               </div>
             )}
@@ -44,20 +44,20 @@ export function ProductCard({
           disabled={!product.available}
           className="block w-full text-left disabled:cursor-not-allowed"
         >
-          <h3 className="line-clamp-1 text-xs font-bold leading-snug text-[#18181B]">
+          <h3 className="line-clamp-1 text-sm font-extrabold leading-snug tracking-wide text-[#18181B]">
             {product.name}
           </h3>
-          <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-stone-500">
+          <p className="mt-1 line-clamp-2 text-[13px] font-semibold leading-relaxed tracking-wide text-stone-600">
             {product.description}
           </p>
         </button>
       </div>
       <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2">
         <div>
-          <span className="block text-[10px] font-medium text-stone-400">
+          <span className="block text-[13px] font-semibold tracking-wide text-stone-600">
             Harga
           </span>
-          <span className="text-xs font-black text-[#18181B]">
+          <span className="text-sm font-black tracking-wide text-[#18181B]">
             {formatCompactIDR(product.price)}
           </span>
         </div>

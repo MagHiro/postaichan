@@ -99,7 +99,7 @@ export function QtyStepper({
       >
         <Minus size={13} />
       </button>
-      <span className="w-5 text-center text-xs font-bold tabular-nums text-[#18181B]">
+      <span className="w-5 text-center text-[13px] font-bold tabular-nums text-[#18181B]">
         {qty}
       </span>
       <button
@@ -140,7 +140,7 @@ export function EmptyState({
   return (
     <div className="rounded-2xl border border-dashed border-stone-300 bg-white px-5 py-12 text-center">
       <p className="text-sm font-bold text-[#18181B]">{title}</p>
-      {hint && <p className="mt-1 text-xs text-stone-500">{hint}</p>}
+      {hint && <p className="mt-1 text-[13px] font-semibold text-stone-600">{hint}</p>}
     </div>
   );
 }

@@ -54,10 +54,10 @@ export function CartSheet({
       >
         <Container className="flex items-center justify-between pb-3 pt-4">
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-[#18181B]">
+            <h2 className="text-2xl font-extrabold tracking-normal text-[#18181B]">
               Pesanan kamu
             </h2>
-            <p className="mt-0.5 text-xs font-normal text-stone-500">
+            <p className="mt-0.5 text-[13px] font-semibold text-stone-600">
               {orderType === "Dine in" ? `Makan di Tempat · ${tableLabel}` : "Takeaway · Ambil di kasir"}
             </p>
           </div>
@@ -72,7 +72,7 @@ export function CartSheet({
 
         <Container className="mt-1 flex-1 space-y-3 overflow-y-auto pb-2">
           {cart.length === 0 && (
-            <p className="rounded-2xl border border-dashed border-stone-300 bg-white p-6 text-center text-xs text-stone-500">
+            <p className="rounded-2xl border border-dashed border-stone-300 bg-white p-6 text-center text-[13px] font-semibold text-stone-600">
               Keranjang masih kosong. Yuk pilih menu dulu.
             </p>
           )}
@@ -87,15 +87,15 @@ export function CartSheet({
                 iconSize={22}
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold leading-snug text-[#18181B]">
+                <p className="truncate text-[13px] font-bold leading-snug text-[#18181B]">
                   {item.product.name}
                 </p>
-                <p className="mt-1 truncate text-[11px] font-normal text-stone-500">
+                <p className="mt-1 truncate text-[13px] font-semibold text-stone-600">
                   {[item.variant, ...item.addons].filter(Boolean).join(" · ") ||
                     "Original"}
                   {item.note ? ` · "${item.note}"` : ""}
                 </p>
-                <p className="mt-1 text-xs font-black tabular-nums text-[#18181B]">
+                <p className="mt-1 text-[13px] font-black tabular-nums text-[#18181B]">
                   {formatCompactIDR(item.unitPrice * item.quantity)}
                 </p>
               </div>
@@ -122,10 +122,10 @@ export function CartSheet({
                 iconSize={20}
               />
               <span className="min-w-0 flex-1">
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-[#FF381E]">
+                <span className="block text-xs font-bold uppercase tracking-wider text-[#FF381E]">
                   Sering dibeli bareng
                 </span>
-                <span className="block truncate text-xs font-bold leading-snug text-[#18181B]">
+                <span className="block truncate text-[13px] font-bold leading-snug text-[#18181B]">
                   {suggestion.name} · {formatCompactIDR(suggestion.price)}
                 </span>
               </span>
@@ -138,7 +138,7 @@ export function CartSheet({
 
         <div className="border-t border-stone-200/80 bg-[#FAF8F5] pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <Container className="pt-4">
-            <div className="mb-1 flex items-center justify-between text-xs font-medium text-stone-500">
+            <div className="mb-1 flex items-center justify-between text-[13px] font-semibold text-stone-600">
               <span>Subtotal ({count} item)</span>
               <span className="font-bold tabular-nums text-[#18181B]">
                 {formatCompactIDR(total)}
@@ -148,7 +148,7 @@ export function CartSheet({
               <span className="text-sm font-black uppercase tracking-wider text-[#18181B]">
                 Total bayar
               </span>
-              <span className="text-sm font-extrabold tabular-nums tracking-tight text-[#18181B]">
+              <span className="text-sm font-extrabold tabular-nums tracking-normal text-[#18181B]">
                 {formatIDR(total)}
               </span>
             </div>
@@ -166,11 +166,11 @@ export function CartSheet({
               )}
             </button>
             {checkoutError && (
-              <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-center text-[11px] font-semibold text-red-700">
+              <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-center text-[13px] font-semibold text-red-700">
                 {checkoutError}
               </p>
             )}
-            <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[10px] text-stone-400">
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[13px] font-semibold text-stone-600">
               <QrCode size={12} /> Bayar via QRIS · pesanan masuk dapur setelah
               bayar
             </p>

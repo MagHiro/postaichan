@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const date = new URL(request.url).searchParams.get("date") ?? undefined;
     const range = jakartaDayRange(date);
     const supabase = createAdminClient();
-    const { data, error } = await supabase.from("orders").select("id, order_number, order_type, table_id, status, total_idr, created_at, restaurant_tables(label), payments(method, status)").gte("created_at", range.start).lt("created_at", range.end).order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("orders").select("id, order_number, order_type, table_id, status, total_idr, created_at, restaurant_tables(label), payments(method, status)").gte("created_at", range.start).lt("created_at", range.end).neq("status", "draft").order("created_at", { ascending: false });
     if (error) throw error;
     const orderIds = (data ?? []).map((order) => order.id);
     const { data: itemCounts } = orderIds.length ? await supabase.from("order_items").select("order_id, quantity").in("order_id", orderIds) : { data: [] };
@@ -44,7 +44,15 @@ export async function POST(request: Request) {
     const supabase = createAdminClient();
     const input = parsed.data;
     const { data: existing } = await supabase.from("orders").select("id, order_number, total_idr").eq("idempotency_key", input.idempotencyKey).maybeSingle();
-    if (existing) return NextResponse.json({ orderId: existing.id, orderNumber: existing.order_number, totalIdr: existing.total_idr, replayed: true });
+    if (existing) {
+      // Replayed tap (double-click / retry): hand back the pending payment so
+      // the cashier QR modal can reopen instead of erroring with no QR.
+      const { data: existingPayment } = await supabase.from("payments").select("qr_string, expires_at, status").eq("order_id", existing.id).order("created_at", { ascending: false }).limit(1).single();
+      if (existingPayment?.qr_string && existingPayment.status === "pending") {
+        return NextResponse.json({ orderId: existing.id, orderNumber: existing.order_number, totalIdr: existing.total_idr, qrString: existingPayment.qr_string, expiresAt: existingPayment.expires_at, replayed: true });
+      }
+      return NextResponse.json({ orderId: existing.id, orderNumber: existing.order_number, totalIdr: existing.total_idr, replayed: true });
+    }
     const { data: menu, error: menuError } = await supabase.from("products").select("id, name, price_idr, estimated_cost_idr, available, active").in("id", input.items.map((item) => item.productId));
     if (menuError) throw menuError;
     const byId = new Map((menu ?? []).map((product) => [product.id, product]));

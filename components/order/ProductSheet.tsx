@@ -71,20 +71,20 @@ export function ProductSheet({
             <X size={16} />
           </button>
           <div className="mt-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+            <p className="text-xs font-bold uppercase tracking-wider text-stone-600">
               {product.category}
             </p>
-            <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#18181B]">
+            <h2 className="mt-1 text-2xl font-extrabold tracking-normal text-[#18181B]">
               {product.name}
             </h2>
-            <p className="mt-1 text-sm font-extrabold tabular-nums tracking-tight text-[#FF381E]">
+            <p className="mt-1 text-sm font-extrabold tabular-nums tracking-normal text-[#FF381E]">
               {formatCompactIDR(product.price)}
             </p>
           </div>
         </div>
 
         <Container className="space-y-5 pb-5">
-          <p className="text-xs font-normal leading-relaxed text-stone-500">
+          <p className="text-[13px] font-semibold leading-relaxed text-stone-600">
             {product.description}
           </p>
 
@@ -99,13 +99,13 @@ export function ProductSheet({
                       "rounded-xl border px-1 py-2.5 transition active:scale-95",
                       variant === item.name
                         ? "border-[#FF381E] bg-[#FF381E]/10 text-[#FF381E]"
-                        : "border-stone-200 bg-white text-stone-500",
+                        : "border-stone-200 bg-white text-stone-600",
                     )}
                   >
-                    <span className="block text-[11px] font-bold leading-tight">
+                    <span className="block text-[13px] font-bold leading-tight">
                       {item.name}
                     </span>
-                    <span className="mt-1 block text-[10px] leading-tight opacity-70">
+                    <span className="mt-1 block text-[13px] font-semibold leading-tight opacity-70">
                       {item.hint}
                     </span>
                   </button>
@@ -129,11 +129,11 @@ export function ProductSheet({
                       "rounded-xl border px-2 py-3 transition active:scale-95",
                       rice === item.name
                         ? "border-[#FF381E] bg-[#FF381E]/10 text-[#FF381E]"
-                        : "border-stone-200 bg-white text-stone-500",
+                        : "border-stone-200 bg-white text-stone-600",
                     )}
                   >
-                    <span className="block text-xs font-bold">{item.name}</span>
-                    <span className="mt-1 block text-[10px] opacity-70">
+                    <span className="block text-[13px] font-bold">{item.name}</span>
+                    <span className="mt-1 block text-[13px] font-semibold opacity-70">
                       {item.hint}
                     </span>
                   </button>
@@ -161,10 +161,10 @@ export function ProductSheet({
                         : "border-stone-200 bg-white",
                     )}
                   >
-                    <span className="text-xs font-semibold text-[#18181B]">
+                    <span className="text-[13px] font-semibold text-[#18181B]">
                       {item.name}
                     </span>
-                    <span className="flex items-center gap-2 text-[11px] tabular-nums text-stone-500">
+                    <span className="flex items-center gap-2 text-[13px] font-semibold tabular-nums text-stone-600">
                       +{formatCompactIDR(item.price)}
                       <span
                         className={cn(
@@ -184,9 +184,9 @@ export function ProductSheet({
           </OptionGroup>
 
           <div>
-            <label className="mb-2 block text-xs font-bold text-[#18181B]">
+            <label className="mb-2 block text-[13px] font-bold text-[#18181B]">
               Catatan dapur{" "}
-              <span className="font-normal text-stone-400">(opsional)</span>
+              <span className="font-semibold text-stone-600">(opsional)</span>
             </label>
             <textarea
               value={note}
@@ -194,7 +194,7 @@ export function ProductSheet({
               placeholder="Contoh: sambal dipisah, es sedikit"
               rows={2}
               maxLength={240}
-              className="w-full resize-none rounded-xl border border-stone-200 bg-white px-3 py-3 text-sm text-[#18181B] outline-none transition placeholder:text-stone-400 focus:border-[#FF381E]"
+              className="w-full resize-none rounded-xl border border-stone-200 bg-white px-3 py-3 text-sm font-semibold text-[#18181B] outline-none transition placeholder:text-stone-400 focus:border-[#FF381E]"
             />
           </div>
 
@@ -247,13 +247,13 @@ function OptionGroup({
 }) {
   return (
     <div>
-      <p className="mb-2 flex items-center gap-2 text-xs font-bold text-[#18181B]">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#18181B] text-[10px] font-extrabold text-white">
+      <p className="mb-2 flex items-center gap-2 text-[13px] font-bold text-[#18181B]">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#18181B] text-[13px] font-extrabold text-white">
           {step}
         </span>
         {label}
         {hint && (
-          <span className="font-medium text-stone-400">· {hint}</span>
+          <span className="font-semibold text-stone-600">· {hint}</span>
         )}
       </p>
       {children}

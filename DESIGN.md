@@ -7,9 +7,11 @@ font: Plus Jakarta Sans (400–800) + Public Sans (400–800)
 ## Source
 
 `references/order.html` is the visual source of truth for the customer order
-surface. Typography below is copied exactly from the reference. App behavior
-(live menu, cart, QRIS checkout, free dine-in/takeaway switch, `imageUrl` with
-gradient fallback) layers on top without changing the look.
+surface. Layout and colors below follow the reference; typography is
+intentionally bumped one step for readability (13px minimum for secondary
+copy, semibold floor for body text, normal/wide tracking instead of tight).
+App behavior (live menu, cart, QRIS checkout, free dine-in/takeaway switch,
+`imageUrl` with gradient fallback) layers on top without changing the look.
 
 ## Font Loading (exact)
 
@@ -22,47 +24,52 @@ gradient fallback) layers on top without changing the look.
 - Tailwind `fontFamily.display`: `["Plus Jakarta Sans", "Public Sans", "sans-serif"]`.
 - Base (`app/globals.css`):
   `font-family: var(--font-jakarta), var(--font-public), "Plus Jakarta Sans", "Public Sans", sans-serif;`
+  `letter-spacing: 0.011em;`
   `-webkit-tap-highlight-color: transparent;`
 
-## Type Scale (exact, reference only)
+## Type Scale (readability bump, implemented)
 
-| Element            | Classes                                                                 |
-| ------------------ | ----------------------------------------------------------------------- |
-| Brand name         | `text-xs font-black uppercase tracking-wider text-[#18181B]`            |
-| Status             | `text-[11px] font-medium text-stone-500`                                |
-| Toggle segment     | `text-xs` + `font-bold` active / `font-semibold` inactive               |
-| Greeting title     | `text-2xl font-extrabold tracking-tight text-[#18181B]`                 |
-| Greeting sub       | `text-xs font-normal text-stone-500 mt-0.5`                             |
-| Search input       | `text-sm text-[#18181B] placeholder-stone-400`                          |
-| Category pill      | `text-xs tracking-tight` + `font-bold` active / `font-semibold` inactive |
-| Section title      | `text-sm font-black uppercase tracking-wider text-[#18181B]`            |
-| Section tag        | `text-[10px] font-bold text-[#FF381E] bg-[#FF381E]/10 rounded px-1.5 py-0.5` |
-| Section count      | `text-xs font-medium text-stone-400`                                    |
-| Card name          | `text-xs font-bold leading-snug line-clamp-1 text-[#18181B]`            |
-| Card desc          | `text-[10px] leading-relaxed line-clamp-2 text-stone-500 mt-1`          |
-| Card price label   | `text-[10px] font-medium text-stone-400 block` ("Harga")                |
-| Card price         | `text-xs font-black text-[#18181B]`                                     |
-| Card badge         | `text-[10px] font-extrabold uppercase tracking-wider`                   |
-| Spice pill         | `text-[10px] font-medium text-white bg-black/60`                        |
-| Sambal title       | `text-xs font-bold text-[#18181B]`                                      |
-| Sambal sub         | `text-[11px] text-stone-500`                                            |
-| Cart meta          | `text-[11px] font-semibold uppercase tracking-wider text-stone-400`     |
-| Cart total         | `text-sm font-extrabold tracking-tight text-white`                     |
-| Cart CTA           | `text-xs font-bold text-white`                                          |
-| Cart badge         | `text-[10px] font-black text-white`                                     |
+Rules: 13px floor for secondary copy (`text-[13px]`); body copy semibold
+floor; `tracking-normal` on headings/pills/prices (badges and uppercase
+eyebrows keep `tracking-wider`/`tracking-wide`); dark surfaces keep
+`text-stone-400` for secondary copy so contrast is not lost; count badges
+inside fixed `h-4`/`h-5` circles stay `text-[11px]` so numerals fit.
 
-No other sizes/weights exist on the reference menu surface. Extensions
-(sheets, payment, success) reuse only these tokens:
+| Element            | Classes                                                                      |
+| ------------------ | ---------------------------------------------------------------------------- |
+| Brand name         | `text-xs font-black uppercase tracking-wider text-[#18181B]`                 |
+| Status             | `text-[13px] font-semibold text-stone-600`                                   |
+| Toggle segment     | `text-[13px]` + `font-bold` active / `font-semibold` inactive                |
+| Greeting title     | `text-2xl font-extrabold tracking-normal text-[#18181B]`                     |
+| Greeting sub       | `text-[13px] font-semibold text-stone-600 mt-0.5`                            |
+| Search input       | `text-sm font-semibold text-[#18181B] placeholder-stone-400`                 |
+| Category pill      | `text-[13px] tracking-normal` + `font-bold` active / `font-semibold` inactive |
+| Section title      | `text-sm font-black uppercase tracking-wider text-[#18181B]`                 |
+| Section tag        | `text-[13px] font-bold text-[#FF381E] bg-[#FF381E]/10 rounded px-1.5 py-0.5`  |
+| Section count      | `text-[13px] font-semibold text-stone-600`                                   |
+| Card name          | `text-sm font-extrabold tracking-wide leading-snug line-clamp-1 text-[#18181B]` |
+| Card desc          | `text-[13px] font-semibold tracking-wide leading-relaxed line-clamp-2 text-stone-600 mt-1` |
+| Card price label   | `text-xs font-semibold tracking-wide text-stone-600 block` ("Harga")         |
+| Card price         | `text-sm font-black tracking-wide text-[#18181B]`                            |
+| Card badge         | `text-xs font-extrabold uppercase tracking-wider`                            |
+| Spice pill         | `text-xs font-semibold text-white bg-black/60`                               |
+| Sambal title       | `text-[13px] font-bold text-[#18181B]`                                       |
+| Sambal sub         | `text-[13px] font-semibold text-stone-600`                                   |
+| Cart meta          | `text-[13px] font-semibold uppercase tracking-wider text-stone-400`          |
+| Cart total         | `text-sm font-extrabold tracking-normal text-white`                          |
+| Cart CTA           | `text-[13px] font-bold text-white`                                           |
+| Cart badge         | `text-[11px] font-black text-white`                                          |
 
-- Sheet titles: `text-2xl font-extrabold tracking-tight text-[#18181B]`.
-- Sheet subs: `text-xs font-normal text-stone-500`.
-- Eyebrows: `text-[10px] font-bold uppercase tracking-wider` /
-  `text-[11px] font-bold uppercase tracking-wider`.
-- Body copy: `text-xs font-normal leading-relaxed text-stone-500`.
-- Prices in sheets: card price token (`text-xs font-black`) or cart total
-  token (`text-sm font-extrabold tracking-tight`).
-- Buttons: cart CTA token (`text-xs font-bold` / `text-sm font-bold` for
-  full-width primary).
+Extensions (sheets, payment, success) reuse these bumped tokens:
+
+- Sheet titles: `text-2xl font-extrabold tracking-normal text-[#18181B]`.
+- Sheet subs: `text-[13px] font-semibold text-stone-600`.
+- Eyebrows: `text-xs font-bold uppercase tracking-wider` /
+  `text-[13px] font-bold uppercase tracking-wider`.
+- Body copy: `text-[13px] font-semibold leading-relaxed text-stone-600`.
+- Prices in sheets: `text-sm font-extrabold tracking-normal`.
+- Buttons: `text-[13px] font-bold` / `text-sm font-bold` for full-width
+  primary.
 
 ## Canvas
 

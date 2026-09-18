@@ -288,8 +288,22 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
         sessionToken={session.token}
         orderType={orderType}
         tableLabel={tableLabel}
-        onBack={() => setStep("cart")}
+        // Back keeps the cart intact and drops the stale QR: returning to the
+        // cart and checking out again creates a NEW order (fresh UUID), so no
+        // double-charge against the abandoned attempt.
+        onBack={() => {
+          setPayment(null);
+          setStep("menu");
+        }}
         onPaid={() => setStep("success")}
+        onRetry={() => {
+          setPayment(null);
+          setCheckoutError(null);
+          setStep("cart");
+          // Re-run checkout on the next tick so the cart sheet is mounted
+          // before beginCheckout kicks off the fresh charge.
+          window.setTimeout(() => void beginCheckout(), 0);
+        }}
       />
     );
   }
@@ -328,7 +342,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                   </span>
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#FF381E]" />
                 </div>
-                <p className="flex items-center gap-0.5 text-[11px] font-medium text-stone-500">
+                <p className="flex items-center gap-0.5 text-[13px] font-semibold text-stone-600">
                   <Clock size={13} className="text-emerald-600" />
                   Buka Sekarang{shortTable ? ` · ${shortTable}` : ""}
                 </p>
@@ -346,10 +360,10 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
             <button
               onClick={() => setOrderType("Dine in")}
               className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-center text-xs transition-all duration-200",
+                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-center text-[13px] transition-all duration-200",
                 dineIn
                   ? "bg-white font-bold text-[#18181B] shadow-sm"
-                  : "font-semibold text-stone-500 hover:text-[#18181B]",
+                  : "font-semibold text-stone-600 hover:text-[#18181B]",
               )}
             >
               <UtensilsCrossed
@@ -361,10 +375,10 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
             <button
               onClick={() => setOrderType("Takeaway")}
               className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-center text-xs transition-all duration-200",
+                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-center text-[13px] transition-all duration-200",
                 !dineIn
                   ? "bg-white font-bold text-[#18181B] shadow-sm"
-                  : "font-semibold text-stone-500 hover:text-[#18181B]",
+                  : "font-semibold text-stone-600 hover:text-[#18181B]",
               )}
             >
               <ShoppingBag
@@ -378,7 +392,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
 
         <main className="flex-1 px-4 pt-3">
           <div className="mb-4">
-            <h1 className="text-2xl font-extrabold tracking-tight text-[#18181B]">
+            <h1 className="text-2xl font-extrabold tracking-normal text-[#18181B]">
               {dineIn ? (
                 <>
                   Makan di sini, yuk.{" "}
@@ -395,7 +409,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                 </>
               )}
             </h1>
-            <p className="mt-0.5 text-xs font-normal text-stone-500">
+            <p className="mt-0.5 text-[13px] font-semibold text-stone-600">
               {dineIn
                 ? "Bikin nagih dari suapan pertama"
                 : "Pesan cepat, ambil di kasir"}
@@ -403,21 +417,21 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
           </div>
 
           <div className="relative mb-4">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-stone-400">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-stone-600">
               <Search size={18} />
             </div>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari sate taichan, rice bowl, sambal..."
-              className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-10 pr-10 text-sm text-[#18181B] shadow-xs transition-all placeholder:text-stone-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#FF381E]"
+              className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-10 pr-10 text-sm font-semibold text-[#18181B] shadow-xs transition-all placeholder:text-stone-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#FF381E]"
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
               {search ? (
                 <button
                   aria-label="Hapus pencarian"
                   onClick={() => setSearch("")}
-                  className="rounded-md p-1 text-stone-400 hover:text-stone-700"
+                  className="rounded-md p-1 text-stone-600 hover:text-stone-700"
                 >
                   <X size={15} />
                 </button>
@@ -429,7 +443,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                     "rounded-md p-1 transition-colors",
                     availableOnly
                       ? "text-[#FF381E]"
-                      : "text-stone-400 hover:text-stone-700",
+                      : "text-stone-600 hover:text-stone-700",
                   )}
                 >
                   <SlidersHorizontal size={16} />
@@ -444,7 +458,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                 key={item}
                 onClick={() => setCategory(item)}
                 className={cn(
-                  "shrink-0 rounded-full px-4 py-2 text-xs tracking-tight transition-colors",
+                  "shrink-0 rounded-full px-4 py-2 text-[13px] tracking-normal transition-colors",
                   category === item
                     ? "bg-[#18181B] font-bold text-white shadow-sm"
                     : item === "Paket Hemat"
@@ -462,11 +476,11 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
               <h2 className="text-sm font-black uppercase tracking-wider text-[#18181B]">
                 Menu Pilihan Hari Ini
               </h2>
-              <span className="rounded bg-[#FF381E]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#FF381E]">
+              <span className="rounded bg-[#FF381E]/10 px-1.5 py-0.5 text-[13px] font-bold text-[#FF381E]">
                 PEDAS GURIH
               </span>
             </div>
-            <span className="text-xs font-medium text-stone-400">
+            <span className="text-[13px] font-semibold text-stone-600">
               {filteredProducts.length} Menu
             </span>
           </div>
@@ -501,15 +515,15 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                 <UtensilsCrossed size={18} />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-[#18181B]">
+                <h4 className="text-[13px] font-bold text-[#18181B]">
                   Sambal Dipisah / Campur?
                 </h4>
-                <p className="text-[11px] text-stone-500">
+                <p className="text-[13px] font-semibold text-stone-600">
                   Atur selera pedasmu di halaman checkout
                 </p>
               </div>
             </div>
-            <ChevronRight size={18} className="shrink-0 text-stone-400" />
+            <ChevronRight size={18} className="shrink-0 text-stone-600" />
           </div>
         </main>
 
@@ -521,23 +535,23 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-stone-700 bg-stone-800/90 text-white">
                     <ShoppingBag size={20} />
                   </div>
-                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-[#18181B] bg-[#FF381E] text-[10px] font-black text-white">
+                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#18181B] bg-[#FF381E] text-[11px] font-black text-white">
                     {cartCount}
                   </span>
                 </div>
                 <div>
-                  <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+                  <div className="flex items-center gap-1 text-[13px] font-semibold uppercase tracking-wider text-stone-400">
                     {cartCount} Menu ·{" "}
                     {dineIn ? (shortTable ?? "Makan di Tempat") : "Takeaway"}
                   </div>
-                  <div className="text-sm font-extrabold tracking-tight text-white">
+                  <div className="text-sm font-extrabold tracking-normal text-white">
                     {formatCompactIDR(subtotal)}
                   </div>
                 </div>
               </div>
               <button
                 onClick={() => setStep("cart")}
-                className="flex items-center gap-1.5 rounded-xl bg-[#FF381E] px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all hover:bg-[#e03018] active:scale-95"
+                className="flex items-center gap-1.5 rounded-xl bg-[#FF381E] px-4 py-2.5 text-[13px] font-bold text-white shadow-md transition-all hover:bg-[#e03018] active:scale-95"
               >
                 Lihat Pesanan
                 <ArrowRight size={14} />
@@ -549,7 +563,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
         {toast && (
           <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50">
             <Container className="flex justify-center">
-              <p className="ord-toast flex items-center gap-2 whitespace-nowrap rounded-full bg-[#18181B] px-4 py-2 text-xs font-semibold text-white shadow-lg">
+              <p className="ord-toast flex items-center gap-2 whitespace-nowrap rounded-full bg-[#18181B] px-4 py-2 text-[13px] font-semibold text-white shadow-lg">
                 <Check size={14} className="text-emerald-300" /> {toast}
               </p>
             </Container>
