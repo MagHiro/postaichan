@@ -1,19 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowRight,
-  Bell,
-  Check,
-  ChevronRight,
-  Clock,
-  Flame,
-  Search,
-  ShoppingBag,
-  SlidersHorizontal,
-  UtensilsCrossed,
-  X,
-} from "lucide-react";
+import { Home, ReceiptText, Search, X } from "lucide-react";
 import { products } from "@/lib/data";
 import { formatCompactIDR } from "@/lib/format";
 import type { CartItem, Product } from "@/lib/types";
@@ -25,21 +13,23 @@ import {
   type OrderCategory,
   type OrderStep,
   type PaymentAttempt,
+  type PlacedOrder,
 } from "./constants";
-import { CartSheet } from "./CartSheet";
 import { PaymentView } from "./PaymentView";
 import { ProductCard } from "./ProductCard";
 import { ProductSheet } from "./ProductSheet";
 import { SuccessView } from "./SuccessView";
-import { Container, EmptyState, SkeletonCard } from "./ui";
+import { CartSheet } from "./CartSheet";
+import { EmptyState, SkeletonCard } from "./ui";
 
 export function OrderExperience({ tableToken }: { tableToken?: string }) {
   const [menuProducts, setMenuProducts] = useState(products);
   const [menuLoading, setMenuLoading] = useState(true);
   const [category, setCategory] = useState<OrderCategory>("Semua Menu");
   const [search, setSearch] = useState("");
-  const [availableOnly, setAvailableOnly] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [placedOrders, setPlacedOrders] = useState<PlacedOrder[]>([]);
+  const [activeTab, setActiveTab] = useState<"home" | "orders">("home");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [step, setStep] = useState<OrderStep>("menu");
   const [orderType, setOrderType] = useState<"Dine in" | "Takeaway">(
@@ -58,6 +48,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   const shortTable = useMemo(() => formatTableShort(tableToken), [tableToken]);
   const tableLabel = shortTable ?? "Dine in";
@@ -119,7 +110,6 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
     const q = search.trim().toLowerCase();
     return menuProducts.filter((product) => {
       if (!matchesOrderCategory(product, category)) return false;
-      if (availableOnly && !product.available) return false;
       if (
         q &&
         !`${product.name} ${product.description}`.toLowerCase().includes(q)
@@ -127,7 +117,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
         return false;
       return true;
     });
-  }, [menuProducts, category, search, availableOnly]);
+  }, [menuProducts, category, search]);
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce(
@@ -180,7 +170,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
       return [...current, nextItem];
     });
     setStep("menu");
-    showToast(`${selectedProduct.name} masuk keranjang`);
+    showToast(`${selectedProduct.name} ditambahkan`);
   }
 
   function quickAdd(product: Product) {
@@ -206,7 +196,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
         },
       ];
     });
-    showToast(`${product.name} +1`);
+    showToast(`${product.name} ditambahkan`);
   }
 
   function updateQuantity(key: string, delta: number) {
@@ -288,19 +278,36 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
         sessionToken={session.token}
         orderType={orderType}
         tableLabel={tableLabel}
-        // Back keeps the cart intact and drops the stale QR: returning to the
-        // cart and checking out again creates a NEW order (fresh UUID), so no
+        // Back keeps the cart intact and drops the stale QR: returning and
+        // checking out again creates a NEW order (fresh UUID), so no
         // double-charge against the abandoned attempt.
         onBack={() => {
           setPayment(null);
           setStep("menu");
+          setActiveTab("orders");
         }}
-        onPaid={() => setStep("success")}
+        onPaid={() => {
+          setPlacedOrders((current) => [
+            {
+              orderNumber: payment.orderNumber,
+              amountIdr: payment.amountIdr,
+              orderType,
+              tableLabel,
+              time: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            },
+            ...current,
+          ]);
+          setStep("success");
+        }}
         onRetry={() => {
           setPayment(null);
           setCheckoutError(null);
-          setStep("cart");
-          // Re-run checkout on the next tick so the cart sheet is mounted
+          setStep("menu");
+          setActiveTab("orders");
+          // Re-run checkout on the next tick so the orders tab is mounted
           // before beginCheckout kicks off the fresh charge.
           window.setTimeout(() => void beginCheckout(), 0);
         }}
@@ -315,10 +322,17 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
         tableLabel={tableLabel}
         amount={payment?.amountIdr ?? subtotal}
         orderNumber={payment?.orderNumber ?? "—"}
-        onNewOrder={() => {
+        onHome={() => {
           setCart([]);
           setPayment(null);
           setStep("menu");
+          setActiveTab("home");
+        }}
+        onViewOrders={() => {
+          setCart([]);
+          setPayment(null);
+          setStep("menu");
+          setActiveTab("orders");
         }}
       />
     );
@@ -327,246 +341,267 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
   const dineIn = orderType === "Dine in";
 
   return (
-    <main className="flex min-h-screen justify-center bg-stone-200 text-[#18181B] antialiased selection:bg-[#FF381E] selection:text-white">
-      <div className="relative flex min-h-screen w-full max-w-[440px] flex-col border-x border-stone-200 bg-[#FAF8F5] pb-28 shadow-2xl">
-        <header className="sticky top-0 z-30 border-b border-stone-200/80 bg-[#FAF8F5]/90 px-4 pb-2 pt-3 backdrop-blur-md">
-          <div className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#18181B] text-white shadow-sm">
-                <Flame size={14} className="fill-[#FF381E] text-[#FF381E]" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-black uppercase tracking-wider text-[#18181B]">
-                    Bara & Burn
-                  </span>
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#FF381E]" />
-                </div>
-                <p className="flex items-center gap-0.5 text-[13px] font-semibold text-stone-600">
-                  <Clock size={13} className="text-emerald-600" />
-                  Buka Sekarang{shortTable ? ` · ${shortTable}` : ""}
+    <main className="flex min-h-screen justify-center bg-white text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
+      <div className="relative flex min-h-screen w-full max-w-[440px] flex-col bg-white pb-36">
+        <header className="sticky top-0 z-30 border-b border-neutral-100 bg-white/90 backdrop-blur-md">
+          <div className="px-5 pb-3 pt-4">
+            <div className="relative flex items-center justify-center">
+              {logoFailed ? (
+                <p className="text-[15px] font-semibold tracking-tight">
+                  Bara &amp; Burn
                 </p>
-              </div>
+              ) : (
+                <img
+                  src="/logo.png"
+                  alt="Baraburn"
+                  onError={() => setLogoFailed(true)}
+                  className="h-11 w-auto max-w-[240px] object-contain"
+                />
+              )}
+              {dineIn && shortTable && (
+                <p className="absolute right-0 text-xs text-neutral-400">
+                  {shortTable}
+                </p>
+              )}
             </div>
-            <button
-              aria-label="Notifikasi"
-              onClick={() => showToast("Belum ada notifikasi baru")}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-[#18181B] shadow-xs transition-colors hover:bg-stone-50"
-            >
-              <Bell size={19} />
-            </button>
-          </div>
-          <div className="mt-3 flex items-center rounded-xl border border-stone-200/70 bg-stone-100 p-1">
-            <button
-              onClick={() => setOrderType("Dine in")}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-center text-[13px] transition-all duration-200",
-                dineIn
-                  ? "bg-white font-bold text-[#18181B] shadow-sm"
-                  : "font-semibold text-stone-600 hover:text-[#18181B]",
-              )}
-            >
-              <UtensilsCrossed
-                size={12}
-                className={dineIn ? "text-[#FF381E]" : undefined}
-              />
-              Makan di Tempat
-            </button>
-            <button
-              onClick={() => setOrderType("Takeaway")}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-center text-[13px] transition-all duration-200",
-                !dineIn
-                  ? "bg-white font-bold text-[#18181B] shadow-sm"
-                  : "font-semibold text-stone-600 hover:text-[#18181B]",
-              )}
-            >
-              <ShoppingBag
-                size={12}
-                className={!dineIn ? "text-[#FF381E]" : undefined}
-              />
-              Takeaway (Bungkus)
-            </button>
+            <div className="mt-3 flex rounded-full bg-neutral-100 p-1">
+              <button
+                onClick={() => setOrderType("Dine in")}
+                className={cn(
+                  "flex-1 rounded-full py-1.5 text-center text-[13px] transition",
+                  dineIn
+                    ? "bg-white font-medium shadow-xs"
+                    : "text-neutral-500",
+                )}
+              >
+                Dine in
+              </button>
+              <button
+                onClick={() => setOrderType("Takeaway")}
+                className={cn(
+                  "flex-1 rounded-full py-1.5 text-center text-[13px] transition",
+                  !dineIn
+                    ? "bg-white font-medium shadow-xs"
+                    : "text-neutral-500",
+                )}
+              >
+                Takeaway
+              </button>
+            </div>
           </div>
         </header>
 
-        <main className="flex-1 px-4 pt-3">
-          <div className="mb-4">
-            <h1 className="text-2xl font-extrabold tracking-normal text-[#18181B]">
-              {dineIn ? (
-                <>
-                  Makan di sini, yuk.{" "}
-                  <span className="inline-block transition-transform hover:scale-110">
-                    🔥
-                  </span>
-                </>
-              ) : (
-                <>
-                  Bungkus, tinggal ambil.{" "}
-                  <span className="inline-block transition-transform hover:scale-110">
-                    🔥
-                  </span>
-                </>
-              )}
+        {activeTab === "home" ? (
+          <div key="home" className="ord-rise flex-1 px-5 pt-7">
+            <h1 className="text-[22px] font-medium leading-snug tracking-tight">
+              Mau makan apa?
             </h1>
-            <p className="mt-0.5 text-[13px] font-semibold text-stone-600">
+            <p className="mt-1 text-[13px] text-neutral-500">
               {dineIn
-                ? "Bikin nagih dari suapan pertama"
-                : "Pesan cepat, ambil di kasir"}
+                ? "Pesan dari meja, bayar via QRIS."
+                : "Pesan cepat, ambil di kasir."}
             </p>
-          </div>
 
-          <div className="relative mb-4">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-stone-600">
-              <Search size={18} />
+            <div className="relative mt-6">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-neutral-400">
+                <Search size={16} />
+              </div>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari menu"
+                className="w-full rounded-full bg-neutral-100 py-2.5 pl-10 pr-10 text-sm outline-none transition placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
+              />
+              {search && (
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  <button
+                    aria-label="Hapus pencarian"
+                    onClick={() => setSearch("")}
+                    className="rounded-full p-1 text-neutral-400"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
             </div>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari sate taichan, rice bowl, sambal..."
-              className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-10 pr-10 text-sm font-semibold text-[#18181B] shadow-xs transition-all placeholder:text-stone-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#FF381E]"
-            />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-              {search ? (
+
+            <div className="no-scrollbar -mx-5 mt-5 flex gap-2 overflow-x-auto px-5">
+              {ORDER_CATEGORIES.map((item) => (
                 <button
-                  aria-label="Hapus pencarian"
-                  onClick={() => setSearch("")}
-                  className="rounded-md p-1 text-stone-600 hover:text-stone-700"
-                >
-                  <X size={15} />
-                </button>
-              ) : (
-                <button
-                  aria-label="Hanya tampilkan yang tersedia"
-                  onClick={() => setAvailableOnly((v) => !v)}
+                  key={item}
+                  onClick={() => setCategory(item)}
                   className={cn(
-                    "rounded-md p-1 transition-colors",
-                    availableOnly
-                      ? "text-[#FF381E]"
-                      : "text-stone-600 hover:text-stone-700",
+                    "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] transition",
+                    category === item
+                      ? "bg-[#FDBD2C]/15 font-medium text-neutral-900"
+                      : "text-neutral-500",
                   )}
                 >
-                  <SlidersHorizontal size={16} />
+                  {item}
                 </button>
-              )}
+              ))}
             </div>
-          </div>
 
-          <div className="no-scrollbar relative -mx-4 mb-5 flex items-center gap-2 overflow-x-auto px-4">
-            {ORDER_CATEGORIES.map((item) => (
-              <button
-                key={item}
-                onClick={() => setCategory(item)}
-                className={cn(
-                  "shrink-0 rounded-full px-4 py-2 text-[13px] tracking-normal transition-colors",
-                  category === item
-                    ? "bg-[#18181B] font-bold text-white shadow-sm"
-                    : item === "Paket Hemat"
-                      ? "border border-red-200 bg-red-50/50 font-bold text-[#FF381E]"
-                      : "border border-stone-200 bg-white font-semibold text-stone-700 hover:border-stone-400",
-                )}
-              >
-                {item === "Paket Hemat" ? "Paket Hemat 🔥" : item}
-              </button>
-            ))}
-          </div>
-
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <h2 className="text-sm font-black uppercase tracking-wider text-[#18181B]">
-                Menu Pilihan Hari Ini
-              </h2>
-              <span className="rounded bg-[#FF381E]/10 px-1.5 py-0.5 text-[13px] font-bold text-[#FF381E]">
-                PEDAS GURIH
+            <div className="mt-8 flex items-baseline justify-between">
+              <h2 className="text-sm font-medium">{category}</h2>
+              <span className="text-xs text-neutral-400">
+                {filteredProducts.length} menu
               </span>
             </div>
-            <span className="text-[13px] font-semibold text-stone-600">
-              {filteredProducts.length} Menu
-            </span>
+
+            {menuLoading ? (
+              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-7">
+                {[0, 1, 2, 3].map((i) => (
+                  <SkeletonCard key={i} />
+                ))}
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <EmptyState
+                title="Tidak ketemu"
+                hint="Coba kata lain atau ganti kategori."
+              />
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-7">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onOpen={openProduct}
+                    onQuickAdd={quickAdd}
+                  />
+                ))}
+              </div>
+            )}
           </div>
+        ) : (
+          <div key="orders" className="ord-rise flex-1 px-5 pt-7">
+            <h1 className="text-[22px] font-medium tracking-tight">Pesanan</h1>
+            <p className="mt-1 text-[13px] text-neutral-500">
+              {dineIn ? `${tableLabel} · Dine in` : "Takeaway · Ambil di kasir"}
+            </p>
 
-          {menuLoading ? (
-            <div className="grid grid-cols-2 gap-3">
-              {[0, 1, 2, 3].map((i) => (
-                <SkeletonCard key={i} />
-              ))}
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <EmptyState
-              title="Tidak ketemu"
-              hint="Coba kata lain atau ganti kategori di atas."
-            />
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onOpen={openProduct}
-                  onQuickAdd={quickAdd}
-                />
-              ))}
-            </div>
-          )}
+            {cart.length === 0 && placedOrders.length === 0 ? (
+              <EmptyState
+                title="Belum ada pesanan"
+                hint="Pilih menu dari Beranda untuk mulai."
+              />
+            ) : (
+              <>
+                {cart.length > 0 && (
+                  <div className="mt-7">
+                    <p className="text-xs text-neutral-400">
+                      Keranjang · {cartCount} item
+                    </p>
+                    <div className="mt-1">
+                      <CartSheet
+                        cart={cart}
+                        onUpdate={updateQuantity}
+                        onCheckout={beginCheckout}
+                        checkoutLoading={checkoutLoading}
+                        checkoutError={checkoutError}
+                      />
+                    </div>
+                  </div>
+                )}
 
-          <div className="mt-5 flex items-center justify-between rounded-2xl border border-stone-200/90 bg-white p-3.5">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-[#FF381E]">
-                <UtensilsCrossed size={18} />
-              </div>
-              <div>
-                <h4 className="text-[13px] font-bold text-[#18181B]">
-                  Sambal Dipisah / Campur?
-                </h4>
-                <p className="text-[13px] font-semibold text-stone-600">
-                  Atur selera pedasmu di halaman checkout
-                </p>
-              </div>
-            </div>
-            <ChevronRight size={18} className="shrink-0 text-stone-600" />
-          </div>
-        </main>
+                {placedOrders.length > 0 && (
+                  <div className={cn(cart.length > 0 && "mt-10")}>
+                    <p className="text-xs text-neutral-400">Riwayat</p>
+                    <div className="mt-1 divide-y divide-neutral-100">
+                      {placedOrders.map((order) => (
+                        <div
+                          key={order.orderNumber}
+                          className="flex items-center justify-between gap-3 py-3.5"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-medium">
+                              {order.orderNumber}
+                            </p>
+                            <p className="mt-0.5 text-xs text-neutral-400">
+                              {order.orderType === "Dine in"
+                                ? order.tableLabel
+                                : "Takeaway"}{" "}
+                              · {order.time}
+                            </p>
+                          </div>
+                          <p className="shrink-0 text-[13px] tabular-nums text-neutral-500">
+                            {formatCompactIDR(order.amountIdr)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-        {cartCount > 0 && step !== "cart" && (
-          <div className="fixed inset-x-0 bottom-3 z-40 mx-auto w-full max-w-[420px] px-3">
-            <div className="flex items-center justify-between rounded-2xl border border-stone-800 bg-[#18181B] p-2.5 pl-4 text-white shadow-2xl">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-stone-700 bg-stone-800/90 text-white">
-                    <ShoppingBag size={20} />
-                  </div>
-                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#18181B] bg-[#FF381E] text-[11px] font-black text-white">
-                    {cartCount}
-                  </span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-1 text-[13px] font-semibold uppercase tracking-wider text-stone-400">
-                    {cartCount} Menu ·{" "}
-                    {dineIn ? (shortTable ?? "Makan di Tempat") : "Takeaway"}
-                  </div>
-                  <div className="text-sm font-extrabold tracking-normal text-white">
-                    {formatCompactIDR(subtotal)}
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => setStep("cart")}
-                className="flex items-center gap-1.5 rounded-xl bg-[#FF381E] px-4 py-2.5 text-[13px] font-bold text-white shadow-md transition-all hover:bg-[#e03018] active:scale-95"
-              >
-                Lihat Pesanan
-                <ArrowRight size={14} />
-              </button>
-            </div>
+                {cart.length === 0 && placedOrders.length > 0 && (
+                  <button
+                    onClick={() => setActiveTab("home")}
+                    className="mt-8 flex h-12 w-full items-center justify-center rounded-full bg-neutral-900 text-sm font-medium text-white transition active:scale-[0.98]"
+                  >
+                    Pesan lagi
+                  </button>
+                )}
+              </>
+            )}
           </div>
         )}
 
+        <nav className="fixed inset-x-0 bottom-0 z-40">
+          <div className="mx-auto flex max-w-[440px] border-t border-neutral-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
+            <button
+              onClick={() => setActiveTab("home")}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-1 py-2.5 transition",
+                activeTab === "home" ? "text-neutral-900" : "text-neutral-400",
+              )}
+            >
+              <Home size={20} strokeWidth={activeTab === "home" ? 2 : 1.6} />
+              <span
+                className={cn(
+                  "text-[11px]",
+                  activeTab === "home" ? "font-medium" : "font-normal",
+                )}
+              >
+                Home
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab("orders")}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-1 py-2.5 transition",
+                activeTab === "orders"
+                  ? "text-neutral-900"
+                  : "text-neutral-400",
+              )}
+            >
+              <span className="relative">
+                <ReceiptText
+                  size={20}
+                  strokeWidth={activeTab === "orders" ? 2 : 1.6}
+                />
+                {cartCount > 0 && (
+                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-neutral-900 px-1 text-[10px] font-medium tabular-nums text-white">
+                    {cartCount}
+                  </span>
+                )}
+              </span>
+              <span
+                className={cn(
+                  "text-[11px]",
+                  activeTab === "orders" ? "font-medium" : "font-normal",
+                )}
+              >
+                Orders
+              </span>
+            </button>
+          </div>
+        </nav>
+
         {toast && (
-          <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50">
-            <Container className="flex justify-center">
-              <p className="ord-toast flex items-center gap-2 whitespace-nowrap rounded-full bg-[#18181B] px-4 py-2 text-[13px] font-semibold text-white shadow-lg">
-                <Check size={14} className="text-emerald-300" /> {toast}
-              </p>
-            </Container>
+          <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-5">
+            <p className="ord-toast rounded-full bg-neutral-900 px-4 py-2 text-[13px] text-white">
+              {toast}
+            </p>
           </div>
         )}
       </div>
@@ -586,20 +621,6 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
           setNote={setNote}
           onClose={() => setStep("menu")}
           onAdd={addToCart}
-        />
-      )}
-      {step === "cart" && (
-        <CartSheet
-          cart={cart}
-          orderType={orderType}
-          tableLabel={tableLabel}
-          menuProducts={menuProducts}
-          onClose={() => setStep("menu")}
-          onUpdate={updateQuantity}
-          onQuickAdd={quickAdd}
-          onCheckout={beginCheckout}
-          checkoutLoading={checkoutLoading}
-          checkoutError={checkoutError}
         />
       )}
     </main>

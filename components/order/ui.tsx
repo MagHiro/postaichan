@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CupSoda, Drumstick, Minus, Plus, Soup, Wheat } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -13,51 +13,35 @@ export function Container({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("mx-auto w-full max-w-[440px] px-4", className)}>
+    <div className={cn("mx-auto w-full max-w-[440px] px-5", className)}>
       {children}
     </div>
   );
 }
 
-function iconFor(product: Product) {
-  switch (product.category) {
-    case "Sate Taichan":
-      return Drumstick;
-    case "Rice Bowl":
-      return Soup;
-    case "Drinks":
-      return CupSoda;
-    case "Extras":
-      return Wheat;
-    default:
-      return Soup;
-  }
-}
-
 export function ProductImage({
   product,
   className,
-  iconSize = 32,
   eager = false,
   children,
 }: {
   product: Product;
   className?: string;
+  /** Kept for compatibility; the minimal placeholder ignores it. */
   iconSize?: number;
   eager?: boolean;
   children?: React.ReactNode;
 }) {
   const [failed, setFailed] = useState(false);
-  const Icon = iconFor(product);
   if (product.imageUrl && !failed) {
     return (
-      <div className={cn("relative overflow-hidden bg-stone-100", className)}>
+      <div className={cn("relative overflow-hidden bg-neutral-100", className)}>
         <img
           src={product.imageUrl}
           alt={product.name}
           loading={eager ? "eager" : "lazy"}
           onError={() => setFailed(true)}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="h-full w-full object-cover"
         />
         {children}
       </div>
@@ -66,12 +50,11 @@ export function ProductImage({
   return (
     <div
       className={cn(
-        "relative flex items-center justify-center overflow-hidden bg-gradient-to-br text-white/90",
-        product.imageTone,
+        "relative flex items-center justify-center overflow-hidden bg-neutral-100 text-neutral-400",
         className,
       )}
     >
-      <Icon size={iconSize} />
+      <span className="text-lg font-medium">{product.name.charAt(0)}</span>
       {children}
     </div>
   );
@@ -91,21 +74,21 @@ export function QtyStepper({
   plusLabel: string;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-full border border-stone-200 bg-white p-1">
+    <div className="flex items-center gap-2.5">
       <button
         aria-label={minusLabel}
         onClick={onMinus}
-        className="flex h-7 w-7 items-center justify-center rounded-full text-stone-600 transition active:scale-90"
+        className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-200 text-neutral-500 transition active:scale-95"
       >
         <Minus size={13} />
       </button>
-      <span className="w-5 text-center text-[13px] font-bold tabular-nums text-[#18181B]">
+      <span className="w-4 text-center text-[13px] font-medium tabular-nums">
         {qty}
       </span>
       <button
         aria-label={plusLabel}
         onClick={onPlus}
-        className="flex h-7 w-7 items-center justify-center rounded-full bg-[#18181B] text-white transition active:scale-90"
+        className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-900 text-white transition active:scale-95"
       >
         <Plus size={13} />
       </button>
@@ -115,16 +98,11 @@ export function QtyStepper({
 
 export function SkeletonCard({ className }: { className?: string }) {
   return (
-    <div
-      className={cn(
-        "rounded-2xl border border-stone-200/80 bg-white p-2.5",
-        className,
-      )}
-    >
-      <div className="ord-skeleton aspect-square w-full rounded-xl" />
-      <div className="space-y-2 px-1 py-3">
-        <div className="ord-skeleton h-3 rounded-full" />
-        <div className="ord-skeleton h-3 w-2/3 rounded-full" />
+    <div className={className}>
+      <div className="ord-skeleton aspect-square w-full rounded-2xl" />
+      <div className="mt-3 space-y-2 px-0.5">
+        <div className="ord-skeleton h-3 w-3/4 rounded-full" />
+        <div className="ord-skeleton h-3 w-1/2 rounded-full" />
       </div>
     </div>
   );
@@ -138,9 +116,11 @@ export function EmptyState({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-dashed border-stone-300 bg-white px-5 py-12 text-center">
-      <p className="text-sm font-bold text-[#18181B]">{title}</p>
-      {hint && <p className="mt-1 text-[13px] font-semibold text-stone-600">{hint}</p>}
+    <div className="py-14 text-center">
+      <p className="text-sm font-medium">{title}</p>
+      {hint && (
+        <p className="mt-1 text-[13px] text-neutral-500">{hint}</p>
+      )}
     </div>
   );
 }

@@ -1,16 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Public_Sans } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-jakarta",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
-
-const publicSans = Public_Sans({
-  variable: "--font-public",
+const poppins = Poppins({
+  variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   display: "swap",
@@ -31,7 +24,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id">
-      <body className={`${jakarta.variable} ${publicSans.variable}`}>{children}</body>
+      <body className={`${poppins.variable}`}>{children}</body>
     </html>
   );
 }

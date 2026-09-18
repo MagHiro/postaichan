@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { ArrowLeft, Clock3, RotateCcw } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { formatCountdown, formatIDR } from "@/lib/format";
 import type { PaymentAttempt } from "./constants";
-import { Container } from "./ui";
 
 export function PaymentView({
   payment,
@@ -71,10 +70,10 @@ export function PaymentView({
         onPaid();
       } else if (payload.paymentStatus === "expired" || payload.paymentStatus === "failed") {
         setExpired(true);
-        setStatusMessage("QRIS kedaluwarsa. Buat pembayaran baru untuk lanjut.");
+        setStatusMessage("Kode kedaluwarsa. Buat pembayaran baru.");
       } else {
         setStatusMessage(
-          "Belum terdeteksi. Kalau sudah bayar, tap cek lagi.",
+          "Belum terdeteksi. Kalau sudah bayar, cek lagi.",
         );
       }
     } finally {
@@ -91,91 +90,68 @@ export function PaymentView({
   }, [checkPayment, isExpired]);
 
   return (
-    <main className="flex min-h-screen justify-center bg-stone-200 text-[#18181B] antialiased">
-      <div className="w-full max-w-[440px] border-x border-stone-200 bg-[#FAF8F5] pb-10 shadow-2xl">
-        <Container className="ord-rise pt-[calc(1.25rem+env(safe-area-inset-top))]">
-          <button
-            onClick={onBack}
-            className="mb-4 flex items-center gap-2 text-[13px] font-semibold text-stone-600 transition active:scale-95"
-          >
-            <ArrowLeft size={15} /> Kembali ke pesanan
-          </button>
-          <div className="text-center">
-            <p className="text-[13px] font-bold uppercase tracking-wider text-stone-600">
-              Pembayaran QRIS
-            </p>
-            <h1 className="mt-2 text-2xl font-extrabold tracking-normal">
-              Scan untuk membayar
-            </h1>
-            <p className="mt-2 text-[13px] font-semibold text-stone-600">
-              Order {payment.orderNumber} ·{" "}
-              {orderType === "Dine in" ? tableLabel : "Takeaway"}
-            </p>
-          </div>
-          <div className="mt-5 rounded-2xl border border-stone-200/90 bg-white p-4 text-center">
+    <main className="flex min-h-screen justify-center bg-white text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
+      <div className="w-full max-w-[440px] px-5 pb-10 pt-[calc(1.25rem+env(safe-area-inset-top))]">
+        <button
+          onClick={onBack}
+          className="mb-8 flex items-center gap-2 text-[13px] text-neutral-500 transition active:scale-95"
+        >
+          <ArrowLeft size={15} /> Kembali
+        </button>
+        <div className="ord-rise text-center">
+          <p className="text-xs text-neutral-400">
+            Order {payment.orderNumber} ·{" "}
+            {orderType === "Dine in" ? tableLabel : "Takeaway"}
+          </p>
+          <p className="mt-3 text-3xl font-medium tabular-nums tracking-tight">
+            {formatIDR(payment.amountIdr)}
+          </p>
+          <p className="mt-1 text-[13px] text-neutral-400">
+            {isExpired
+              ? "Kode kedaluwarsa"
+              : `Berlaku ${formatCountdown(remainingMs)}`}
+          </p>
+          <div className="mx-auto mt-8 w-fit rounded-3xl border border-neutral-100 p-4">
             {qrDataUrl && !isExpired ? (
               <img
                 src={qrDataUrl}
                 alt="QRIS payment code"
-                className="mx-auto h-[220px] w-[220px] rounded-2xl bg-white"
+                className="h-[220px] w-[220px] rounded-2xl bg-white"
               />
             ) : isExpired ? (
-              <div className="mx-auto flex h-[220px] w-[220px] flex-col items-center justify-center gap-2 rounded-2xl bg-stone-100 px-6 text-center">
-                <Clock3 size={28} className="text-stone-600" />
-                <p className="text-[13px] font-bold text-stone-600">QRIS kedaluwarsa</p>
-                <p className="text-[13px] font-semibold leading-relaxed text-stone-600">
-                  Kode 15 menit habis. Buat pembayaran baru — jangan bayar ke kode lama.
+              <div className="flex h-[220px] w-[220px] flex-col items-center justify-center px-6 text-center">
+                <p className="text-sm font-medium">Kode kedaluwarsa</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-neutral-500">
+                  Buat pembayaran baru.
                 </p>
               </div>
             ) : (
-              <div className="ord-skeleton mx-auto h-[220px] w-[220px] rounded-2xl" />
-            )}
-            <p className="mt-4 text-[13px] font-semibold text-stone-600">
-              Total yang harus dibayar
-            </p>
-            <p className="mt-1 text-2xl font-extrabold tabular-nums tracking-normal text-[#FF381E]">
-              {formatIDR(payment.amountIdr)}
-            </p>
-            <div className="mt-3 flex items-center justify-center gap-1.5 text-[13px] font-semibold text-stone-600">
-              <Clock3 size={13} />
-              {isExpired ? (
-                <span className="font-bold text-stone-600">QRIS kedaluwarsa</span>
-              ) : (
-                <span>
-                  Berlaku <span className="font-bold tabular-nums text-stone-600">{formatCountdown(remainingMs)}</span>
-                </span>
-              )}
-            </div>
-            {!isExpired && (
-              <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-stone-100 p-2 text-[13px] font-semibold text-stone-600">
-                <span>1. Buka e-wallet</span>
-                <span>2. Scan QR</span>
-                <span>3. Tap cek status</span>
-              </div>
+              <div className="ord-skeleton h-[220px] w-[220px] rounded-2xl" />
             )}
           </div>
-          <div className="mt-4 space-y-3">
+          <p className="mt-6 text-[13px] text-neutral-400">
+            Scan dengan e-wallet apa pun
+          </p>
+          <div className="mx-auto mt-8 max-w-[280px] space-y-3">
             {isExpired ? (
               <button
                 onClick={onRetry ?? onBack}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FF381E] text-sm font-bold text-white transition hover:bg-[#e03018] active:scale-[0.98]"
+                className="flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
               >
-                <RotateCcw size={16} /> Buat pembayaran baru
+                Buat pembayaran baru
               </button>
             ) : (
               <button
                 onClick={() => void checkPayment()}
                 disabled={checking}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#18181B] text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
+                className="flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-60"
               >
-                {checking ? "Mengecek…" : "Cek status pembayaran"}
+                {checking ? "Mengecek…" : "Saya sudah bayar"}
               </button>
             )}
-            <p className="text-center text-[13px] font-semibold text-stone-600">
-              {statusMessage}
-            </p>
+            <p className="text-xs text-neutral-400">{statusMessage}</p>
           </div>
-        </Container>
+        </div>
       </div>
     </main>
   );

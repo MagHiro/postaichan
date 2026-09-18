@@ -3,7 +3,8 @@
 import { Plus } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import type { Product } from "@/lib/types";
-import { badgeFor, spiceLevelFor } from "./constants";
+import { cn } from "@/lib/utils";
+import { badgeFor } from "./constants";
 import { ProductImage } from "./ui";
 
 export function ProductCard({
@@ -16,58 +17,47 @@ export function ProductCard({
   onQuickAdd: (p: Product) => void;
 }) {
   const badge = badgeFor(product);
-  const spice = spiceLevelFor(product);
   return (
-    <article className="group flex flex-col justify-between rounded-2xl border border-stone-200/80 bg-white p-2.5 shadow-xs transition-all hover:shadow-md">
-      <div>
-        <div className="mb-2">
-          <ProductImage
-            product={product}
-            className="aspect-square w-full overflow-hidden rounded-xl"
-          >
-            {badge && (
-              <span
-                className={`absolute left-2 top-2 flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-extrabold uppercase tracking-wider shadow-sm ${badge.className}`}
-              >
-                {badge.label}
-              </span>
-            )}
-            {spice > 0 && (
-              <div className="absolute bottom-1.5 left-2 flex items-center gap-0.5 rounded bg-black/60 px-1.5 py-0.5 text-[13px] font-semibold text-white">
-                <span>{"🌶️".repeat(spice)}</span>
-              </div>
-            )}
-          </ProductImage>
-        </div>
+    <article className="flex min-w-0 flex-col">
+      <button
+        onClick={() => onOpen(product)}
+        disabled={!product.available}
+        className="block w-full text-left disabled:cursor-not-allowed"
+      >
+        <ProductImage
+          product={product}
+          className={cn(
+            "aspect-square w-full rounded-2xl",
+            !product.available && "opacity-60",
+          )}
+        >
+          {badge && (
+            <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-neutral-500 backdrop-blur">
+              {badge.label}
+            </span>
+          )}
+        </ProductImage>
+      </button>
+      <div className="mt-2.5 flex items-start justify-between gap-2 px-0.5">
         <button
           onClick={() => onOpen(product)}
           disabled={!product.available}
-          className="block w-full text-left disabled:cursor-not-allowed"
+          className="min-w-0 flex-1 text-left disabled:cursor-not-allowed"
         >
-          <h3 className="line-clamp-1 text-sm font-extrabold leading-snug tracking-wide text-[#18181B]">
+          <h3 className="truncate text-[13px] font-medium leading-snug">
             {product.name}
           </h3>
-          <p className="mt-1 line-clamp-2 text-[13px] font-semibold leading-relaxed tracking-wide text-stone-600">
-            {product.description}
+          <p className="mt-0.5 text-[13px] tabular-nums text-neutral-500">
+            {formatCompactIDR(product.price)}
           </p>
         </button>
-      </div>
-      <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2">
-        <div>
-          <span className="block text-[13px] font-semibold tracking-wide text-stone-600">
-            Harga
-          </span>
-          <span className="text-sm font-black tracking-wide text-[#18181B]">
-            {formatCompactIDR(product.price)}
-          </span>
-        </div>
         <button
           aria-label={`Tambah ${product.name}`}
           onClick={() => onQuickAdd(product)}
           disabled={!product.available}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-[#18181B] text-white shadow-sm transition-all hover:bg-[#FF381E] active:scale-95 disabled:opacity-40"
+          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-neutral-200 transition active:scale-95 disabled:opacity-30"
         >
-          <Plus size={14} />
+          <Plus size={13} />
         </button>
       </div>
     </article>

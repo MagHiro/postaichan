@@ -1,70 +1,64 @@
 "use client";
 
-import { Check, Clock3 } from "lucide-react";
 import { formatIDR } from "@/lib/format";
-import { Container } from "./ui";
 
 export function SuccessView({
   orderType,
   tableLabel,
   amount,
   orderNumber,
-  onNewOrder,
+  onHome,
+  onViewOrders,
 }: {
   orderType: string;
   tableLabel: string;
   amount: number;
   orderNumber: string;
-  onNewOrder: () => void;
+  onHome: () => void;
+  onViewOrders: () => void;
 }) {
   return (
-    <main className="flex min-h-screen justify-center bg-stone-200 text-[#18181B] antialiased">
-      <div className="flex w-full max-w-[440px] items-center justify-center border-x border-stone-200 bg-[#FAF8F5] shadow-2xl">
-        <Container className="ord-rise py-10 text-center">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-600 text-white">
-            <Check size={40} strokeWidth={2.5} />
-          </div>
-          <p className="mt-5 text-[13px] font-bold uppercase tracking-wider text-emerald-700">
-            Pembayaran berhasil
-          </p>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-normal">
-            Pesanan diterima.
+    <main className="flex min-h-screen justify-center bg-white text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
+      <div className="flex w-full max-w-[440px] flex-col justify-center px-5 py-10">
+        <div className="ord-rise text-center">
+          <p className="text-[13px] text-neutral-400">Pembayaran berhasil</p>
+          <h1 className="mt-2 text-[22px] font-medium tracking-tight">
+            Pesanan diterima
           </h1>
-          <p className="mt-2 text-[13px] font-semibold leading-relaxed text-stone-600">
+          <p className="mt-2 text-[13px] leading-relaxed text-neutral-500">
             {orderType === "Dine in"
-              ? `Tetap duduk manis di ${tableLabel}, pesananmu lagi disiapin.`
-              : "Pesananmu lagi disiapin. Tunggu panggilan di kasir ya."}
+              ? `Tetap di ${tableLabel}, pesananmu sedang disiapkan.`
+              : "Pesananmu sedang disiapkan. Tunggu panggilan di kasir."}
           </p>
-          <div className="mt-5 rounded-2xl border border-stone-200/90 bg-white p-4 text-left">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-              <span className="text-[13px] font-semibold text-stone-600">Nomor pesanan</span>
-              <span className="text-sm font-bold">{orderNumber}</span>
-            </div>
-            <div className="flex items-center justify-between py-4">
-              <span className="text-[13px] font-semibold text-stone-600">
-                {orderType === "Dine in" ? "Meja" : "Tipe pesanan"}
+          <div className="mx-auto mt-8 max-w-[320px] divide-y divide-neutral-100 border-y border-neutral-100 text-left">
+            <div className="flex items-center justify-between py-3.5">
+              <span className="text-[13px] text-neutral-400">
+                Nomor pesanan
               </span>
-              <span className="text-sm font-semibold">
-                {orderType === "Dine in" ? tableLabel : "Takeaway"}
-              </span>
+              <span className="text-[13px] font-medium">{orderNumber}</span>
             </div>
-            <div className="flex items-center justify-between border-t border-stone-100 pt-4">
-              <span className="text-[13px] font-semibold text-stone-600">Total dibayar</span>
-              <span className="text-sm font-extrabold tabular-nums text-[#FF381E]">
+            <div className="flex items-center justify-between py-3.5">
+              <span className="text-[13px] text-neutral-400">Total</span>
+              <span className="text-[13px] font-medium tabular-nums">
                 {formatIDR(amount)}
               </span>
             </div>
           </div>
-          <div className="mt-5 flex items-center justify-center gap-1.5 text-[13px] font-semibold text-emerald-700">
-            <Clock3 size={14} /> Dapur sudah terima pesananmu
+          <div className="mx-auto mt-8 max-w-[320px] space-y-2.5">
+            <button
+              onClick={onViewOrders}
+              className="flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+            >
+              Lihat pesanan
+            </button>
+            <button
+              onClick={onHome}
+              className="flex h-12 w-full items-center justify-center rounded-full text-sm text-neutral-500 transition active:scale-[0.98]"
+            >
+              Kembali ke beranda
+            </button>
           </div>
-          <button
-            onClick={onNewOrder}
-            className="mt-5 flex h-12 w-full items-center justify-center rounded-xl bg-[#FF381E] text-sm font-bold text-white transition hover:bg-[#e03018] active:scale-[0.98]"
-          >
-            Pesan lagi
-          </button>
-        </Container>
+        </div>
       </div>
     </main>
   );

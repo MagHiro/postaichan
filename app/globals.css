@@ -6,21 +6,22 @@
   --paper: #faf8f5;
   --surface: #ffffff;
   --line: #e7e3dc;
-  --accent: #ff381e;
-  --accent-dark: #e02b13;
+  --accent: #fdbd2c;
+  --accent-dark: #eca90f;
   --green: #2f8062;
   --warm: #f5f3ef;
 }
 
 @layer base {
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; }
   html { background: var(--paper); }
   html, body { overflow-x: hidden; }
   body {
     margin: 0;
     color: var(--ink);
     background: var(--paper);
-    font-family: var(--font-jakarta), var(--font-public), "Plus Jakarta Sans", "Public Sans", sans-serif;
+    font-family: var(--font-sans), "Poppins", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;

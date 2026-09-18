@@ -2,7 +2,7 @@
 
 import type { Product } from "@/lib/types";
 
-export type OrderStep = "menu" | "configure" | "cart" | "payment" | "success";
+export type OrderStep = "menu" | "configure" | "payment" | "success";
 
 export type PaymentAttempt = {
   orderId: string;
@@ -10,6 +10,14 @@ export type PaymentAttempt = {
   amountIdr: number;
   qrString: string;
   expiresAt: string;
+};
+
+export type PlacedOrder = {
+  orderNumber: string;
+  amountIdr: number;
+  orderType: "Dine in" | "Takeaway";
+  tableLabel: string;
+  time: string;
 };
 
 export const SPICE_LEVELS = [
@@ -72,15 +80,7 @@ export type ProductBadge = { label: string; className: string };
 
 export function badgeFor(product: Product): ProductBadge | null {
   if (!product.available)
-    return { label: "HABIS", className: "bg-[#18181B] text-white" };
-  if (product.popular)
-    return { label: "FAVORIT 🔥", className: "bg-[#FF381E] text-white" };
-  if (product.category === "Rice Bowl")
-    return { label: "KENYANG", className: "bg-[#18181B] text-white" };
-  if (/kulit|crispy/i.test(product.name))
-    return { label: "CRISPY ✨", className: "bg-amber-500 text-white" };
-  if (product.category === "Drinks")
-    return { label: "SEGER 🧊", className: "bg-emerald-600 text-white" };
+    return { label: "Habis", className: "bg-neutral-900 text-white" };
   return null;
 }
 
