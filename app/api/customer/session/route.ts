@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 import { createOpaqueToken, hashOpaqueToken } from "@/lib/domain/tokens";
 import { consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 import { customerSessionSchema } from "@/lib/schemas";
@@ -11,7 +11,6 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Order session is invalid." }, { status: 400, headers: noStoreHeaders() });
   try {
     if (!(await consumeRateLimit(request, "customer-session", 12, 300))) return NextResponse.json({ error: "Terlalu banyak percobaan. Coba lagi sebentar." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "300" } });
-    const supabase = createAdminClient();
     let tableId: string | null = null;
     let tableLabel: string | null = null;
     let tableQrVersion: number | null = null;
@@ -20,8 +19,8 @@ export async function POST(request: Request) {
     let sourceTableId: string | null = null;
     let sourceTableQrVersion: number | null = null;
     if (parsed.data.tableToken) {
-      const { data: table, error } = await supabase.from("restaurant_tables").select("id, label, active, qr_token_version").eq("qr_token_hash", hashOpaqueToken(parsed.data.tableToken)).maybeSingle();
-      if (error) throw error;
+      const tableResult = await query<{ id: string; label: string; active: boolean; qr_token_version: number }>("select id, label, active, qr_token_version from public.restaurant_tables where qr_token_hash = $1 limit 1", [hashOpaqueToken(parsed.data.tableToken)]);
+      const table = tableResult.rows[0];
       if (!table?.active) return NextResponse.json({ error: "This table QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
       sourceTableId = table.id;
       sourceTableQrVersion = table.qr_token_version;
@@ -32,16 +31,19 @@ export async function POST(request: Request) {
       }
     }
     if (parsed.data.generalToken) {
-      const { data: code, error } = await supabase.from("ordering_qr_codes").select("id, active, token_version").eq("token_hash", hashOpaqueToken(parsed.data.generalToken)).maybeSingle();
-      if (error) throw error;
+      const codeResult = await query<{ id: string; active: boolean; token_version: number }>("select id, active, token_version from public.ordering_qr_codes where token_hash = $1 limit 1", [hashOpaqueToken(parsed.data.generalToken)]);
+      const code = codeResult.rows[0];
       if (!code?.active) return NextResponse.json({ error: "This ordering QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
       orderingQrCodeId = code.id;
       orderingQrTokenVersion = code.token_version;
     }
     const rawToken = createOpaqueToken(32);
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-    const { error } = await supabase.from("customer_sessions").insert({ access_token_hash: hashOpaqueToken(rawToken), order_type: parsed.data.orderType, table_id: parsed.data.orderType === "dine_in" ? tableId : null, table_qr_version: parsed.data.orderType === "dine_in" ? tableQrVersion : null, source_table_id: sourceTableId, source_table_qr_version: sourceTableQrVersion, ordering_qr_code_id: orderingQrCodeId, ordering_qr_token_version: orderingQrTokenVersion, expires_at: expiresAt });
-    if (error) throw error;
+    await query(
+      `insert into public.customer_sessions(access_token_hash, order_type, table_id, table_qr_version, source_table_id, source_table_qr_version, ordering_qr_code_id, ordering_qr_token_version, expires_at)
+       values ($1, $2::public.order_type, $3, $4, $5, $6, $7, $8, $9)`,
+      [hashOpaqueToken(rawToken), parsed.data.orderType, parsed.data.orderType === "dine_in" ? tableId : null, parsed.data.orderType === "dine_in" ? tableQrVersion : null, sourceTableId, sourceTableQrVersion, orderingQrCodeId, orderingQrTokenVersion, expiresAt],
+    );
     return NextResponse.json({ sessionToken: rawToken, orderType: parsed.data.orderType, tableLabel: parsed.data.orderType === "dine_in" ? tableLabel : null, expiresAt, hasTable: parsed.data.orderType === "dine_in" && tableId !== null }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("customer_session_failed", error instanceof Error ? error.message : "unknown");

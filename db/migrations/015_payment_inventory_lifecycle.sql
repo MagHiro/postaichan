@@ -71,8 +71,3 @@ begin
   return next;
 end;
 $$;
-
-revoke all on function public.release_payment_provider_create(uuid, text) from public;
-revoke all on function public.apply_payment_refund(uuid, integer, uuid, text) from public;
-grant execute on function public.release_payment_provider_create(uuid, text) to service_role;
-grant execute on function public.apply_payment_refund(uuid, integer, uuid, text) to service_role;

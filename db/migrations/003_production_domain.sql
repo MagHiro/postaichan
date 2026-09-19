@@ -33,8 +33,6 @@ create table if not exists public.rate_limit_buckets (
   request_count integer not null default 0 check (request_count >= 0),
   updated_at timestamptz not null default timezone('utc', now())
 );
-alter table public.rate_limit_buckets enable row level security;
-
 create or replace function public.consume_rate_limit(
   p_bucket_key text,
   p_limit integer,
@@ -397,22 +395,3 @@ language sql security definer set search_path = public as $$
   where restaurant_tables.id = p_table_id
   returning restaurant_tables.id, restaurant_tables.label, restaurant_tables.code, restaurant_tables.active, restaurant_tables.qr_token_version;
 $$;
-
-revoke all on function public.consume_rate_limit(text, integer, integer) from public;
-revoke all on function public.create_checkout_intent(uuid, text, text, public.order_type, uuid, uuid, public.payment_method, jsonb) from public;
-revoke all on function public.claim_payment_provider_create(uuid) from public;
-revoke all on function public.release_payment_provider_create(uuid, text) from public;
-revoke all on function public.apply_payment_transition(uuid, public.payment_status, text, text, integer, timestamptz) from public;
-revoke all on function public.claim_payment_refund(uuid, integer) from public;
-revoke all on function public.apply_payment_refund(uuid, integer, uuid, text) from public;
-revoke all on function public.transition_order_status(uuid, public.order_status, public.order_status, uuid) from public;
-revoke all on function public.rotate_table_qr(uuid, text) from public;
-grant execute on function public.consume_rate_limit(text, integer, integer) to service_role;
-grant execute on function public.create_checkout_intent(uuid, text, text, public.order_type, uuid, uuid, public.payment_method, jsonb) to service_role;
-grant execute on function public.claim_payment_provider_create(uuid) to service_role;
-grant execute on function public.release_payment_provider_create(uuid, text) to service_role;
-grant execute on function public.apply_payment_transition(uuid, public.payment_status, text, text, integer, timestamptz) to service_role;
-grant execute on function public.claim_payment_refund(uuid, integer) to service_role;
-grant execute on function public.apply_payment_refund(uuid, integer, uuid, text) to service_role;
-grant execute on function public.transition_order_status(uuid, public.order_status, public.order_status, uuid) to service_role;
-grant execute on function public.rotate_table_qr(uuid, text) to service_role;

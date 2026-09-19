@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { databaseErrorCode, query } from "@/lib/db";
 import { midtransWebhookSchema } from "@/lib/schemas";
 import { paymentStatusFromProvider } from "@/lib/domain/payment-state";
 import { noStoreHeaders } from "@/lib/security/request";
@@ -23,19 +23,21 @@ export async function POST(request: Request) {
   const expected = createHash("sha512").update(`${event.order_id}${event.status_code}${event.gross_amount}${serverKey}`).digest("hex");
   if (!safeEqual(event.signature_key, expected)) return NextResponse.json({ error: "Invalid signature" }, { status: 401, headers: noStoreHeaders() });
   try {
-    const supabase = createAdminClient();
-    const { data: payment, error: paymentError } = await supabase.from("payments").select("id, order_id, amount_idr, method").eq("provider_order_id", event.order_id).maybeSingle();
-    if (paymentError) throw paymentError;
+    const paymentResult = await query<{ id: string; order_id: string; amount_idr: number; method: string }>("select id, order_id, amount_idr, method from public.payments where provider_order_id = $1 limit 1", [event.order_id]);
+    const payment = paymentResult.rows[0];
     if (!payment) return NextResponse.json({ error: "Payment not found" }, { status: 404, headers: noStoreHeaders() });
     if (payment.method !== "qris" || Number(event.gross_amount) !== payment.amount_idr) return NextResponse.json({ error: "Payment amount mismatch" }, { status: 422, headers: noStoreHeaders() });
     if (event.payment_type && event.payment_type !== "qris") return NextResponse.json({ error: "Payment method mismatch" }, { status: 422, headers: noStoreHeaders() });
     const providerEventKey = createHash("sha256").update(JSON.stringify(event)).digest("hex");
-    const { error: eventError } = await supabase.from("payment_events").insert({ payment_id: payment.id, provider_event_key: providerEventKey, provider_transaction_id: event.transaction_id ?? null, event_type: event.transaction_status, payload: event, verified: true });
-    const duplicate = eventError?.code === "23505";
-    if (eventError && !duplicate) throw eventError;
+    let duplicate = false;
+    try {
+      await query("insert into public.payment_events(payment_id, provider_event_key, provider_transaction_id, event_type, payload, verified) values ($1, $2, $3, $4, $5::jsonb, true)", [payment.id, providerEventKey, event.transaction_id ?? null, event.transaction_status, event]);
+    } catch (error) {
+      duplicate = databaseErrorCode(error) === "23505";
+      if (!duplicate) throw error;
+    }
     const nextStatus = paymentStatusFromProvider(event.transaction_status, event.fraud_status);
-    const { error: transitionError } = await supabase.rpc("apply_payment_transition", { p_payment_id: payment.id, p_next_status: nextStatus, p_provider_status: event.transaction_status, p_provider_transaction_id: event.transaction_id ?? null, p_fee_idr: 0, p_settled_at: nextStatus === "settled" ? new Date().toISOString() : null });
-    if (transitionError) throw transitionError;
+    await query("select * from public.apply_payment_transition($1::uuid, $2::public.payment_status, $3, $4, $5, $6::timestamptz)", [payment.id, nextStatus, event.transaction_status, event.transaction_id ?? null, 0, nextStatus === "settled" ? new Date().toISOString() : null]);
     return NextResponse.json({ received: true, ...(duplicate ? { duplicate: true } : {}) }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("midtrans_webhook_failed", error instanceof Error ? error.message : "unknown");

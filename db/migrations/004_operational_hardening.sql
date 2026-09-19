@@ -35,7 +35,7 @@ create table if not exists public.ordering_qr_codes (
   token_hash text not null unique check (token_hash ~ '^[a-f0-9]{64}$'),
   token_version integer not null default 1 check (token_version > 0),
   active boolean not null default true,
-  created_by uuid not null references auth.users(id),
+  created_by uuid not null references public.staff_users(id),
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -73,7 +73,7 @@ create table if not exists public.inventory_adjustments (
   delta integer generated always as (new_quantity - previous_quantity) stored,
   adjustment_type public.inventory_adjustment_type not null,
   reason text not null check (char_length(trim(reason)) between 1 and 240),
-  actor_id uuid references auth.users(id),
+  actor_id uuid references public.staff_users(id),
   created_at timestamptz not null default timezone('utc', now())
 );
 
@@ -83,7 +83,7 @@ create table if not exists public.payment_refunds (
   amount_idr integer not null check (amount_idr > 0),
   refund_key text not null unique,
   reason text not null check (char_length(trim(reason)) between 3 and 240),
-  actor_id uuid not null references auth.users(id),
+  actor_id uuid not null references public.staff_users(id),
   processed_at timestamptz not null default timezone('utc', now())
 );
 
@@ -97,47 +97,9 @@ create index if not exists payment_refunds_payment_idx on public.payment_refunds
 
 create trigger ordering_qr_codes_updated_at before update on public.ordering_qr_codes for each row execute procedure public.set_updated_at();
 create trigger inventory_reservations_updated_at before update on public.inventory_reservations for each row execute procedure public.set_updated_at();
-
-alter table public.ordering_qr_codes enable row level security;
-alter table public.inventory_reservations enable row level security;
-alter table public.inventory_reservation_items enable row level security;
-alter table public.inventory_adjustments enable row level security;
-alter table public.payment_refunds enable row level security;
-
-create policy admin_read_ordering_qr_codes on public.ordering_qr_codes for select to authenticated using (public.is_admin());
-create policy admin_manage_ordering_qr_codes on public.ordering_qr_codes for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy admin_read_inventory_reservations on public.inventory_reservations for select to authenticated using (public.is_admin());
-create policy admin_read_inventory_reservation_items on public.inventory_reservation_items for select to authenticated using (public.is_admin());
-create policy admin_read_inventory_adjustments on public.inventory_adjustments for select to authenticated using (public.is_admin());
-create policy admin_read_payment_refunds on public.payment_refunds for select to authenticated using (public.is_admin());
-
 -- Authenticated clients only receive operational columns. Financial snapshots,
 -- provider fees, QR secrets, audit records, and arbitrary staff profiles stay
 -- server-side behind explicit application authorization.
-drop policy if exists staff_read_profiles on public.profiles;
-create policy staff_read_self_profile on public.profiles for select to authenticated using (id = auth.uid());
-drop policy if exists staff_read_settings on public.restaurant_settings;
-drop policy if exists staff_read_adjustments on public.order_adjustments;
-
-revoke all on public.restaurant_settings from authenticated;
-revoke all on public.audit_logs from authenticated;
-revoke all on public.payment_events from authenticated;
-revoke all on public.order_adjustments from authenticated;
-revoke select on public.profiles from authenticated;
-grant select (id, display_name, role, active) on public.profiles to authenticated;
-revoke select on public.products from authenticated;
-grant select (id, category_id, name, description, image_path, price_idr, available, active, display_order, archived_at, created_by, created_at, updated_at, popular, stock_tracked, stock_quantity) on public.products to authenticated;
-revoke select on public.orders from authenticated;
-grant select (id, order_number, customer_session_id, table_id, order_type, status, currency, subtotal_idr, discount_idr, tax_idr, service_charge_idr, total_idr, visit_reference, created_by, created_at, updated_at) on public.orders to authenticated;
-revoke select on public.payments from authenticated;
-grant select (id, order_id, provider, method, status, amount_idr, provider_transaction_id, expires_at, settled_at, created_at, updated_at, orphaned_settlement, refunded_amount_idr) on public.payments to authenticated;
-revoke select on public.restaurant_tables from authenticated;
-grant select (id, label, code, active, qr_token_version, created_at, updated_at) on public.restaurant_tables to authenticated;
-revoke select on public.variant_options from authenticated;
-grant select (id, group_id, name, price_adjustment_idr, available, display_order) on public.variant_options to authenticated;
-revoke select on public.addon_options from authenticated;
-grant select (id, group_id, name, price_adjustment_idr, available, display_order) on public.addon_options to authenticated;
-
 create or replace function public.is_admin_actor(p_actor_id uuid) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
   select p_actor_id is not null and exists (
@@ -737,45 +699,3 @@ begin
   return true;
 end;
 $$;
-
-revoke all on function public.is_admin_actor(uuid) from public;
-revoke all on function public.is_staff_actor(uuid) from public;
-revoke all on function public.release_expired_inventory_reservations() from public;
-revoke all on function public.reserve_order_inventory(uuid, uuid, timestamptz) from public;
-revoke all on function public.release_inventory_reservation(uuid, public.inventory_reservation_status) from public;
-revoke all on function public.consume_inventory_reservation(uuid) from public;
-revoke all on function public.create_checkout_intent(uuid, text, text, public.order_type, uuid, uuid, public.payment_method, jsonb) from public;
-revoke all on function public.release_payment_provider_create(uuid, text) from public;
-revoke all on function public.apply_payment_transition(uuid, public.payment_status, text, text, integer, timestamptz) from public;
-revoke all on function public.transition_order_status(uuid, public.order_status, public.order_status, uuid) from public;
-revoke all on function public.apply_payment_refund(uuid, integer, uuid, text) from public;
-revoke all on function public.create_table_with_qr(text, text, boolean, text, uuid) from public;
-revoke all on function public.update_table_metadata(uuid, text, text, boolean, uuid) from public;
-revoke all on function public.rotate_table_qr(uuid, text, uuid) from public;
-revoke all on function public.create_general_qr(text, text, uuid) from public;
-revoke all on function public.update_general_qr(uuid, text, boolean, uuid) from public;
-revoke all on function public.rotate_general_qr(uuid, text, uuid) from public;
-revoke all on function public.provision_staff_profile(uuid, text, public.staff_role, uuid) from public;
-revoke all on function public.update_staff_profile(uuid, boolean, public.staff_role, uuid) from public;
-revoke all on function public.create_product_with_audit(uuid, text, text, text, integer, integer, boolean, boolean, integer, uuid) from public;
-revoke all on function public.update_product_with_audit(uuid, uuid, text, text, text, integer, integer, boolean, boolean, integer, text, uuid) from public;
-revoke all on function public.archive_product(uuid, uuid) from public;
-revoke all on function public.restore_product(uuid, uuid) from public;
-
-grant execute on function public.create_checkout_intent(uuid, text, text, public.order_type, uuid, uuid, public.payment_method, jsonb) to service_role;
-grant execute on function public.release_payment_provider_create(uuid, text) to service_role;
-grant execute on function public.apply_payment_transition(uuid, public.payment_status, text, text, integer, timestamptz) to service_role;
-grant execute on function public.transition_order_status(uuid, public.order_status, public.order_status, uuid) to service_role;
-grant execute on function public.apply_payment_refund(uuid, integer, uuid, text) to service_role;
-grant execute on function public.create_table_with_qr(text, text, boolean, text, uuid) to service_role;
-grant execute on function public.update_table_metadata(uuid, text, text, boolean, uuid) to service_role;
-grant execute on function public.rotate_table_qr(uuid, text, uuid) to service_role;
-grant execute on function public.create_general_qr(text, text, uuid) to service_role;
-grant execute on function public.update_general_qr(uuid, text, boolean, uuid) to service_role;
-grant execute on function public.rotate_general_qr(uuid, text, uuid) to service_role;
-grant execute on function public.provision_staff_profile(uuid, text, public.staff_role, uuid) to service_role;
-grant execute on function public.update_staff_profile(uuid, boolean, public.staff_role, uuid) to service_role;
-grant execute on function public.create_product_with_audit(uuid, text, text, text, integer, integer, boolean, boolean, integer, uuid) to service_role;
-grant execute on function public.update_product_with_audit(uuid, uuid, text, text, text, integer, integer, boolean, boolean, integer, text, uuid) to service_role;
-grant execute on function public.archive_product(uuid, uuid) to service_role;
-grant execute on function public.restore_product(uuid, uuid) to service_role;

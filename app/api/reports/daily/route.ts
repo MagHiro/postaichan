@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { getReport } from "@/lib/reports";
 import { noStoreHeaders } from "@/lib/security/request";
@@ -14,7 +13,7 @@ export async function GET(request: Request) {
     const date = params.get("date") ?? undefined;
     const from = params.get("from") ?? date;
     const to = params.get("to") ?? date;
-    const report = await getReport(createAdminClient(), from ?? undefined, to ?? undefined);
+    const report = await getReport(from ?? undefined, to ?? undefined);
     return NextResponse.json(report, { headers: noStoreHeaders() });
   } catch (error) {
     if (error instanceof Error && ["INVALID_REPORT_DATE", "REPORT_RANGE_LIMIT"].includes(error.message)) return NextResponse.json({ error: error.message === "REPORT_RANGE_LIMIT" ? "Rentang laporan maksimal 31 hari." : "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });

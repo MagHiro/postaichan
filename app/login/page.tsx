@@ -3,7 +3,6 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,10 +13,8 @@ export default function LoginPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setLoading(true); setError(null);
-    const { error: signInError } = await createClient().auth.signInWithPassword({ email, password });
-    if (signInError) { setError("Email atau password tidak cocok."); setLoading(false); return; }
-    const profileResponse = await fetch("/api/auth/profile", { method: "POST" });
-    if (!profileResponse.ok) { await createClient().auth.signOut(); setError("Akun masuk, tetapi profil staff belum siap."); setLoading(false); return; }
+    const loginResponse = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password }) });
+    if (!loginResponse.ok) { const payload = await loginResponse.json().catch(() => null); setError(payload?.error ?? "Email atau password tidak cocok."); setLoading(false); return; }
     const next = new URLSearchParams(window.location.search).get("next");
     router.replace(next && next.startsWith("/") && !next.startsWith("//") ? next : "/pos"); router.refresh();
   }

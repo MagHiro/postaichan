@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { databaseErrorCode, query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { createOpaqueToken, hashOpaqueToken } from "@/lib/domain/tokens";
 import { tableMutationSchema } from "@/lib/menu-schema";
@@ -17,10 +17,14 @@ export async function PATCH(request: Request, { params }: Context) {
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Table not found." }, { status: 400, headers: noStoreHeaders() });
   const parsed = tableMutationSchema.partial().safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Table data is invalid." }, { status: 400, headers: noStoreHeaders() });
-  const supabase = createAdminClient();
-  const { data: updated, error } = await supabase.rpc("update_table_metadata", { p_table_id: id, p_label: parsed.data.label ?? null, p_code: parsed.data.code ?? null, p_active: parsed.data.active ?? null, p_actor_id: auth.actorId });
-  if (error) return NextResponse.json({ error: error.code === "23505" ? "Table code already exists." : "Table could not be updated." }, { status: error.code === "23505" ? 409 : 503, headers: noStoreHeaders() });
-  const data = Array.isArray(updated) ? updated[0] : updated;
+  let result;
+  try {
+    result = await query("select * from public.update_table_metadata($1::uuid, $2, $3, $4, $5::uuid)", [id, parsed.data.label ?? null, parsed.data.code ?? null, parsed.data.active ?? null, auth.actorId]);
+  } catch (error) {
+    const duplicate = databaseErrorCode(error) === "23505";
+    return NextResponse.json({ error: duplicate ? "Table code already exists." : "Table could not be updated." }, { status: duplicate ? 409 : 503, headers: noStoreHeaders() });
+  }
+  const data = result.rows[0];
   if (!data) return NextResponse.json({ error: "Table not found." }, { status: 404, headers: noStoreHeaders() });
   return NextResponse.json({ table: data }, { headers: noStoreHeaders() });
 }
@@ -32,10 +36,13 @@ export async function POST(request: Request, { params }: Context) {
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Table not found." }, { status: 400, headers: noStoreHeaders() });
   const rawToken = createOpaqueToken(32);
-  const supabase = createAdminClient();
-  const { data: rotated, error } = await supabase.rpc("rotate_table_qr", { p_table_id: id, p_token_hash: hashOpaqueToken(rawToken), p_actor_id: auth.actorId });
-  const data = Array.isArray(rotated) ? rotated[0] : rotated;
-  if (error) return NextResponse.json({ error: "Table QR could not be rotated." }, { status: 503, headers: noStoreHeaders() });
+  let result;
+  try {
+    result = await query("select * from public.rotate_table_qr($1::uuid, $2, $3::uuid)", [id, hashOpaqueToken(rawToken), auth.actorId]);
+  } catch (error) {
+    return NextResponse.json({ error: "Table QR could not be rotated." }, { status: 503, headers: noStoreHeaders() });
+  }
+  const data = result.rows[0];
   if (!data) return NextResponse.json({ error: "Table not found." }, { status: 404, headers: noStoreHeaders() });
   return NextResponse.json({ table: data, orderingUrl: `/order/t/${rawToken}` }, { headers: noStoreHeaders() });
 }

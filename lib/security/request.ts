@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 
 export function noStoreHeaders() {
   return { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
@@ -21,8 +21,6 @@ export function sameOrigin(request: Request) {
 
 export async function consumeRateLimit(request: Request, scope: string, limit: number, windowSeconds: number, extra = "") {
   const bucket = `${clientBucket(request, scope)}:${extra}`;
-  const admin = createAdminClient();
-  const { data, error } = await admin.rpc("consume_rate_limit", { p_bucket_key: bucket, p_limit: limit, p_window_seconds: windowSeconds });
-  if (error) throw error;
-  return data === true;
+  const result = await query<{ consume_rate_limit: boolean }>("select public.consume_rate_limit($1, $2, $3) as consume_rate_limit", [bucket, limit, windowSeconds]);
+  return result.rows[0]?.consume_rate_limit === true;
 }

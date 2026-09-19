@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 import { isMenuImagePath, MenuImageError, MENU_UPLOAD_MAX_BYTES, removeMenuImage, storeMenuImage } from "@/lib/uploads/menu-storage";
 
 export const runtime = "nodejs";
@@ -34,10 +34,9 @@ export async function DELETE(request: Request) {
   const parsed = z.object({ imagePath: z.string().regex(/^\/uploads\/menu\/[A-Za-z0-9_-]+\.webp$/) }).strict().safeParse(await request.json().catch(() => null));
   if (!parsed.success || !isMenuImagePath(parsed.data.imagePath)) return NextResponse.json({ error: "Path gambar tidak valid." }, { status: 400, headers: noStoreHeaders() });
   try {
-    const { data: references, error } = await createAdminClient().from("products").select("id").eq("image_path", parsed.data.imagePath).limit(1);
-    if (error) throw error;
-    if (!references?.length) await removeMenuImage(parsed.data.imagePath);
-    return NextResponse.json({ removed: !references?.length }, { headers: noStoreHeaders() });
+    const references = await query("select id from public.products where image_path = $1 limit 1", [parsed.data.imagePath]);
+    if (references.rowCount === 0) await removeMenuImage(parsed.data.imagePath);
+    return NextResponse.json({ removed: references.rowCount === 0 }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("menu_image_cleanup_failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Gambar belum dapat dibersihkan." }, { status: 503, headers: noStoreHeaders() });

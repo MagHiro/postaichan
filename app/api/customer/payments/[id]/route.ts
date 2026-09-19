@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 import { MidtransProvider } from "@/lib/payments/midtrans";
 import { presentQrMaterial } from "@/lib/payments/qr";
 import { hashOpaqueToken } from "@/lib/domain/tokens";
@@ -18,18 +18,18 @@ async function getPaymentStatus(request: Request, { params }: Context, synchroni
   try {
     const sessionHash = hashOpaqueToken(token);
     if (!(await consumeRateLimit(request, "payment-status", 30, 300, sessionHash.slice(0, 24)))) return NextResponse.json({ error: "Polling terlalu sering." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "60" } });
-    const supabase = createAdminClient();
-    const { data: session } = await supabase.from("customer_sessions").select("id, table_id, table_qr_version, source_table_id, source_table_qr_version, ordering_qr_code_id, ordering_qr_token_version").eq("access_token_hash", sessionHash).gt("expires_at", new Date().toISOString()).maybeSingle();
+    const sessionResult = await query<{ id: string; table_id: string | null; table_qr_version: number | null; source_table_id: string | null; source_table_qr_version: number | null; ordering_qr_code_id: string | null; ordering_qr_token_version: number | null }>("select id, table_id, table_qr_version, source_table_id, source_table_qr_version, ordering_qr_code_id, ordering_qr_token_version from public.customer_sessions where access_token_hash = $1 and expires_at > timezone('utc', now()) limit 1", [sessionHash]);
+    const session = sessionResult.rows[0];
     if (!session) return NextResponse.json({ error: "Order session expired." }, { status: 401, headers: noStoreHeaders() });
     const sourceTableId = session.source_table_id ?? session.table_id;
     const sourceTableVersion = session.source_table_qr_version ?? session.table_qr_version;
-    if (sourceTableId && !(await supabase.from("restaurant_tables").select("id").eq("id", sourceTableId).eq("active", true).eq("qr_token_version", sourceTableVersion).maybeSingle()).data) return NextResponse.json({ error: "This table QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
-    if (session.ordering_qr_code_id && !(await supabase.from("ordering_qr_codes").select("id").eq("id", session.ordering_qr_code_id).eq("active", true).eq("token_version", session.ordering_qr_token_version).maybeSingle()).data) return NextResponse.json({ error: "This ordering QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
-    const { data: order, error: orderError } = await supabase.from("orders").select("id, order_number, status").eq("id", id).eq("customer_session_id", session.id).maybeSingle();
-    if (orderError) throw orderError;
+    if (sourceTableId && (await query("select id from public.restaurant_tables where id = $1 and active = true and qr_token_version = $2", [sourceTableId, sourceTableVersion])).rowCount === 0) return NextResponse.json({ error: "This table QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
+    if (session.ordering_qr_code_id && (await query("select id from public.ordering_qr_codes where id = $1 and active = true and token_version = $2", [session.ordering_qr_code_id, session.ordering_qr_token_version])).rowCount === 0) return NextResponse.json({ error: "This ordering QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
+    const orderResult = await query<{ id: string; order_number: string; status: string }>("select id, order_number, status from public.orders where id = $1 and customer_session_id = $2", [id, session.id]);
+    const order = orderResult.rows[0];
     if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404, headers: noStoreHeaders() });
-    const { data: payment, error: paymentError } = await supabase.from("payments").select("id, provider, status, expires_at, amount_idr, provider_order_id, qr_string").eq("order_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (paymentError) throw paymentError;
+    const paymentResult = await query<{ id: string; provider: string; status: string; expires_at: string | null; amount_idr: number; provider_order_id: string; qr_string: string | null }>("select id, provider, status, expires_at, amount_idr, provider_order_id, qr_string from public.payments where order_id = $1 order by created_at desc limit 1", [id]);
+    const payment = paymentResult.rows[0];
     if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404, headers: noStoreHeaders() });
     let paymentStatus = payment.status as string;
     let orderStatus = order.status as string;
@@ -37,9 +37,8 @@ async function getPaymentStatus(request: Request, { params }: Context, synchroni
       try {
         const providerStatus = await new MidtransProvider().getPaymentStatus(payment.provider_order_id);
         const transition = providerStatus === "settled" ? "settled" : providerStatus === "expired" ? "expired" : providerStatus === "failed" ? "failed" : "pending";
-        const { data: transitionData, error } = await supabase.rpc("apply_payment_transition", { p_payment_id: payment.id, p_next_status: transition, p_provider_status: providerStatus, p_provider_transaction_id: null, p_fee_idr: 0, p_settled_at: transition === "settled" ? new Date().toISOString() : null });
-        if (error) throw error;
-        const transitionRow = Array.isArray(transitionData) ? transitionData[0] : transitionData;
+        const transitionData = await query<{ payment_status: string; order_status: string }>("select * from public.apply_payment_transition($1::uuid, $2::public.payment_status, $3, $4, $5, $6::timestamptz)", [payment.id, transition, providerStatus, null, 0, transition === "settled" ? new Date().toISOString() : null]);
+        const transitionRow = transitionData.rows[0];
         paymentStatus = transitionRow?.payment_status ?? paymentStatus;
         orderStatus = transitionRow?.order_status ?? orderStatus;
       } catch {

@@ -1,5 +1,5 @@
 -- Safe starter data for the first Tempat Taichan branch.
--- Run in Supabase SQL Editor after 001_initial.sql.
+-- Run after the local PostgreSQL migrations have been applied.
 
 insert into public.restaurant_settings (name, timezone, qris_enabled, cash_enabled)
 select 'Tempat Taichan', 'Asia/Jakarta', true, true

@@ -13,6 +13,16 @@ create type public.modifier_selection as enum ('single', 'multiple');
 create or replace function public.set_updated_at() returns trigger language plpgsql as $$
 begin new.updated_at = timezone('utc', now()); return new; end $$;
 
+create table public.staff_users (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique check (email = lower(email) and char_length(email) between 3 and 254),
+  password_hash text not null,
+  email_confirmed boolean not null default true,
+  last_login_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
 create table public.restaurant_settings (
   id uuid primary key default gen_random_uuid(),
   name text not null default 'Tempat Taichan',
@@ -26,13 +36,26 @@ create table public.restaurant_settings (
 );
 
 create table public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
+  id uuid primary key references public.staff_users(id) on delete cascade,
   display_name text not null,
   role public.staff_role not null default 'operator',
   active boolean not null default true,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+create table public.staff_sessions (
+  id uuid primary key default gen_random_uuid(),
+  staff_user_id uuid not null references public.staff_users(id) on delete cascade,
+  token_hash text not null unique check (token_hash ~ '^[a-f0-9]{64}$'),
+  expires_at timestamptz not null,
+  revoked_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  last_seen_at timestamptz not null default timezone('utc', now())
+);
+
+create index staff_sessions_active_idx on public.staff_sessions(token_hash, expires_at)
+  where revoked_at is null;
 
 create table public.categories (
   id uuid primary key default gen_random_uuid(),
@@ -57,7 +80,7 @@ create table public.products (
   active boolean not null default true,
   display_order integer not null default 0,
   archived_at timestamptz,
-  created_by uuid references auth.users(id),
+  created_by uuid references public.staff_users(id),
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -164,7 +187,7 @@ create table public.orders (
   total_idr integer not null default 0 check (total_idr >= 0),
   estimated_cost_idr integer not null default 0 check (estimated_cost_idr >= 0),
   visit_reference uuid,
-  created_by uuid references auth.users(id),
+  created_by uuid references public.staff_users(id),
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -224,7 +247,7 @@ create table public.payment_events (
 create table public.order_adjustments (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.orders(id) on delete restrict,
-  actor_id uuid not null references auth.users(id),
+  actor_id uuid not null references public.staff_users(id),
   reason text not null,
   before_state jsonb not null,
   after_state jsonb not null,
@@ -233,7 +256,7 @@ create table public.order_adjustments (
 
 create table public.audit_logs (
   id uuid primary key default gen_random_uuid(),
-  actor_id uuid references auth.users(id),
+  actor_id uuid references public.staff_users(id),
   action text not null,
   entity_type text not null,
   entity_id uuid,
@@ -261,62 +284,3 @@ create trigger addon_groups_updated_at before update on public.addon_groups for 
 create trigger restaurant_tables_updated_at before update on public.restaurant_tables for each row execute procedure public.set_updated_at();
 create trigger orders_updated_at before update on public.orders for each row execute procedure public.set_updated_at();
 create trigger payments_updated_at before update on public.payments for each row execute procedure public.set_updated_at();
-
-alter table public.restaurant_settings enable row level security;
-alter table public.profiles enable row level security;
-alter table public.categories enable row level security;
-alter table public.products enable row level security;
-alter table public.variant_groups enable row level security;
-alter table public.variant_options enable row level security;
-alter table public.product_variant_groups enable row level security;
-alter table public.addon_groups enable row level security;
-alter table public.addon_options enable row level security;
-alter table public.product_addon_groups enable row level security;
-alter table public.restaurant_tables enable row level security;
-alter table public.customer_sessions enable row level security;
-alter table public.orders enable row level security;
-alter table public.order_items enable row level security;
-alter table public.order_item_modifiers enable row level security;
-alter table public.payments enable row level security;
-alter table public.payment_events enable row level security;
-alter table public.order_adjustments enable row level security;
-alter table public.audit_logs enable row level security;
-
-create or replace function public.is_staff() returns boolean language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.profiles where id = auth.uid() and active = true);
-$$;
-create or replace function public.is_admin() returns boolean language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.profiles where id = auth.uid() and active = true and role = 'admin');
-$$;
-
--- Public clients only read the customer-safe menu projection through a server route.
--- No direct anonymous table/order/payment reads are granted.
-create policy staff_read_settings on public.restaurant_settings for select to authenticated using (public.is_staff());
-create policy staff_manage_settings on public.restaurant_settings for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy staff_read_profiles on public.profiles for select to authenticated using (public.is_staff());
-create policy admin_manage_profiles on public.profiles for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy staff_read_menu on public.categories for select to authenticated using (public.is_staff());
-create policy staff_manage_categories on public.categories for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy staff_read_products on public.products for select to authenticated using (public.is_staff());
-create policy admin_manage_products on public.products for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy staff_read_modifiers on public.variant_groups for select to authenticated using (public.is_staff());
-create policy staff_read_variant_options on public.variant_options for select to authenticated using (public.is_staff());
-create policy admin_manage_variant_groups on public.variant_groups for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy admin_manage_variant_options on public.variant_options for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy staff_read_addons on public.addon_groups for select to authenticated using (public.is_staff());
-create policy staff_read_addon_options on public.addon_options for select to authenticated using (public.is_staff());
-create policy admin_manage_addon_groups on public.addon_groups for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy admin_manage_addon_options on public.addon_options for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy staff_read_tables on public.restaurant_tables for select to authenticated using (public.is_staff());
-create policy admin_manage_tables on public.restaurant_tables for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy staff_read_orders on public.orders for select to authenticated using (public.is_staff());
-create policy staff_update_orders on public.orders for update to authenticated using (public.is_staff()) with check (public.is_staff());
-create policy staff_read_order_items on public.order_items for select to authenticated using (public.is_staff());
-create policy staff_read_modifiers_snapshot on public.order_item_modifiers for select to authenticated using (public.is_staff());
-create policy staff_read_payments on public.payments for select to authenticated using (public.is_staff());
-create policy staff_read_payment_events on public.payment_events for select to authenticated using (public.is_admin());
-create policy staff_read_adjustments on public.order_adjustments for select to authenticated using (public.is_staff());
-create policy staff_create_adjustments on public.order_adjustments for insert to authenticated with check (public.is_staff() and actor_id = auth.uid());
-create policy admin_read_audit on public.audit_logs for select to authenticated using (public.is_admin());
-
--- Server-side service role is used only by controlled checkout/webhook routes to create guest orders/payments.

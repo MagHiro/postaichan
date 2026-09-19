@@ -1,4 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 const REPORT_TIME_ZONE = "Asia/Jakarta";
 const MAX_REPORT_DAYS = 31;
@@ -84,69 +83,75 @@ function methodLabel(method: string) {
   return method.toLowerCase() === "cash" ? "cash" : "qris";
 }
 
-export async function getReport(supabase: SupabaseClient, fromValue?: string, toValue?: string): Promise<DailyReport> {
+export async function getReport(fromValue?: string, toValue?: string): Promise<DailyReport> {
+  const { query } = await import("@/lib/db");
   const range = jakartaRange(fromValue, toValue);
-  const { data: candidatePayments, error: candidatePaymentError } = await supabase
-    .from("payments")
-    .select("id, order_id, status, amount_idr, fee_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method")
-    .in("status", [...RECOGNIZED_PAYMENT_STATUSES])
-    .eq("orphaned_settlement", false)
-    .not("settled_at", "is", null)
-    .gte("settled_at", range.start)
-    .lt("settled_at", range.end)
-    .order("settled_at", { ascending: true });
-  if (candidatePaymentError) throw candidatePaymentError;
-
-  const candidateRows = (candidatePayments ?? []) as Array<PaymentRow & { method: string }>;
+  const candidatePayments = await query<PaymentRow & { method: string }>(
+    `select id, order_id, status, amount_idr, fee_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method
+     from public.payments
+     where status = any($1::public.payment_status[])
+       and orphaned_settlement = false
+       and settled_at is not null
+       and settled_at >= $2 and settled_at < $3
+     order by settled_at asc`,
+    [RECOGNIZED_PAYMENT_STATUSES, range.start, range.end],
+  );
+  const candidateRows = candidatePayments.rows;
   const candidateOrderIds = [...new Set(candidateRows.map((row) => row.order_id))];
-  const { data: allOrderPayments, error: allPaymentError } = candidateOrderIds.length
-    ? await supabase.from("payments").select("id, order_id, status, amount_idr, fee_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method").in("order_id", candidateOrderIds).in("status", [...RECOGNIZED_PAYMENT_STATUSES]).not("settled_at", "is", null).order("settled_at", { ascending: true })
-    : { data: [], error: null };
-  if (allPaymentError) throw allPaymentError;
+  const allOrderPayments = candidateOrderIds.length
+    ? await query<PaymentRow & { method: string }>(
+      `select id, order_id, status, amount_idr, fee_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method
+       from public.payments
+       where order_id = any($1::uuid[]) and status = any($2::public.payment_status[]) and settled_at is not null
+       order by settled_at asc`,
+      [candidateOrderIds, RECOGNIZED_PAYMENT_STATUSES],
+    )
+    : { rows: [] as Array<PaymentRow & { method: string }> };
 
   const primaryByOrder = new Map<string, PaymentRow & { method: string }>();
-  for (const row of (allOrderPayments ?? []) as Array<PaymentRow & { method: string }>) {
+  for (const row of allOrderPayments.rows) {
     if (row.orphaned_settlement !== true && row.settled_at && !primaryByOrder.has(row.order_id)) primaryByOrder.set(row.order_id, row);
   }
   const settlementRows = [...primaryByOrder.values()].filter((row) => row.settled_at! >= range.start && row.settled_at! < range.end);
   const settlementPaymentIds = settlementRows.map((row) => row.id);
 
-  const [{ data: refunds, error: refundError }, { data: orders, error: orderError }] = await Promise.all([
-    supabase.from("payment_refunds").select("id, payment_id, amount_idr, processed_at, reason").gte("processed_at", range.start).lt("processed_at", range.end).order("processed_at", { ascending: true }),
-    candidateOrderIds.length ? supabase.from("orders").select("id, order_number, order_type, status, total_idr, estimated_cost_idr, created_at").in("id", candidateOrderIds) : Promise.resolve({ data: [], error: null }),
+  const [refunds, orders] = await Promise.all([
+    query<RefundRow>(
+      `select id, payment_id, amount_idr, processed_at, reason
+       from public.payment_refunds where processed_at >= $1 and processed_at < $2 order by processed_at asc`,
+      [range.start, range.end],
+    ),
+    candidateOrderIds.length
+      ? query<OrderRow>("select id, order_number, order_type, status, total_idr, estimated_cost_idr, created_at from public.orders where id = any($1::uuid[])", [candidateOrderIds])
+      : Promise.resolve({ rows: [] as OrderRow[] }),
   ]);
-  if (refundError) throw refundError;
-  if (orderError) throw orderError;
 
-  const refundRows = (refunds ?? []) as RefundRow[];
+  const refundRows = refunds.rows;
   const refundPaymentIds = [...new Set(refundRows.map((row) => row.payment_id))];
   const extraPaymentIds = refundPaymentIds.filter((id) => !settlementPaymentIds.includes(id));
-  const { data: refundPayments, error: refundPaymentError } = extraPaymentIds.length
-    ? await supabase.from("payments").select("id, order_id, status, amount_idr, fee_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method").in("id", extraPaymentIds)
-    : { data: [], error: null };
-  if (refundPaymentError) throw refundPaymentError;
+  const refundPayments = extraPaymentIds.length
+    ? await query<PaymentRow & { method: string }>("select id, order_id, status, amount_idr, fee_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method from public.payments where id = any($1::uuid[])", [extraPaymentIds])
+    : { rows: [] as Array<PaymentRow & { method: string }> };
 
   const paymentById = new Map<string, PaymentRow & { method: string }>();
   for (const row of settlementRows) paymentById.set(row.id, row);
-  for (const row of (refundPayments ?? []) as Array<PaymentRow & { method: string }>) paymentById.set(row.id, row);
+  for (const row of refundPayments.rows) paymentById.set(row.id, row);
   const validRefunds = refundRows.filter((row) => {
     const payment = paymentById.get(row.payment_id);
     return payment && payment.orphaned_settlement !== true && RECOGNIZED_PAYMENT_STATUSES.includes(payment.status as (typeof RECOGNIZED_PAYMENT_STATUSES)[number]);
   });
 
   const allRelevantOrderIds = [...new Set([...settlementRows.map((row) => row.order_id), ...validRefunds.map((row) => paymentById.get(row.payment_id)?.order_id).filter((id): id is string => Boolean(id))])];
-  const relevantOrders = new Map(((orders ?? []) as OrderRow[]).map((order) => [order.id, order]));
+  const relevantOrders = new Map(orders.rows.map((order) => [order.id, order]));
   const missingOrderIds = allRelevantOrderIds.filter((id) => !relevantOrders.has(id));
   if (missingOrderIds.length) {
-    const { data: extraOrders, error: extraOrderError } = await supabase.from("orders").select("id, order_number, order_type, status, total_idr, estimated_cost_idr, created_at").in("id", missingOrderIds);
-    if (extraOrderError) throw extraOrderError;
-    for (const order of (extraOrders ?? []) as OrderRow[]) relevantOrders.set(order.id, order);
+    const extraOrders = await query<OrderRow>("select id, order_number, order_type, status, total_idr, estimated_cost_idr, created_at from public.orders where id = any($1::uuid[])", [missingOrderIds]);
+    for (const order of extraOrders.rows) relevantOrders.set(order.id, order);
   }
-  const { data: items, error: itemError } = allRelevantOrderIds.length
-    ? await supabase.from("order_items").select("order_id, product_name_snapshot, quantity, line_total_idr, unit_cost_snapshot_idr").in("order_id", allRelevantOrderIds)
-    : { data: [], error: null };
-  if (itemError) throw itemError;
-  const itemRows = (items ?? []) as ItemRow[];
+  const items = allRelevantOrderIds.length
+    ? await query<ItemRow>("select order_id, product_name_snapshot, quantity, line_total_idr, unit_cost_snapshot_idr from public.order_items where order_id = any($1::uuid[])", [allRelevantOrderIds])
+    : { rows: [] as ItemRow[] };
+  const itemRows = items.rows;
 
   const refundsByPayment = new Map<string, number>();
   for (const refund of validRefunds) refundsByPayment.set(refund.payment_id, (refundsByPayment.get(refund.payment_id) ?? 0) + refund.amount_idr);
@@ -243,7 +248,7 @@ export async function getReport(supabase: SupabaseClient, fromValue?: string, to
   };
 }
 
-export async function getDailyReport(supabase: SupabaseClient, value?: string) {
+export async function getDailyReport(value?: string) {
   const range = jakartaDayRange(value);
-  return getReport(supabase, range.from, range.to);
+  return getReport(range.from, range.to);
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { noStoreHeaders } from "@/lib/security/request";
 
@@ -9,10 +9,8 @@ export async function GET() {
   const auth = await authorizeStaff();
   if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   try {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase.from("restaurant_tables").select("id, label, code, active").order("code", { ascending: true });
-    if (error) throw error;
-    return NextResponse.json({ tables: data ?? [] }, { headers: noStoreHeaders() });
+    const result = await query("select id, label, code, active from public.restaurant_tables order by code asc");
+    return NextResponse.json({ tables: result.rows }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("pos_tables_failed", error);
     return NextResponse.json({ error: "Meja belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });

@@ -88,6 +88,3 @@ begin
   return true;
 end;
 $$;
-
-revoke all on function public.consume_inventory_reservation(uuid) from public;
-grant execute on function public.consume_inventory_reservation(uuid) to service_role;
