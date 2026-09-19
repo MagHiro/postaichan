@@ -60,6 +60,7 @@ export function PaymentView({
       const response = await fetch(
         `/api/customer/payments/${payment.orderId}`,
         {
+          method: "POST",
           headers: { "x-order-access-token": sessionToken },
           cache: "no-store",
         },

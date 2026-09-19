@@ -4,11 +4,13 @@ import { MidtransProvider } from "@/lib/payments/midtrans";
 import { presentQrMaterial } from "@/lib/payments/qr";
 import { hashOpaqueToken } from "@/lib/domain/tokens";
 import { uuidParamSchema } from "@/lib/schemas";
-import { consumeRateLimit, noStoreHeaders } from "@/lib/security/request";
+import { consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+type Context = { params: Promise<{ id: string }> };
+
+async function getPaymentStatus(request: Request, { params }: Context, synchronizeProvider: boolean) {
   const token = request.headers.get("x-order-access-token");
   const { id } = await params;
   if (!token) return NextResponse.json({ error: "Order access token required." }, { status: 401, headers: noStoreHeaders() });
@@ -31,7 +33,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404, headers: noStoreHeaders() });
     let paymentStatus = payment.status as string;
     let orderStatus = order.status as string;
-    if (paymentStatus === "pending" && payment.provider === "midtrans" && payment.provider_order_id) {
+    if (synchronizeProvider && paymentStatus === "pending" && payment.provider === "midtrans" && payment.provider_order_id) {
       try {
         const providerStatus = await new MidtransProvider().getPaymentStatus(payment.provider_order_id);
         const transition = providerStatus === "settled" ? "settled" : providerStatus === "expired" ? "expired" : providerStatus === "failed" ? "failed" : "pending";
@@ -50,4 +52,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     console.error("customer_payment_status_failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "We couldn't check payment yet." }, { status: 503, headers: noStoreHeaders() });
   }
+}
+
+export async function GET(request: Request, context: Context) {
+  return getPaymentStatus(request, context, false);
+}
+
+export async function POST(request: Request, context: Context) {
+  if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
+  return getPaymentStatus(request, context, true);
 }

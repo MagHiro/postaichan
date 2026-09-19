@@ -4,11 +4,13 @@ import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { MidtransProvider } from "@/lib/payments/midtrans";
 import { presentQrMaterial } from "@/lib/payments/qr";
 import { uuidParamSchema } from "@/lib/schemas";
-import { noStoreHeaders } from "@/lib/security/request";
+import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+type Context = { params: Promise<{ id: string }> };
+
+async function paymentStatus(request: Request, { params }: Context, synchronizeProvider: boolean) {
   const auth = await authorizeStaff();
   if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   const { id } = await params;
@@ -22,7 +24,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const payment = payments.sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0];
     if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404, headers: noStoreHeaders() });
     let status = payment.status as string;
-    if (status === "pending" && payment.provider === "midtrans" && payment.provider_order_id) {
+    if (synchronizeProvider && status === "pending" && payment.provider === "midtrans" && payment.provider_order_id) {
       try {
         const providerStatus = await new MidtransProvider().getPaymentStatus(payment.provider_order_id);
         const next = providerStatus === "settled" ? "settled" : providerStatus === "expired" ? "expired" : providerStatus === "failed" ? "failed" : "pending";
@@ -39,4 +41,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     console.error("pos_payment_status_failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Payment status could not be checked." }, { status: 503, headers: noStoreHeaders() });
   }
+}
+
+export async function GET(request: Request, context: Context) {
+  return paymentStatus(request, context, false);
+}
+
+export async function POST(request: Request, context: Context) {
+  if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
+  return paymentStatus(request, context, true);
 }

@@ -721,7 +721,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
   async function checkPaymentNow() {
     setCheckingPay(true);
     try {
-      const response = await fetch(`/api/pos/orders/${detailId}/payment`, { cache: "no-store" });
+      const response = await fetch(`/api/pos/orders/${detailId}/payment`, { method: "POST", cache: "no-store" });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload) {
         onShowNotice(payload?.error ?? "Status pembayaran belum bisa dicek.");
@@ -747,7 +747,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
   async function resumeQrCode() {
     setCheckingPay(true);
     try {
-      const response = await fetch(`/api/pos/orders/${detailId}/payment`, { cache: "no-store" });
+      const response = await fetch(`/api/pos/orders/${detailId}/payment`, { method: "POST", cache: "no-store" });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload) {
         onShowNotice(payload?.error ?? "QR belum bisa ditampilkan.");
@@ -1416,7 +1416,7 @@ function CashierPayment({
     let cancelled = false;
     async function poll() {
       try {
-        const response = await fetch(`/api/pos/orders/${payment.orderId}/payment`, { cache: "no-store" });
+        const response = await fetch(`/api/pos/orders/${payment.orderId}/payment`, { method: "POST", cache: "no-store" });
         const payload = await response.json().catch(() => null);
         if (cancelled || !response.ok || !payload) return;
         if (payload.paymentStatus === "settled") {

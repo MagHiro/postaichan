@@ -138,7 +138,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         const reference = JSON.parse(activePayment) as { orderId?: string; idempotencyKey?: string };
         if (!reference.orderId) return;
         if (reference.idempotencyKey) checkoutIntentKey.current = reference.idempotencyKey;
-        const response = await fetch(`/api/customer/payments/${reference.orderId}`, { headers: { "x-order-access-token": session.token }, cache: "no-store" });
+        const response = await fetch(`/api/customer/payments/${reference.orderId}`, { method: "POST", headers: { "x-order-access-token": session.token }, cache: "no-store" });
         const payload = await response.json().catch(() => null);
         if (cancelled || !response.ok || !payload) return;
         if (payload.paymentStatus === "pending" && (payload.qrString || payload.qrImageUrl)) {
