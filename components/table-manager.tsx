@@ -1,26 +1,122 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, X } from "lucide-react";
+import QRCode from "qrcode";
+import { Pencil, Plus, RotateCcw } from "lucide-react";
+import { QrPreview } from "@/components/admin/qr-preview";
 
 type Table = { id: string; label: string; code: string; active: boolean; qr_token_version: number };
+type Preview = { label: string; orderingUrl: string; qrDataUrl: string };
 
 export function TableManager() {
   const [tables, setTables] = useState<Table[]>([]);
   const [loading, setLoading] = useState(true);
+  const [working, setWorking] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [newUrl, setNewUrl] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
   const [editing, setEditing] = useState<{ id: string; label: string; code: string } | null>(null);
-  async function load() { setLoading(true); const response = await fetch("/api/admin/tables", { cache: "no-store" }); const payload = await response.json().catch(() => null); if (response.ok) setTables(payload.tables ?? []); else setNotice(payload?.error ?? "Meja belum dapat dimuat."); setLoading(false); }
+  const [newTable, setNewTable] = useState({ label: "", code: "TBL-" });
+
+  async function load() {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/admin/tables", { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      if (response.ok) setTables(payload.tables ?? []);
+      else setNotice(payload?.error ?? "Meja belum dapat dimuat.");
+    } catch {
+      setNotice("Koneksi terputus. Coba muat meja lagi.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => { void load(); }, []);
-  async function rotate(table: Table) { const response = await fetch(`/api/admin/tables/${table.id}`, { method: "POST" }); const payload = await response.json().catch(() => null); if (!response.ok) { setNotice(payload?.error ?? "QR gagal dirotasi."); return; } setNewUrl(new URL(payload.orderingUrl, window.location.origin).toString()); await load(); }
-  async function toggle(table: Table) { const response = await fetch(`/api/admin/tables/${table.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ active: !table.active }) }); const payload = await response.json().catch(() => null); if (!response.ok) setNotice(payload?.error ?? "Status meja gagal diubah."); else await load(); }
+
+  async function presentQr(label: string, orderingUrl: string) {
+    const qrDataUrl = await QRCode.toDataURL(new URL(orderingUrl, window.location.origin).toString(), { width: 720, margin: 2, color: { dark: "#18181B", light: "#ffffff" } });
+    setPreview({ label, orderingUrl: new URL(orderingUrl, window.location.origin).toString(), qrDataUrl });
+  }
+
+  async function createTable() {
+    if (!newTable.label.trim() || !/^TBL-[A-Z0-9-]{1,24}$/.test(newTable.code.trim().toUpperCase())) { setNotice("Isi label dan kode dengan format TBL-NOMOR."); return; }
+    setWorking("create");
+    try {
+      const response = await fetch("/api/admin/tables", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ label: newTable.label, code: newTable.code.toUpperCase(), active: true }) });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) { setNotice(payload?.error ?? "Meja belum dapat dibuat."); return; }
+      setNewTable({ label: "", code: "TBL-" });
+      await presentQr(payload.table.label, payload.orderingUrl);
+      await load();
+      setNotice("Meja dibuat. Simpan QR ini sekarang.");
+    } catch {
+      setNotice("Koneksi terputus. Meja belum dapat dibuat.");
+    } finally { setWorking(null); }
+  }
+
+  async function rotate(table: Table) {
+    if (!window.confirm(`Rotasi QR ${table.label}? QR lama langsung tidak berlaku.`)) return;
+    setWorking(table.id);
+    try {
+      const response = await fetch(`/api/admin/tables/${table.id}`, { method: "POST" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) { setNotice(payload?.error ?? "QR gagal dirotasi."); return; }
+      await presentQr(table.label, payload.orderingUrl);
+      await load();
+      setNotice("QR dirotasi. QR lama sudah tidak berlaku.");
+    } catch {
+      setNotice("Koneksi terputus. QR meja belum dapat dirotasi.");
+    } finally { setWorking(null); }
+  }
+
+  async function toggle(table: Table) {
+    const action = table.active ? "nonaktifkan" : "aktifkan";
+    if (!window.confirm(`${action[0].toUpperCase() + action.slice(1)} ${table.label}?`)) return;
+    setWorking(table.id);
+    try {
+      const response = await fetch(`/api/admin/tables/${table.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ active: !table.active }) });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) setNotice(payload?.error ?? "Status meja gagal diubah.");
+      else await load();
+    } catch {
+      setNotice("Koneksi terputus. Status meja belum berubah.");
+    } finally { setWorking(null); }
+  }
+
   async function saveEdit() {
     if (!editing) return;
-    const response = await fetch(`/api/admin/tables/${editing.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ label: editing.label, code: editing.code }) });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) setNotice(payload?.error ?? "Perubahan meja gagal disimpan.");
-    else { setEditing(null); await load(); }
+    setWorking(editing.id);
+    try {
+      const response = await fetch(`/api/admin/tables/${editing.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ label: editing.label, code: editing.code.toUpperCase() }) });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) setNotice(payload?.error ?? "Perubahan meja gagal disimpan.");
+      else { setEditing(null); await load(); }
+    } catch {
+      setNotice("Koneksi terputus. Perubahan meja belum tersimpan.");
+    } finally { setWorking(null); }
   }
-  return <main className="min-h-screen bg-white px-5 py-8 text-neutral-900 lg:px-10"><div className="mx-auto max-w-[820px]"><p className="text-xs text-neutral-400">Administrator</p><h1 className="mt-1 text-[22px] font-medium tracking-tight">Meja &amp; QR</h1><p className="mt-1 text-[13px] text-neutral-500">QR lama langsung tidak berlaku setelah rotasi. Token mentah hanya ditampilkan sekali.</p>{notice && <p className="mt-5 text-[13px] text-neutral-500">{notice}</p>}{newUrl && <section className="mt-6 rounded-2xl bg-neutral-100 p-4"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="text-[13px] font-medium">QR baru siap</p><p className="mt-1 break-all text-xs text-neutral-500">{newUrl}</p></div><button onClick={() => setNewUrl(null)} aria-label="Tutup" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-neutral-500"><X size={14} /></button></div><button onClick={() => void navigator.clipboard?.writeText(newUrl)} className="mt-3 h-10 rounded-full bg-[#FDBD2C] px-4 text-[13px] font-medium">Salin URL</button></section>}{loading ? <p className="py-14 text-center text-[13px] text-neutral-500">Memuat meja…</p> : <div className="mt-8 divide-y divide-neutral-100">{tables.map((table) => <div key={table.id} className="py-4">{editing?.id === table.id ? <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto]"><label className="text-[13px] text-neutral-500">Label<input value={editing.label} onChange={(event) => setEditing({ ...editing, label: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-neutral-200 px-3 text-sm" /></label><label className="text-[13px] text-neutral-500">Kode<input value={editing.code} onChange={(event) => setEditing({ ...editing, code: event.target.value.toUpperCase() })} className="mt-1 h-10 w-full rounded-xl border border-neutral-200 px-3 text-sm" /></label><button onClick={() => void saveEdit()} className="self-end h-10 rounded-full bg-[#FDBD2C] px-4 text-[13px] font-medium">Simpan</button><button onClick={() => setEditing(null)} className="self-end h-10 rounded-full border border-neutral-200 px-4 text-[13px] font-medium">Batal</button></div> : <div className="flex flex-wrap items-center gap-3"><div className="min-w-0 flex-1"><p className="text-[13px] font-medium">{table.label} · {table.code}</p><p className="mt-1 text-xs text-neutral-400">QR v{table.qr_token_version} · {table.active ? "Aktif" : "Nonaktif"}</p></div><button onClick={() => setEditing({ id: table.id, label: table.label, code: table.code })} aria-label={`Edit ${table.label}`} className="flex h-10 items-center gap-2 rounded-full border border-neutral-200 px-4 text-[13px] font-medium"><Pencil size={14} />Edit</button><button onClick={() => void toggle(table)} className="h-10 rounded-full border border-neutral-200 px-4 text-[13px] font-medium">{table.active ? "Nonaktifkan" : "Aktifkan"}</button><button onClick={() => void rotate(table)} disabled={!table.active} className="h-10 rounded-full bg-neutral-900 px-4 text-[13px] font-medium text-white disabled:opacity-40">Rotasi QR</button></div>}</div>)}</div>}</div></main>;
+
+  return (
+    <main className="min-h-screen bg-white px-5 py-8 text-neutral-900 lg:px-10">
+      <div className="mx-auto max-w-[820px]">
+        <p className="text-xs text-neutral-400">Administrator · <a href="/admin" className="text-neutral-500">Pengaturan</a></p>
+        <h1 className="mt-1 text-[22px] font-medium tracking-tight">Meja &amp; QR</h1>
+        <p className="mt-1 text-[13px] text-neutral-500">QR lama langsung tidak berlaku setelah rotasi. Token mentah hanya ditampilkan sekali.</p>
+        {notice && <p className="mt-5 rounded-xl bg-neutral-50 px-4 py-3 text-[13px] text-neutral-600">{notice}</p>}
+        {preview && <QrPreview label={preview.label} orderingUrl={preview.orderingUrl} qrDataUrl={preview.qrDataUrl} onClose={() => setPreview(null)} onCopy={() => { void navigator.clipboard?.writeText(preview.orderingUrl); setNotice("URL QR disalin."); }} />}
+
+        <section className="mt-8 rounded-2xl border border-neutral-100 p-5">
+          <div className="flex items-center gap-2"><Plus size={16} /><h2 className="text-sm font-medium">Buat meja baru</h2></div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+            <label className="text-[13px] text-neutral-500">Label<input value={newTable.label} onChange={(event) => setNewTable({ ...newTable, label: event.target.value })} className="input mt-1" placeholder="Meja 01" /></label>
+            <label className="text-[13px] text-neutral-500">Kode unik<input value={newTable.code} onChange={(event) => setNewTable({ ...newTable, code: event.target.value.toUpperCase() })} className="input mt-1" placeholder="TBL-01" /></label>
+            <button type="button" onClick={() => void createTable()} disabled={working === "create"} className="h-11 self-end rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium disabled:opacity-50">{working === "create" ? "Membuat…" : "Buat & tampilkan QR"}</button>
+          </div>
+          <p className="mt-3 text-xs text-neutral-400">Gunakan URL/QR ini untuk membuka pemesanan dine-in meja tersebut.</p>
+        </section>
+
+        {loading ? <p className="py-14 text-center text-[13px] text-neutral-500">Memuat meja…</p> : tables.length ? <div className="mt-8 divide-y divide-neutral-100">{tables.map((table) => <div key={table.id} className="py-4">{editing?.id === table.id ? <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto]"><label className="text-[13px] text-neutral-500">Label<input value={editing.label} onChange={(event) => setEditing({ ...editing, label: event.target.value })} className="input mt-1" /></label><label className="text-[13px] text-neutral-500">Kode<input value={editing.code} onChange={(event) => setEditing({ ...editing, code: event.target.value.toUpperCase() })} className="input mt-1" /></label><button type="button" onClick={() => void saveEdit()} disabled={working === table.id} className="h-11 self-end rounded-full bg-[#FDBD2C] px-4 text-[13px] font-medium disabled:opacity-50">Simpan</button><button type="button" onClick={() => setEditing(null)} className="h-11 self-end rounded-full border border-neutral-200 px-4 text-[13px] font-medium">Batal</button></div> : <div className="flex flex-wrap items-center gap-3"><div className="min-w-0 flex-1"><p className="text-[13px] font-medium">{table.label} · {table.code}</p><p className="mt-1 text-xs text-neutral-400">QR v{table.qr_token_version} · {table.active ? "Aktif" : "Nonaktif"}</p></div><button type="button" onClick={() => setEditing({ id: table.id, label: table.label, code: table.code })} aria-label={`Edit ${table.label}`} className="flex h-10 items-center gap-2 rounded-full border border-neutral-200 px-4 text-[13px] font-medium"><Pencil size={14} />Edit</button><button type="button" onClick={() => void toggle(table)} disabled={working === table.id} className="h-10 rounded-full border border-neutral-200 px-4 text-[13px] font-medium disabled:opacity-50">{table.active ? "Nonaktifkan" : "Aktifkan"}</button><button type="button" onClick={() => void rotate(table)} disabled={working === table.id} className="flex h-10 items-center gap-2 rounded-full bg-neutral-900 px-4 text-[13px] font-medium text-white disabled:opacity-40"><RotateCcw size={14} />Rotasi QR</button></div>}</div>)}</div> : <p className="py-14 text-center text-[13px] text-neutral-500">Belum ada meja.</p>}
+      </div>
+    </main>
+  );
 }

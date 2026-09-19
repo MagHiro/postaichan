@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
-import { BookOpen, LayoutDashboard, Minus, Plus, ReceiptText, Search, ShoppingBag, TrendingUp, X } from "lucide-react";
+import { BookOpen, LayoutDashboard, Minus, Plus, ReceiptText, Search, Settings, ShoppingBag, TrendingUp, X } from "lucide-react";
 import { formatCompactIDR, formatCountdown, formatIDR } from "@/lib/format";
-import type { Order, Product } from "@/lib/types";
+import type { CartItem, Order, Product } from "@/lib/types";
+import { buildCartItem } from "@/lib/domain/cart";
 import type { DailyReport } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 import { MenuManager } from "@/components/menu-manager";
+import { ProductSheet } from "@/components/order/ProductSheet";
 
 type NavItem = "Overview" | "Orders" | "POS" | "Menu" | "Reports";
 type Detail = {
@@ -53,28 +55,40 @@ const NAV_ICON: Record<NavItem, typeof LayoutDashboard> = {
 };
 
 const STATUS_LABEL: Record<Order["status"], string> = {
+  Pending: "Menunggu bayar",
   New: "Baru",
+  Accepted: "Diterima",
   Preparing: "Dimasak",
   Ready: "Siap",
   Completed: "Selesai",
+  Cancelled: "Dibatalkan",
+  Refunded: "Refund",
 };
 
 const FILTERS: Array<{ key: string; label: string }> = [
   { key: "All", label: "Semua" },
+  { key: "Pending", label: "Menunggu bayar" },
   { key: "New", label: "Baru" },
+  { key: "Accepted", label: "Diterima" },
   { key: "Preparing", label: "Dimasak" },
   { key: "Ready", label: "Siap" },
   { key: "Completed", label: "Selesai" },
+  { key: "Cancelled", label: "Dibatalkan" },
+  { key: "Refunded", label: "Refund" },
 ];
 
-export function PosWorkspaceLive() {
+function isActiveOrder(order: Order) {
+  return !["Completed", "Cancelled", "Refunded"].includes(order.status);
+}
+
+export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   const [nav, setNav] = useState<NavItem>("Overview");
   const [orders, setOrders] = useState<Order[]>([]);
   const [summary, setSummary] = useState<DailyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const date = jakartaToday();
-  const activeCount = orders.filter((order) => order.status !== "Completed").length;
+  const activeCount = orders.filter(isActiveOrder).length;
 
   function showNotice(message: string) {
     setNotice(message);
@@ -84,19 +98,17 @@ export function PosWorkspaceLive() {
   async function loadOperations(silent = false) {
     if (!silent) setLoading(true);
     try {
-      const [ordersResponse, reportResponse] = await Promise.all([
-        fetch(`/api/pos/orders?date=${date}`, { cache: "no-store" }),
-        fetch(`/api/reports/daily?date=${date}`, { cache: "no-store" }),
-      ]);
+      const ordersResponse = await fetch(`/api/pos/orders?date=${date}`, { cache: "no-store" });
       const ordersPayload = await ordersResponse.json();
-      const reportPayload = await reportResponse.json();
-      if (ordersResponse.status === 401 || reportResponse.status === 401) {
+      const reportResponse = role === "admin" ? await fetch(`/api/reports/daily?date=${date}`, { cache: "no-store" }) : null;
+      const reportPayload = reportResponse ? await reportResponse.json() : null;
+      if (ordersResponse.status === 401 || reportResponse?.status === 401) {
         window.location.href = "/login";
         return;
       }
       if (ordersResponse.ok) setOrders(ordersPayload.orders ?? []);
-      if (reportResponse.ok) setSummary(reportPayload);
-      if (!silent && (!ordersResponse.ok || !reportResponse.ok)) showNotice("Sebagian data belum termuat.");
+      if (reportResponse?.ok) setSummary(reportPayload);
+      if (!silent && (!ordersResponse.ok || reportResponse?.ok === false)) showNotice("Sebagian data belum termuat.");
     } catch {
       if (!silent) showNotice("Koneksi terputus. Coba muat ulang.");
     } finally {
@@ -109,7 +121,7 @@ export function PosWorkspaceLive() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
 
-  const hasActive = orders.some((order) => order.status !== "Completed");
+  const hasActive = orders.some(isActiveOrder);
 
   useEffect(() => {
     if (!hasActive) return;
@@ -119,8 +131,8 @@ export function PosWorkspaceLive() {
   }, [date, hasActive]);
 
   async function advanceOrder(order: Order) {
-    const next =
-      order.status === "New" ? "accepted" : order.status === "Preparing" ? "ready" : order.status === "Ready" ? "completed" : null;
+  const next =
+      order.status === "New" ? "accepted" : order.status === "Accepted" ? "processing" : order.status === "Preparing" ? "ready" : order.status === "Ready" ? "completed" : null;
     if (!next) return;
     const response = await fetch(`/api/pos/orders/${order.id}/status`, {
       method: "PATCH",
@@ -141,20 +153,23 @@ export function PosWorkspaceLive() {
   }
 
   function advanceOrderGuarded(order: Order) {
-    if (order.paymentStatus !== "Paid" && order.status !== "Completed") {
-      if (!window.confirm(`Pesanan ${order.number} belum lunas. Tetap lanjutkan?`)) return;
+    if (order.paymentStatus !== "Paid") {
+      showNotice(`Pesanan ${order.number} masih menunggu pembayaran.`);
+      return;
     }
     void advanceOrder(order);
   }
+
+  const navItems = (Object.keys(NAV_LABEL) as NavItem[]).filter((item) => role === "admin" || (item !== "Menu" && item !== "Reports"));
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 antialiased lg:flex">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-[216px] shrink-0 flex-col bg-white px-5 py-6 lg:flex">
         <p className="text-[15px] font-medium tracking-tight">Tempat Taichan</p>
-        <p className="mt-1 text-xs text-neutral-400">Operator</p>
+        <p className="mt-1 text-xs text-neutral-400">{role === "admin" ? "Administrator" : "Staff"}</p>
         <nav className="mt-10 space-y-1">
-          {(Object.keys(NAV_LABEL) as NavItem[]).map((item) => {
+          {navItems.map((item) => {
             const Icon = NAV_ICON[item];
             const active = nav === item;
             return (
@@ -175,6 +190,7 @@ export function PosWorkspaceLive() {
             );
           })}
         </nav>
+        {role === "admin" && <a href="/admin" className="mt-4 flex items-center gap-3 rounded-full px-3.5 py-2 text-[13px] text-neutral-500"><Settings size={17} strokeWidth={1.6} /><span>Admin / Pengaturan</span></a>}
         <p className="mt-auto text-xs leading-relaxed text-neutral-400">
           {activeCount} pesanan aktif
           <br />
@@ -236,15 +252,16 @@ export function PosWorkspaceLive() {
               <LiveOverview
                 orders={orders}
                 summary={summary}
+                isAdmin={role === "admin"}
                 loading={loading}
                 onAdvance={advanceOrderGuarded}
                 onOpenOrders={() => setNav("Orders")}
               />
             )}
-            {nav === "Orders" && <LiveOrders orders={orders} onAdvance={advanceOrderGuarded} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} />}
+            {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} onAdvance={advanceOrderGuarded} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} />}
             {nav === "POS" && <LiveCashier onShowNotice={showNotice} />}
-            {nav === "Menu" && <MenuManager onShowNotice={showNotice} />}
-            {nav === "Reports" && <LiveReports initialReport={summary} onShowNotice={showNotice} />}
+            {nav === "Menu" && role === "admin" && <MenuManager onShowNotice={showNotice} />}
+            {nav === "Reports" && role === "admin" && <LiveReports initialReport={summary} onShowNotice={showNotice} />}
           </div>
         </main>
       </div>
@@ -252,7 +269,7 @@ export function PosWorkspaceLive() {
       {/* Mobile bottom tabs */}
       <nav className="shadow-sheet fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-white/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
         <div className="mx-auto grid max-w-[440px] grid-cols-5 gap-1">
-          {(Object.keys(NAV_LABEL) as NavItem[]).map((item) => {
+          {navItems.map((item) => {
             const Icon = NAV_ICON[item];
             const active = nav === item;
             return (
@@ -382,37 +399,31 @@ function QtyStepper({ count, onMinus, onPlus, large = false }: { count: number; 
 function LiveOverview({
   orders,
   summary,
+  isAdmin,
   loading,
   onAdvance,
   onOpenOrders,
 }: {
   orders: Order[];
   summary: DailyReport | null;
+  isAdmin: boolean;
   loading: boolean;
   onAdvance: (order: Order) => void;
   onOpenOrders: () => void;
 }) {
-  const active = orders.filter((order) => order.status !== "Completed");
+  const active = orders.filter(isActiveOrder);
   const dateLabel = summary?.date ?? jakartaToday();
 
   return (
     <div>
       <PageHead title="Hari ini" />
 
-      <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-100 lg:mt-6 xl:grid-cols-4">
-        <div className="bg-white p-4 sm:p-5">
-          <Metric label="Pendapatan" value={summary ? formatCompactIDR(summary.revenueIdr) : "—"} detail="Lunas" />
-        </div>
-        <div className="bg-white p-4 sm:p-5">
-          <Metric label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" />
-        </div>
-        <div className="bg-white p-4 sm:p-5">
-          <Metric label="Est. laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah COGS + fee" />
-        </div>
-        <div className="bg-white p-4 sm:p-5">
-          <Metric label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" />
-        </div>
-      </div>
+      {isAdmin ? <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-100 lg:mt-6 xl:grid-cols-4">
+        <div className="bg-white p-4 sm:p-5"><Metric label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail="Settlement Jakarta" /></div>
+        <div className="bg-white p-4 sm:p-5"><Metric label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" /></div>
+        <div className="bg-white p-4 sm:p-5"><Metric label="Est. laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah COGS + fee" /></div>
+        <div className="bg-white p-4 sm:p-5"><Metric label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" /></div>
+      </div> : <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-100 lg:mt-6"><div className="bg-white p-4 sm:p-5"><Metric label="Pesanan aktif" value={String(active.length)} detail="Perlu tindakan" /></div><div className="bg-white p-4 sm:p-5"><Metric label="Menunggu bayar" value={String(orders.filter((order) => order.status === "Pending").length)} detail="Belum masuk dapur" /></div></div>}
 
       <section className="mt-8 border-t border-neutral-100 pt-6">
         <div className="flex items-baseline justify-between">
@@ -449,10 +460,11 @@ function LiveOverview({
                   </button>
                   <button
                     onClick={() => onAdvance(order)}
+                    disabled={order.status === "Pending"}
                     aria-label={`Lanjut ${order.number}`}
-                    className="flex h-11 shrink-0 items-center rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98]"
+                    className="flex h-11 shrink-0 items-center rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98] disabled:bg-neutral-100 disabled:text-neutral-400"
                   >
-                    {order.status === "New" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
+                    {order.status === "Pending" ? "Menunggu" : order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
                   </button>
                 </div>
               ))}
@@ -463,7 +475,7 @@ function LiveOverview({
         </div>
       </section>
 
-      <section className="mt-8 border-t border-neutral-100 pt-6">
+      {isAdmin && <section className="mt-8 border-t border-neutral-100 pt-6">
         <h3 className="text-sm font-medium">Terlaris</h3>
         {summary?.bestSellers.length ? (
           <div className="mt-1 divide-y divide-neutral-100">
@@ -480,9 +492,9 @@ function LiveOverview({
         ) : (
           <p className="py-10 text-center text-[13px] text-neutral-500">Belum ada penjualan lunas.</p>
         )}
-      </section>
+      </section>}
 
-      <section className="mt-8 flex flex-col gap-3 border-t border-neutral-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
+      {isAdmin && <section className="mt-8 flex flex-col gap-3 border-t border-neutral-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-sm font-medium">Tutup kasir</h3>
           <p className="mt-1 text-[13px] text-neutral-500">Pastikan pembayaran terakhir lunas.</p>
@@ -495,7 +507,7 @@ function LiveOverview({
         >
           Unduh PDF
         </button>
-      </section>
+      </section>}
     </div>
   );
 }
@@ -504,12 +516,14 @@ function LiveOverview({
 
 function LiveOrders({
   orders,
+  isAdmin,
   onAdvance,
   loading,
   onShowNotice,
   onRefresh,
 }: {
   orders: Order[];
+  isAdmin: boolean;
   onAdvance: (order: Order) => void;
   loading: boolean;
   onShowNotice: (message: string) => void;
@@ -545,11 +559,11 @@ function LiveOrders({
       <PageHead
         title="Pesanan"
         sub={`${filtered.length} pesanan · hari bisnis Jakarta`}
-        action={
+        action={isAdmin ? (
           <a href={`/api/reports/daily.pdf?date=${jakartaToday()}`} className="hidden text-[13px] font-normal text-neutral-500 sm:block">
             Unduh PDF
           </a>
-        }
+        ) : undefined}
       />
 
       <div className="mt-6">
@@ -596,17 +610,18 @@ function LiveOrders({
                     {formatCompactIDR(order.total)}
                     <span className="ml-2 text-xs font-normal text-neutral-400">
                       {STATUS_LABEL[order.status]}
-                      {order.paymentStatus !== "Paid" && order.status !== "Completed" ? " · Belum bayar" : ""}
+                      {order.paymentStatus !== "Paid" && isActiveOrder(order) ? " · Belum bayar" : ""}
                     </span>
                   </p>
                 </button>
-                {order.status !== "Completed" ? (
+                {isActiveOrder(order) ? (
                   <button
                     onClick={() => onAdvance(order)}
+                    disabled={order.status === "Pending"}
                     aria-label={`Lanjut ${order.number}`}
-                    className="flex h-11 shrink-0 items-center rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98]"
+                    className="flex h-11 shrink-0 items-center rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98] disabled:bg-neutral-100 disabled:text-neutral-400"
                   >
-                    {order.status === "New" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
+                    {order.status === "Pending" ? "Menunggu" : order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
                   </button>
                 ) : (
                   <span className="shrink-0 px-2 text-xs text-neutral-300">Selesai</span>
@@ -662,18 +677,26 @@ function payStateLabel(status?: string) {
 }
 
 function rawStatusLabel(status: string) {
-  if (["paid", "accepted", "awaiting_payment"].includes(status)) return "Baru";
+  if (status === "awaiting_payment") return "Menunggu pembayaran";
+  if (status === "paid") return "Baru";
+  if (status === "accepted") return "Diterima";
   if (status === "processing") return "Dimasak";
   if (status === "ready") return "Siap";
   if (status === "completed") return "Selesai";
+  if (status === "cancelled") return "Dibatalkan";
+  if (status === "refunded") return "Refund";
   return "Batal";
 }
 
 function nextActionLabel(status: string) {
-  if (["paid", "accepted", "awaiting_payment"].includes(status)) return "Mulai masak";
+  if (status === "awaiting_payment") return "Menunggu pembayaran";
+  if (status === "paid") return "Terima pesanan";
+  if (status === "accepted") return "Mulai masak";
   if (status === "processing") return "Tandai siap";
   if (status === "ready") return "Selesaikan";
   if (status === "completed") return "Selesai";
+  if (status === "cancelled") return "Dibatalkan";
+  if (status === "refunded") return "Refund";
   return "Dibatalkan";
 }
 
@@ -688,7 +711,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
   const table = Array.isArray(detail.order.restaurant_tables) ? detail.order.restaurant_tables[0]?.label : detail.order.restaurant_tables?.label;
   const payment = Array.isArray(detail.order.payments) ? detail.order.payments[0] : detail.order.payments;
   const totalItems = detail.items.reduce((sum, item) => sum + item.quantity, 0);
-  const done = ["completed", "cancelled", "refunded"].includes(detail.order.status);
+  const done = ["awaiting_payment", "completed", "cancelled", "refunded"].includes(detail.order.status);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const payExpiresMs = payment?.expires_at ? new Date(payment.expires_at).getTime() : null;
   const payRemainingMs = payExpiresMs !== null ? payExpiresMs - nowMs : null;
@@ -947,7 +970,7 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
   );
 }
 
-type CartLine = { product: Product; quantity: number };
+type CartLine = CartItem;
 
 function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void }) {
   const [menu, setMenu] = useState<Product[]>([]);
@@ -955,6 +978,13 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
   const [paymentMethod, setPaymentMethod] = useState<"qris" | "cash">("qris");
   const [paymentSettings, setPaymentSettings] = useState({ qrisEnabled: false, cashEnabled: false });
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [variantOptionIds, setVariantOptionIds] = useState<string[]>([]);
+  const [addonOptionIds, setAddonOptionIds] = useState<string[]>([]);
+  const [quantity, setQuantity] = useState(1);
+  const [note, setNote] = useState("");
+  const [tables, setTables] = useState<Array<{ id: string; label: string; active: boolean }>>([]);
+  const [tableId, setTableId] = useState<string | null>(null);
   const [category, setCategory] = useState<string>("Semua Menu");
   const [query, setQuery] = useState("");
   const [orderType, setOrderType] = useState<"dine_in" | "takeaway">("dine_in");
@@ -972,7 +1002,13 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
         setPaymentSettings(payload?.settings ?? { qrisEnabled: false, cashEnabled: false });
         if (payload?.settings?.qrisEnabled === false) setPaymentMethod("cash");
       })
-      .catch(() => undefined);
+      .catch(() => onShowNotice("Menu kasir belum dapat dimuat. Coba muat ulang."));
+    fetch("/api/pos/tables", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => setTables((payload?.tables ?? []).filter((table: { active?: boolean }) => table.active)))
+      .catch(() => onShowNotice("Daftar meja belum dapat dimuat."));
+    // The notice callback is intentionally captured for the initial load only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = menu.filter(
@@ -980,26 +1016,46 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
       (category === "Semua Menu" || product.category === category) &&
       `${product.name} ${product.description ?? ""}`.toLowerCase().includes(query.toLowerCase()),
   );
-  const total = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const total = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const count = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   function add(product: Product) {
     if (!product.available) return;
-    if ((product.modifierGroups ?? []).some((group) => group.required)) { onShowNotice("Produk ini membutuhkan pilihan modifier. Gunakan customer order atau lengkapi konfigurasi POS."); return; }
+    if ((product.modifierGroups ?? []).length > 0) {
+      setSelectedProduct(product);
+      setVariantOptionIds([]);
+      setAddonOptionIds([]);
+      setQuantity(1);
+      setNote("");
+      return;
+    }
     intentKey.current = null;
+    const item = buildCartItem(product, [], [], 1);
     setCart((current) => {
-      const found = current.find((item) => item.product.id === product.id);
+      const found = current.find((line) => line.key === item.key);
       return found
-        ? current.map((item) => (item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item))
-        : [...current, { product, quantity: 1 }];
+        ? current.map((line) => (line.key === item.key ? { ...line, quantity: line.quantity + 1 } : line))
+        : [...current, item];
     });
   }
 
-  function setQty(id: string, delta: number) {
+  function addConfiguredProduct() {
+    if (!selectedProduct) return;
+    intentKey.current = null;
+    const item = buildCartItem(selectedProduct, variantOptionIds, addonOptionIds, quantity, note);
+    setCart((current) => {
+      const found = current.find((line) => line.key === item.key);
+      return found ? current.map((line) => line.key === item.key ? { ...line, quantity: line.quantity + quantity } : line) : [...current, item];
+    });
+    setSelectedProduct(null);
+    onShowNotice(`${selectedProduct.name} ditambahkan.`);
+  }
+
+  function setQty(key: string, delta: number) {
     intentKey.current = null;
     setCart((current) =>
       current
-        .map((item) => (item.product.id === id ? { ...item, quantity: item.quantity + delta } : item))
+        .map((item) => (item.key === key ? { ...item, quantity: item.quantity + delta } : item))
         .filter((item) => item.quantity > 0),
     );
   }
@@ -1016,8 +1072,9 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
         body: JSON.stringify({
           idempotencyKey: intentKey.current ?? (intentKey.current = crypto.randomUUID()),
           orderType,
+          tableId: orderType === "dine_in" ? tableId : null,
           paymentMethod,
-          items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
+          items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity, variantOptionIds: item.variantOptionIds, addonOptionIds: item.addonOptionIds, note: item.note })),
         }),
       });
       const payload = await response.json();
@@ -1057,7 +1114,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
         ).map(({ key, label }) => (
           <button
             key={key}
-            onClick={() => setOrderType(key)}
+            onClick={() => { setOrderType(key); if (key === "takeaway") setTableId(null); }}
             aria-pressed={orderType === key}
             className={cn(
               "h-11 flex-1 rounded-xl text-center text-sm transition active:scale-[0.98] lg:rounded-full lg:text-[13px]",
@@ -1068,6 +1125,15 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
           </button>
         ))}
       </div>
+      {orderType === "dine_in" && (
+        <label className="mt-3 block max-w-md text-[13px] text-neutral-500">
+          Meja <span className="text-neutral-400">· opsional</span>
+          <select value={tableId ?? ""} onChange={(event) => setTableId(event.target.value || null)} className="input mt-1">
+            <option value="">Tanpa meja / walk-in</option>
+            {tables.map((table) => <option key={table.id} value={table.id}>{table.label}</option>)}
+          </select>
+        </label>
+      )}
 
       <div className="mt-8 grid items-start gap-10 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section>
@@ -1096,7 +1162,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {filtered.map((product) => {
-                  const qty = cart.find((item) => item.product.id === product.id)?.quantity ?? 0;
+                  const qty = cart.filter((item) => item.product.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
                   return (
                     <button
                       key={product.id}
@@ -1129,6 +1195,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
                       </div>
                       <p className="mt-2 truncate px-1 text-[13px] font-medium leading-snug">{product.name}</p>
                       <p className="mt-0.5 px-1 pb-1 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(product.price)}</p>
+                      {product.stockTracked && product.available && <p className="px-1 pb-1 text-xs tabular-nums text-neutral-400">{product.stockQuantity ?? 0} tersisa</p>}
                     </button>
                   );
                 })}
@@ -1149,15 +1216,16 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
             {cart.length ? (
               <div className="divide-y divide-neutral-100">
                 {cart.map((item) => (
-                  <div key={item.product.id} className="flex gap-3 py-3.5">
+                  <div key={item.key} className="flex gap-3 py-3.5">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-medium">{item.product.name}</p>
-                      <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{formatCompactIDR(item.product.price)} / porsi</p>
+                      <p className="mt-0.5 text-xs text-neutral-400">{[...item.variantLabels, ...item.addonLabels].join(" · ") || "Original"}</p>
+                      <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{formatCompactIDR(item.unitPrice)} / porsi</p>
                       <div className="mt-2">
-                        <QtyStepper count={item.quantity} onMinus={() => setQty(item.product.id, -1)} onPlus={() => setQty(item.product.id, 1)} />
+                        <QtyStepper count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
                       </div>
                     </div>
-                    <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.product.price * item.quantity)}</span>
+                    <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.unitPrice * item.quantity)}</span>
                   </div>
                 ))}
               </div>
@@ -1235,12 +1303,13 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
               {cart.length ? (
                 <div className="divide-y divide-neutral-100">
                   {cart.map((item) => (
-                    <div key={item.product.id} className="flex items-center gap-3 py-4">
+                    <div key={item.key} className="flex items-center gap-3 py-4">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14px] font-medium">{item.product.name}</p>
-                        <p className="mt-0.5 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.product.price * item.quantity)}</p>
+                        <p className="mt-0.5 truncate text-xs text-neutral-400">{[...item.variantLabels, ...item.addonLabels].join(" · ") || "Original"}</p>
+                        <p className="mt-0.5 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.unitPrice * item.quantity)}</p>
                       </div>
-                      <QtyStepper count={item.quantity} onMinus={() => setQty(item.product.id, -1)} onPlus={() => setQty(item.product.id, 1)} />
+                      <QtyStepper count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
                     </div>
                   ))}
                 </div>
@@ -1271,6 +1340,22 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
             </div>
           </section>
         </div>
+      )}
+
+      {selectedProduct && (
+        <ProductSheet
+          product={selectedProduct}
+          quantity={quantity}
+          setQuantity={setQuantity}
+          variantOptionIds={variantOptionIds}
+          setVariantOptionIds={setVariantOptionIds}
+          addonOptionIds={addonOptionIds}
+          setAddonOptionIds={setAddonOptionIds}
+          note={note}
+          setNote={setNote}
+          onClose={() => setSelectedProduct(null)}
+          onAdd={addConfiguredProduct}
+        />
       )}
 
       {payment && (
@@ -1423,7 +1508,8 @@ function CashierPayment({
 /* ================= Reports ================= */
 
 function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyReport | null; onShowNotice: (message: string) => void }) {
-  const [date, setDate] = useState(jakartaToday());
+  const [from, setFrom] = useState(jakartaToday());
+  const [to, setTo] = useState(jakartaToday());
   const [report, setReport] = useState<DailyReport | null>(initialReport);
   const [loading, setLoading] = useState(false);
 
@@ -1433,11 +1519,17 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
 
   async function load() {
     setLoading(true);
-    const response = await fetch(`/api/reports/daily?date=${date}`, { cache: "no-store" });
-    const payload = await response.json();
-    setReport(response.ok ? payload : null);
-    setLoading(false);
-    if (!response.ok) onShowNotice(payload.error ?? "Laporan gagal dimuat.");
+    try {
+      const response = await fetch(`/api/reports/daily?from=${from}&to=${to}`, { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      setReport(response.ok ? payload : null);
+      if (!response.ok) onShowNotice(payload?.error ?? "Laporan gagal dimuat.");
+    } catch {
+      setReport(null);
+      onShowNotice("Koneksi terputus. Coba muat laporan lagi.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -1447,23 +1539,27 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
         sub="Hari bisnis Jakarta · pembayaran lunas"
         action={
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {(["Today", "Yesterday", "Last 7 days"] as const).map((preset) => <button key={preset} type="button" onClick={() => { const today = jakartaToday(); if (preset === "Today") { setFrom(today); setTo(today); } else if (preset === "Yesterday") { const date = new Date(`${today}T12:00:00+07:00`); date.setDate(date.getDate() - 1); const value = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(date); setFrom(value); setTo(value); } else { const date = new Date(`${today}T12:00:00+07:00`); date.setDate(date.getDate() - 6); setFrom(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(date)); setTo(today); } }} className="h-9 rounded-full border border-neutral-200 px-3 text-xs text-neutral-500">{preset}</button>)}
               <input
                 type="date"
-                value={date}
-                onChange={(event) => setDate(event.target.value)}
-                aria-label="Tanggal laporan"
+                value={from}
+                onChange={(event) => setFrom(event.target.value)}
+                aria-label="Tanggal mulai laporan"
                 className="h-11 flex-1 rounded-2xl bg-neutral-100 px-4 text-sm font-normal outline-none focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50 sm:h-10 sm:flex-none sm:rounded-full sm:text-[13px]"
               />
+              <span className="text-xs text-neutral-400">s/d</span>
+              <input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label="Tanggal akhir laporan" className="h-11 flex-1 rounded-2xl bg-neutral-100 px-4 text-sm font-normal outline-none focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50 sm:h-10 sm:flex-none sm:rounded-full sm:text-[13px]" />
               <button
                 onClick={() => void load()}
+                disabled={loading}
                 className="flex h-11 items-center rounded-2xl bg-neutral-900 px-5 text-sm font-medium text-white active:scale-[0.98] sm:h-10 sm:rounded-full sm:text-[13px]"
               >
                 {loading ? "Memuat…" : "Muat"}
               </button>
             </div>
             <a
-              href={`/api/reports/daily.pdf?date=${date}`}
+              href={`/api/reports/daily.pdf?from=${from}&to=${to}`}
               className="flex h-11 items-center justify-center rounded-2xl border border-neutral-200 text-sm font-medium text-neutral-900 active:bg-neutral-50 sm:h-10 sm:rounded-full sm:border-0 sm:text-[13px]"
             >
               Unduh PDF
@@ -1476,13 +1572,13 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
         <>
           <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-100 xl:grid-cols-4">
             <div className="bg-white p-4 sm:p-5">
-              <Metric label="Pendapatan" value={formatCompactIDR(report.revenueIdr)} detail={`${report.orderCount} pesanan`} />
+              <Metric label="Penjualan bersih" value={formatCompactIDR(report.netRevenueIdr)} detail={`${report.orderCount} pesanan lunas`} />
             </div>
             <div className="bg-white p-4 sm:p-5">
-              <Metric label="Est. COGS" value={formatCompactIDR(report.estimatedCogsIdr)} detail="Snapshot biaya" />
+              <Metric label="Penjualan kotor" value={formatCompactIDR(report.grossRevenueIdr)} detail="Settlement periode ini" />
             </div>
             <div className="bg-white p-4 sm:p-5">
-              <Metric label="Fee" value={formatCompactIDR(report.paymentFeesIdr)} detail="Fee provider" />
+              <Metric label="Refund" value={formatCompactIDR(report.refundsIdr)} detail="Diproses periode ini" />
             </div>
             <div className="bg-white p-4 sm:p-5">
               <Metric label="Est. laba" value={formatCompactIDR(report.estimatedGrossProfitIdr)} detail="Bukan laba bersih" />
@@ -1504,8 +1600,11 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
                 <span className="text-[13px] text-neutral-400">Rata-rata</span>
                 <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.averageOrderValueIdr)}</span>
               </div>
+              <div className="flex items-center justify-between py-3"><span className="text-[13px] text-neutral-400">Est. COGS · fee</span><span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.estimatedCogsIdr)} · {formatCompactIDR(report.paymentFeesIdr)}</span></div>
             </div>
           </section>
+
+          {report.dailyBreakdown.length > 1 && <section className="mt-8 border-t border-neutral-100 pt-6"><h3 className="text-sm font-medium">Per hari</h3><div className="mt-2 divide-y divide-neutral-100">{report.dailyBreakdown.map((day) => <div key={day.date} className="flex items-center justify-between gap-3 py-3"><div><p className="text-[13px] font-medium">{day.date}</p><p className="mt-0.5 text-xs text-neutral-400">{day.paidOrderCount} pesanan · refund {formatCompactIDR(day.refundsIdr)}</p></div><span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(day.netRevenueIdr)}</span></div>)}</div></section>}
 
           <section className="mt-8 border-t border-neutral-100 pt-6">
             <h3 className="text-sm font-medium">Terlaris</h3>
@@ -1543,7 +1642,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
                         <p className="mt-0.5 text-xs text-neutral-400">
                           {item.type === "dine_in" ? "Dine in" : "Takeaway"} ·{" "}
                           {new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(
-                            new Date(item.createdAt),
+                            new Date(item.settledAt),
                           )}
                         </p>
                       </div>

@@ -50,6 +50,7 @@ export function ProductCard({
           <p className="mt-0.5 text-[13px] tabular-nums text-neutral-500">
             {formatCompactIDR(product.price)}
           </p>
+          {product.stockTracked && product.available && <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{product.stockQuantity ?? 0} tersisa</p>}
         </button>
         <button
           aria-label={`Tambah ${product.name}`}

@@ -10,12 +10,14 @@ export function CartSheet({
   onCheckout,
   checkoutLoading,
   checkoutError,
+  checkoutDisabled = false,
 }: {
   cart: CartItem[];
   onUpdate: (key: string, delta: number) => void;
   onCheckout: () => void;
   checkoutLoading: boolean;
   checkoutError: string | null;
+  checkoutDisabled?: boolean;
 }) {
   const total = cart.reduce(
     (sum, item) => sum + item.unitPrice * item.quantity,
@@ -60,7 +62,7 @@ export function CartSheet({
         </div>
         <button
           onClick={onCheckout}
-          disabled={checkoutLoading || cart.length === 0}
+          disabled={checkoutLoading || checkoutDisabled || cart.length === 0}
           className="mt-3 flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
         >
           {checkoutLoading ? "Menyiapkan pembayaran…" : "Bayar"}

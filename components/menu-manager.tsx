@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -15,12 +15,15 @@ type AdminProduct = {
   priceIdr: number;
   estimatedCostIdr: number;
   available: boolean;
+  sellable: boolean;
   active: boolean;
+  stockTracked: boolean;
+  stockQuantity: number;
 };
 type Category = { id: string; name: string };
-type FormState = { name: string; description: string; imageUrl: string; categoryId: string; priceIdr: string; estimatedCostIdr: string; available: boolean };
+type FormState = { name: string; description: string; imagePath: string; categoryId: string; priceIdr: string; estimatedCostIdr: string; available: boolean; stockTracked: boolean; stockQuantity: string };
 
-const blankForm: FormState = { name: "", description: "", imageUrl: "", categoryId: "", priceIdr: "", estimatedCostIdr: "", available: true };
+const blankForm: FormState = { name: "", description: "", imagePath: "", categoryId: "", priceIdr: "", estimatedCostIdr: "", available: true, stockTracked: false, stockQuantity: "0" };
 
 export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) => void }) {
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -31,7 +34,9 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
   const [form, setForm] = useState<FormState>(blankForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pendingImagePaths = useRef(new Set<string>());
 
   async function loadMenu() {
     setLoading(true);
@@ -44,7 +49,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
       setProducts((payload.products ?? []).map((product: Record<string, unknown>) => ({
         id: String(product.id), name: String(product.name), description: product.description as string | null, imageUrl: (product.image_path as string | null) ?? null,
         categoryId: String(product.category_id), categoryName: Array.isArray(product.categories) ? String((product.categories[0] as { name?: string } | undefined)?.name ?? "") : String((product.categories as { name?: string } | null)?.name ?? ""),
-        priceIdr: Number(product.price_idr), estimatedCostIdr: Number(product.estimated_cost_idr), available: Boolean(product.available), active: Boolean(product.active),
+        priceIdr: Number(product.price_idr), estimatedCostIdr: Number(product.estimated_cost_idr), available: Boolean(product.available), sellable: Boolean(product.available) && (!Boolean(product.stock_tracked) || Number(product.stock_quantity ?? 0) > 0), active: Boolean(product.active), stockTracked: Boolean(product.stock_tracked), stockQuantity: Number(product.stock_quantity ?? 0),
       })));
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Menu belum dapat dimuat."); }
     finally { setLoading(false); }
@@ -56,45 +61,95 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
   const activeCount = products.filter((product) => product.active).length;
 
   function openCreate() {
+    void cleanupPendingImages();
     setForm({ ...blankForm, categoryId: categories[0]?.id ?? "" });
     setEditor("create");
   }
   function openEdit(product: AdminProduct) {
-    setForm({ name: product.name, description: product.description ?? "", imageUrl: product.imageUrl ?? "", categoryId: product.categoryId, priceIdr: String(product.priceIdr), estimatedCostIdr: String(product.estimatedCostIdr), available: product.available });
+    void cleanupPendingImages();
+    setForm({ name: product.name, description: product.description ?? "", imagePath: product.imageUrl ?? "", categoryId: product.categoryId, priceIdr: String(product.priceIdr), estimatedCostIdr: String(product.estimatedCostIdr), available: product.available, stockTracked: product.stockTracked, stockQuantity: String(product.stockQuantity) });
     setEditor(product);
+  }
+
+  async function cleanupPendingImages() {
+    const paths = [...pendingImagePaths.current];
+    await Promise.all(paths.map(async (imagePath) => {
+      try {
+        const response = await fetch("/api/admin/menu/upload", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ imagePath }) });
+        if (response.ok) pendingImagePaths.current.delete(imagePath);
+      } catch {
+        // A later close or save can retry cleanup without risking a referenced file.
+      }
+    }));
+  }
+
+  function closeEditor() {
+    if (saving || uploading) return;
+    void cleanupPendingImages();
+    setEditor(null);
   }
 
   async function saveProduct() {
     setSaving(true); setError(null);
-    const body = { name: form.name, description: form.description || null, imageUrl: form.imageUrl || null, categoryId: form.categoryId, priceIdr: Number(form.priceIdr), estimatedCostIdr: Number(form.estimatedCostIdr), available: form.available };
+    const body = { name: form.name, description: form.description || null, imagePath: form.imagePath || null, categoryId: form.categoryId, priceIdr: Number(form.priceIdr), estimatedCostIdr: Number(form.estimatedCostIdr), available: form.available, stockTracked: form.stockTracked, stockQuantity: form.stockTracked ? Number(form.stockQuantity) : 0 };
     try {
       const isCreate = editor === "create";
       const response = await fetch(isCreate ? "/api/admin/menu" : `/api/admin/menu/${(editor as AdminProduct).id}`, { method: isCreate ? "POST" : "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Menu belum berhasil disimpan.");
+      await cleanupPendingImages();
       setEditor(null); await loadMenu(); onShowNotice(isCreate ? "Produk dibuat." : "Produk diperbarui.");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Menu belum berhasil disimpan."); }
     finally { setSaving(false); }
   }
 
+  async function uploadImage(file: File) {
+    setUploading(true); setError(null);
+    try {
+      const body = new FormData();
+      body.append("image", file);
+      const response = await fetch("/api/admin/menu/upload", { method: "POST", body });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error ?? "Gambar belum dapat diunggah.");
+      const nextPath = String(payload.imagePath);
+      pendingImagePaths.current.add(nextPath);
+      setForm((current) => ({ ...current, imagePath: nextPath }));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Gambar belum dapat diunggah.");
+    } finally { setUploading(false); }
+  }
+
   async function toggleAvailability(product: AdminProduct) {
-    setProducts((current) => current.map((item) => item.id === product.id ? { ...item, available: !item.available } : item));
-    const response = await fetch(`/api/admin/menu/${product.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ available: !product.available }) });
-    if (!response.ok) { setProducts((current) => current.map((item) => item.id === product.id ? { ...item, available: product.available } : item)); onShowNotice("Ketersediaan gagal disimpan."); return; }
-    onShowNotice(`${product.name} ditandai ${product.available ? "habis" : "tersedia"}.`);
+    setProducts((current) => current.map((item) => item.id === product.id ? { ...item, available: !item.available, sellable: !item.available && (!item.stockTracked || item.stockQuantity > 0) } : item));
+    try {
+      const response = await fetch(`/api/admin/menu/${product.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ available: !product.available }) });
+      if (!response.ok) throw new Error("Ketersediaan gagal disimpan.");
+      onShowNotice(`${product.name} ditandai ${product.available ? "habis" : "tersedia"}.`);
+    } catch {
+      setProducts((current) => current.map((item) => item.id === product.id ? { ...item, available: product.available, sellable: product.sellable } : item));
+      onShowNotice("Koneksi terputus. Ketersediaan belum berubah.");
+    }
   }
 
   async function archiveProduct(product: AdminProduct) {
-    if (!window.confirm(`Arsipkan ${product.name}?`)) return;
-    const response = await fetch(`/api/admin/menu/${product.id}`, { method: "DELETE" });
-    if (!response.ok) { onShowNotice("Produk gagal diarsipkan."); return; }
-    await loadMenu(); onShowNotice(`${product.name} diarsipkan.`);
+    if (!window.confirm(`Hapus ${product.name} dari menu? Produk tidak akan mengubah riwayat pesanan.`)) return;
+    try {
+      const response = await fetch(`/api/admin/menu/${product.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Produk gagal diarsipkan.");
+      await loadMenu(); onShowNotice(`${product.name} diarsipkan.`);
+    } catch {
+      onShowNotice("Koneksi terputus. Produk belum diarsipkan.");
+    }
   }
 
   async function restoreProduct(product: AdminProduct) {
-    const response = await fetch(`/api/admin/menu/${product.id}`, { method: "POST" });
-    if (!response.ok) { onShowNotice("Produk gagal dipulihkan."); return; }
-    await loadMenu(); onShowNotice(`${product.name} dipulihkan.`);
+    try {
+      const response = await fetch(`/api/admin/menu/${product.id}`, { method: "POST" });
+      if (!response.ok) throw new Error("Produk gagal dipulihkan.");
+      await loadMenu(); onShowNotice(`${product.name} dipulihkan.`);
+    } catch {
+      onShowNotice("Koneksi terputus. Produk belum dipulihkan.");
+    }
   }
 
   return (
@@ -168,10 +223,10 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                 >
                   <p className="truncate text-[14px] font-medium">
                     {product.name}
-                    {!product.available && product.active ? <span className="font-normal text-neutral-400"> · Habis</span> : ""}
+                    {product.active && product.stockTracked && product.stockQuantity <= 0 ? <span className="font-normal text-neutral-400"> · Habis</span> : product.active && !product.available ? <span className="font-normal text-neutral-400"> · Manual off</span> : ""}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-neutral-400">
-                    {product.categoryName} · {formatCompactIDR(product.priceIdr)}
+                    {product.categoryName} · {formatCompactIDR(product.priceIdr)}{product.stockTracked ? ` · ${product.stockQuantity} tersisa` : " · unlimited"}
                   </p>
                 </button>
                 {product.active ? (
@@ -184,7 +239,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                       product.available ? "bg-neutral-100 text-neutral-900" : "bg-neutral-900 text-white",
                     )}
                   >
-                    {product.available ? "Tersedia" : "Habis"}
+                    {product.available ? (product.sellable ? "Manual aktif" : "Stok habis") : "Manual off"}
                   </button>
                 ) : (
                   <button
@@ -212,19 +267,22 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           setForm={setForm}
           categories={categories}
           saving={saving}
-          onClose={() => setEditor(null)}
+          uploading={uploading}
+          onClose={closeEditor}
           onSave={() => void saveProduct()}
+          onUpload={(file) => void uploadImage(file)}
           onArchive={
             editor === "create" || !(editor as AdminProduct).active
               ? undefined
               : (product) => {
+                  void cleanupPendingImages();
                   setEditor(null);
                   void archiveProduct(product);
-              }
+                }
           }
           onRestore={
             editor !== "create" && !(editor as AdminProduct).active
-              ? (product) => { setEditor(null); void restoreProduct(product); }
+              ? (product) => { void cleanupPendingImages(); setEditor(null); void restoreProduct(product); }
               : undefined
           }
         />
@@ -233,7 +291,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
   );
 }
 
-function ProductEditor({ editor, form, setForm, categories, saving, onClose, onSave, onArchive, onRestore }: { editor: "create" | AdminProduct; form: FormState; setForm: (form: FormState) => void; categories: Category[]; saving: boolean; onClose: () => void; onSave: () => void; onArchive?: (product: AdminProduct) => void; onRestore?: (product: AdminProduct) => void }) {
+function ProductEditor({ editor, form, setForm, categories, saving, uploading, onClose, onSave, onUpload, onArchive, onRestore }: { editor: "create" | AdminProduct; form: FormState; setForm: (form: FormState) => void; categories: Category[]; saving: boolean; uploading: boolean; onClose: () => void; onSave: () => void; onUpload: (file: File) => void; onArchive?: (product: AdminProduct) => void; onRestore?: (product: AdminProduct) => void }) {
   const isCreate = editor === "create";
   return (
     <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 sm:items-center sm:p-5" onClick={onClose}>
@@ -263,8 +321,15 @@ function ProductEditor({ editor, form, setForm, categories, saving, onClose, onS
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
           </Field>
-          <Field label="URL gambar · opsional">
-            <input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} placeholder="https://…" className="input" />
+          <Field label="Foto menu · opsional">
+            <div className="space-y-3">
+              {form.imagePath ? <div className="relative overflow-hidden rounded-2xl bg-neutral-100"><img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/9] w-full object-cover" /><button type="button" onClick={() => setForm({ ...form, imagePath: "" })} className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-900">Hapus foto</button></div> : <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-neutral-100 text-[13px] text-neutral-400">Belum ada foto</div>}
+              <label className="flex h-11 cursor-pointer items-center justify-center rounded-full border border-neutral-200 text-[13px] font-medium text-neutral-900">
+                {uploading ? "Mengunggah…" : form.imagePath ? "Ganti foto" : "Upload foto"}
+                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = ""; }} className="sr-only" />
+              </label>
+              <p className="text-xs text-neutral-400">JPEG, PNG, atau WebP · maksimal 5 MB. File disimpan di server aplikasi.</p>
+            </div>
           </Field>
           <Field label="Deskripsi">
             <textarea rows={2} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Deskripsi singkat" className="input resize-none" />
@@ -276,6 +341,14 @@ function ProductEditor({ editor, form, setForm, categories, saving, onClose, onS
             <Field label="Est. modal">
               <input type="number" min="0" value={form.estimatedCostIdr} onChange={(event) => setForm({ ...form, estimatedCostIdr: event.target.value })} placeholder="10500" className="input tabular-nums" />
             </Field>
+          </div>
+          <div>
+            <p className="mb-3 text-[13px] font-medium">Stok</p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 text-[13px] text-neutral-600"><input type="radio" name="stock-mode" checked={!form.stockTracked} onChange={() => setForm({ ...form, stockTracked: false })} /> Unlimited</label>
+              <label className="flex items-center gap-3 text-[13px] text-neutral-600"><input type="radio" name="stock-mode" checked={form.stockTracked} onChange={() => setForm({ ...form, stockTracked: true })} /> Track stock</label>
+              {form.stockTracked && <input type="number" min="0" max="1000000" value={form.stockQuantity} onChange={(event) => setForm({ ...form, stockQuantity: event.target.value })} className="input tabular-nums" aria-label="Jumlah stok" placeholder="24" />}
+            </div>
           </div>
           <button
             onClick={() => setForm({ ...form, available: !form.available })}
@@ -289,7 +362,7 @@ function ProductEditor({ editor, form, setForm, categories, saving, onClose, onS
         <div className="mt-8 space-y-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           <button
             onClick={onSave}
-            disabled={saving || !form.name || !form.categoryId || !form.priceIdr}
+            disabled={saving || uploading || !form.name || !form.categoryId || form.priceIdr === "" || (form.stockTracked && form.stockQuantity === "")}
             className="h-[52px] w-full rounded-2xl bg-[#FDBD2C] text-[15px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
           >
             {saving ? "Menyimpan…" : isCreate ? "Tambah" : "Simpan"}

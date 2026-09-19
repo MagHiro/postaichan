@@ -5,6 +5,8 @@ import { canTransitionOrder } from "../lib/domain/order-state.ts";
 import { canApplyPaymentStatus, paymentStatusFromProvider } from "../lib/domain/payment-state.ts";
 import { createOpaqueToken, hashOpaqueToken } from "../lib/domain/tokens.ts";
 import { netRecognizedPayment } from "../lib/reports.ts";
+import { jakartaRange } from "../lib/reports.ts";
+import { buildCartItem } from "../lib/domain/cart.ts";
 
 const product = {
   id: "product-1", name: "Meal", priceIdr: 20_000, estimatedCostIdr: 8_000, active: true, available: true,
@@ -51,4 +53,27 @@ test("report revenue is net of refunds and excludes orphaned settlements", () =>
   assert.equal(netRecognizedPayment({ status: "settled", amount_idr: 100_000, refunded_amount_idr: 25_000 }), 75_000);
   assert.equal(netRecognizedPayment({ status: "refunded", amount_idr: 100_000, refunded_amount_idr: 100_000 }), 0);
   assert.equal(netRecognizedPayment({ status: "settled", amount_idr: 100_000, orphaned_settlement: true }), 0);
+});
+
+test("tracked stock is enforced before checkout", () => {
+  const tracked = { ...product, stockTracked: true, stockQuantity: 2 };
+  assert.doesNotThrow(() => validateCheckoutLine({ productId: tracked.id, quantity: 2, variantOptionIds: ["option-1"], addonOptionIds: [] }, tracked));
+  assert.throws(() => validateCheckoutLine({ productId: tracked.id, quantity: 3, variantOptionIds: ["option-1"], addonOptionIds: [] }, tracked), (error) => error instanceof CheckoutDomainError && error.code === "STOCK_CONFLICT");
+});
+
+test("cart keys keep modifier variants separate", () => {
+  const cartProduct = { id: product.id, name: product.name, description: "", category: "Sate", price: product.priceIdr, cost: product.estimatedCostIdr, available: true, accent: "#fff", imageTone: "", modifierGroups: [{ id: "group-1", name: "Level", type: "variant" as const, selection: "single" as const, required: true, minSelection: 1, maxSelection: 1, options: [{ id: "option-1", name: "Spicy", priceAdjustmentIdr: 2_000, costAdjustmentIdr: 500, available: true }] }] };
+  const mild = buildCartItem(cartProduct, ["option-1"], [], 1);
+  const original = buildCartItem({ ...cartProduct, modifierGroups: [] }, [], [], 1);
+  assert.notEqual(mild.key, original.key);
+  assert.equal(mild.unitPrice, 22_000);
+});
+
+test("Jakarta report ranges are bounded and inclusive by calendar date", () => {
+  const range = jakartaRange("2026-09-01", "2026-09-07");
+  assert.equal(range.days, 7);
+  assert.equal(range.from, "2026-09-01");
+  assert.equal(range.to, "2026-09-07");
+  assert.throws(() => jakartaRange("2026-09-07", "2026-09-01"), /REPORT_RANGE_LIMIT/);
+  assert.throws(() => jakartaRange("2026-09-01", "2026-10-02"), /REPORT_RANGE_LIMIT/);
 });

@@ -68,5 +68,25 @@ export function ProductSheet({ product, quantity, setQuantity, variantOptionIds,
 function OptionGroup({ group, selectedIds, onToggle }: { group: ModifierGroup; selectedIds: string[]; onToggle: (id: string) => void }) {
   const selectedCount = group.options.filter((option) => selectedIds.includes(option.id)).length;
   const hint = group.required ? `wajib · ${group.minSelection === group.maxSelection ? group.maxSelection : `${group.minSelection}–${group.maxSelection}`} pilihan` : "opsional";
-  return <div><p className="mb-3 text-[13px] font-medium">{group.name} <span className="font-normal text-neutral-400">· {hint}</span></p>{group.type === "addon" ? <div className="divide-y divide-neutral-100">{group.options.map((option) => { const active = selectedIds.includes(option.id); return <button key={option.id} type="button" onClick={() => onToggle(option.id)} className="flex w-full items-center justify-between py-3 text-left" aria-pressed={active}><span className={cn("text-[13px]", active ? "font-medium" : "text-neutral-600")}>{option.name}</span><span className="flex items-center gap-2.5 text-[13px] tabular-nums text-neutral-400">{option.priceAdjustmentIdr > 0 ? `+${formatCompactIDR(option.priceAdjustmentIdr)}` : ""}<span className={cn("flex h-5 w-5 items-center justify-center rounded-full border transition", active ? "border-[#FDBD2C] bg-[#FDBD2C] text-neutral-900" : "border-neutral-200")}><Plus size={11} /></span></span></button>; })}</div> : <div className="flex flex-wrap gap-2">{group.options.map((option) => { const active = selectedIds.includes(option.id); return <button key={option.id} type="button" onClick={() => onToggle(option.id)} aria-pressed={active} className={cn("rounded-full px-3.5 py-2 text-[13px] transition", active ? "bg-[#FDBD2C]/20 font-medium text-neutral-900" : "bg-neutral-100 text-neutral-500")}>{option.name}{option.priceAdjustmentIdr > 0 ? ` · +${formatCompactIDR(option.priceAdjustmentIdr)}` : ""}</button>; })}</div>}{group.selection === "multiple" && <p className="mt-2 text-xs text-neutral-400">Dipilih {selectedCount} dari maksimal {group.maxSelection}</p>}</div>;
+  return (
+    <div>
+      <p className="mb-3 text-[13px] font-medium">{group.name} <span className="font-normal text-neutral-400">· {hint}</span></p>
+      {group.type === "addon" ? (
+        <div className="divide-y divide-neutral-100">
+          {group.options.map((option) => {
+            const active = selectedIds.includes(option.id);
+            return <button key={option.id} type="button" onClick={() => onToggle(option.id)} disabled={!option.available} className="flex w-full items-center justify-between py-3 text-left disabled:cursor-not-allowed disabled:opacity-40" aria-pressed={active}><span className={cn("text-[13px]", active ? "font-medium" : "text-neutral-600")}>{option.name}{!option.available ? " · Habis" : ""}</span><span className="flex items-center gap-2.5 text-[13px] tabular-nums text-neutral-400">{option.priceAdjustmentIdr > 0 ? `+${formatCompactIDR(option.priceAdjustmentIdr)}` : ""}<span className={cn("flex h-5 w-5 items-center justify-center rounded-full border transition", active ? "border-[#FDBD2C] bg-[#FDBD2C] text-neutral-900" : "border-neutral-200")}><Plus size={11} /></span></span></button>;
+          })}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {group.options.map((option) => {
+            const active = selectedIds.includes(option.id);
+            return <button key={option.id} type="button" onClick={() => onToggle(option.id)} disabled={!option.available} aria-pressed={active} className={cn("rounded-full px-3.5 py-2 text-[13px] transition disabled:cursor-not-allowed disabled:opacity-40", active ? "bg-[#FDBD2C]/20 font-medium text-neutral-900" : "bg-neutral-100 text-neutral-500")}>{option.name}{!option.available ? " · Habis" : option.priceAdjustmentIdr > 0 ? ` · +${formatCompactIDR(option.priceAdjustmentIdr)}` : ""}</button>;
+          })}
+        </div>
+      )}
+      {group.selection === "multiple" && <p className="mt-2 text-xs text-neutral-400">Dipilih {selectedCount} dari maksimal {group.maxSelection}</p>}
+    </div>
+  );
 }

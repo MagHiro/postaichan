@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Home, ReceiptText, Search, X } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import type { CartItem, Product } from "@/lib/types";
+import { buildCartItem } from "@/lib/domain/cart";
 import { cn } from "@/lib/utils";
 import {
   matchesOrderCategory,
@@ -19,9 +20,8 @@ import { SuccessView } from "./SuccessView";
 import { CartSheet } from "./CartSheet";
 import { EmptyState, SkeletonCard } from "./ui";
 
-export function OrderExperience({ tableToken }: { tableToken?: string }) {
-  // The customer surface renders only the server catalog. Offline/demo
-  // products are never sent to checkout because they have no authoritative IDs.
+export function OrderExperience({ tableToken, generalToken }: { tableToken?: string; generalToken?: string }) {
+  // The customer surface renders only the authoritative server catalog.
   const [menuProducts, setMenuProducts] = useState<Product[]>([]);
   const [menuLoading, setMenuLoading] = useState(true);
   const [menuError, setMenuError] = useState<string | null>(null);
@@ -44,6 +44,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
   const [payment, setPayment] = useState<PaymentAttempt | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const [variantOptionIds, setVariantOptionIds] = useState<string[]>([]);
   const [addonOptionIds, setAddonOptionIds] = useState<string[]>([]);
   const [quantity, setQuantity] = useState(1);
@@ -64,6 +65,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
       .then((payload) => {
         if (!active) return;
         if (payload?.products?.length) {
+          setMenuError(null);
           setMenuProducts(payload.products);
           setCategories(["Semua Menu", ...(payload.categories ?? []).map((item: { name: string }) => item.name), ...(payload.products.some((item: Product) => item.popular) ? ["Paket Hemat"] : [])]);
         } else setMenuError("Menu belum tersedia.");
@@ -74,12 +76,15 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
       .finally(() => {
         if (active) setMenuLoading(false);
       });
-    const fallback = window.setTimeout(() => {
-      if (active) setMenuLoading(false);
+    const loadingTimeout = window.setTimeout(() => {
+      if (active) {
+        setMenuLoading(false);
+        setMenuError("Menu belum dapat dimuat. Coba lagi.");
+      }
     }, 2500);
     return () => {
       active = false;
-      window.clearTimeout(fallback);
+      window.clearTimeout(loadingTimeout);
     };
   }, []);
 
@@ -89,33 +94,39 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
     const stored = window.sessionStorage.getItem(`tt-session-${want}`);
     if (stored) {
       try {
-        const value = JSON.parse(stored) as { token: string; tableToken?: string; tableLabel?: string | null; expiresAt?: string };
-        if (value.tableToken === tableToken && (!value.expiresAt || new Date(value.expiresAt).getTime() > Date.now())) {
+        const value = JSON.parse(stored) as { token: string; tableToken?: string; generalToken?: string; tableLabel?: string | null; expiresAt?: string };
+        if (value.tableToken === tableToken && value.generalToken === generalToken && (!value.expiresAt || new Date(value.expiresAt).getTime() > Date.now())) {
+          setSessionError(null);
           setSession({ token: value.token, orderType: want, tableLabel: value.tableLabel ?? null });
           return () => { active = false; };
         }
       } catch { window.sessionStorage.removeItem(`tt-session-${want}`); }
     }
     setSession(null);
+    setSessionError(null);
     fetch("/api/customer/session", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ orderType: want, tableToken }),
+      body: JSON.stringify({ orderType: want, tableToken: want === "dine_in" ? tableToken : undefined, generalToken }),
     })
-      .then((response) => (response.ok ? response.json() : null))
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(payload?.error ?? "QR pemesanan belum dapat digunakan.");
+        return payload;
+      })
       .then((payload) => {
         if (active && payload?.sessionToken) {
           setSession({ token: payload.sessionToken, orderType: want, tableLabel: payload.tableLabel ?? null });
-          window.sessionStorage.setItem(`tt-session-${want}`, JSON.stringify({ token: payload.sessionToken, tableToken, tableLabel: payload.tableLabel ?? null, expiresAt: payload.expiresAt }));
+          window.sessionStorage.setItem(`tt-session-${want}`, JSON.stringify({ token: payload.sessionToken, tableToken, generalToken, tableLabel: payload.tableLabel ?? null, expiresAt: payload.expiresAt }));
         }
       })
       .catch(() => {
-        if (active) setSession(null);
+        if (active) { setSession(null); setSessionError("QR pemesanan sudah tidak aktif. Minta QR terbaru dari kasir."); }
       });
     return () => {
       active = false;
     };
-  }, [orderType, tableToken]);
+  }, [orderType, tableToken, generalToken]);
 
   useEffect(() => {
     if (!session) return;
@@ -176,6 +187,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
 
   function openProduct(product: Product) {
     if (!product.available) return;
+    if ((tableToken || generalToken) && !session) { setCheckoutError(sessionError ?? "Sesi pemesanan belum siap."); return; }
     setSelectedProduct(product);
     setVariantOptionIds([]);
     setAddonOptionIds([]);
@@ -186,24 +198,12 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
 
   function addToCart() {
     if (!selectedProduct) return;
-    const selectedOptions = (selectedProduct.modifierGroups ?? []).flatMap((group) => group.options.filter((option) => (group.type === "variant" ? variantOptionIds : addonOptionIds).includes(option.id)));
-    const key = `${selectedProduct.id}-${[...variantOptionIds].sort().join("-")}-${[...addonOptionIds].sort().join("-")}-${note.trim()}`;
-    const nextItem: CartItem = {
-      key,
-      product: selectedProduct,
-      quantity,
-      variantOptionIds,
-      addonOptionIds,
-      variantLabels: selectedOptions.filter((option) => (selectedProduct.modifierGroups ?? []).find((group) => group.options.some((candidate) => candidate.id === option.id))?.type === "variant").map((option) => option.name),
-      addonLabels: selectedOptions.filter((option) => (selectedProduct.modifierGroups ?? []).find((group) => group.options.some((candidate) => candidate.id === option.id))?.type === "addon").map((option) => option.name),
-      note: note.trim() || undefined,
-      unitPrice: selectedProduct.price + selectedOptions.reduce((sum, option) => sum + option.priceAdjustmentIdr, 0),
-    };
+    const nextItem = buildCartItem(selectedProduct, variantOptionIds, addonOptionIds, quantity, note);
     setCart((current) => {
-      const existing = current.find((item) => item.key === key);
+      const existing = current.find((item) => item.key === nextItem.key);
       if (existing)
         return current.map((item) =>
-          item.key === key
+          item.key === nextItem.key
             ? { ...item, quantity: item.quantity + quantity }
             : item,
         );
@@ -216,29 +216,19 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
 
   function quickAdd(product: Product) {
     if (!product.available) return;
+    if ((tableToken || generalToken) && !session) { setCheckoutError(sessionError ?? "Sesi pemesanan belum siap."); return; }
     if ((product.modifierGroups ?? []).length > 0)
       return openProduct(product);
+    const item = buildCartItem(product, [], [], 1);
     setCart((current) => {
-      const existing = current.find((item) => item.key === product.id);
+      const existing = current.find((line) => line.key === item.key);
       if (existing)
-        return current.map((item) =>
-          item.key === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
+        return current.map((line) =>
+          line.key === item.key
+            ? { ...line, quantity: line.quantity + 1 }
+            : line,
         );
-      return [
-        ...current,
-        {
-          key: product.id,
-          product,
-          quantity: 1,
-          variantOptionIds: [],
-          addonOptionIds: [],
-          variantLabels: [],
-          addonLabels: [],
-          unitPrice: product.price,
-        },
-      ];
+      return [...current, item];
     });
     showToast(`${product.name} ditambahkan`);
   }
@@ -256,6 +246,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
 
   async function beginCheckout() {
     if (cart.length === 0) return;
+    if ((tableToken || generalToken) && !session) { setCheckoutError(sessionError ?? "QR pemesanan sudah tidak aktif."); return; }
     setCheckoutLoading(true);
     setCheckoutError(null);
     try {
@@ -268,7 +259,8 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             orderType: orderType === "Dine in" ? "dine_in" : "takeaway",
-            tableToken,
+            tableToken: want === "dine_in" ? tableToken : undefined,
+            generalToken,
           }),
         });
         const sessionPayload = await sessionResponse.json();
@@ -277,7 +269,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
             sessionPayload.error ?? "We couldn't start your order.",
           );
         activeSessionToken = sessionPayload.sessionToken as string;
-          setSession({ token: activeSessionToken as string, orderType: want, tableLabel: session?.tableLabel ?? null });
+          setSession({ token: activeSessionToken as string, orderType: want, tableLabel: sessionPayload.tableLabel ?? null });
       }
       if (!checkoutIntentKey.current) checkoutIntentKey.current = crypto.randomUUID();
       const response = await fetch("/api/checkout", {
@@ -287,7 +279,6 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
           idempotencyKey: checkoutIntentKey.current,
           sessionToken: activeSessionToken,
           orderType: orderType === "Dine in" ? "dine_in" : "takeaway",
-          tableToken,
           items: cart.map((item) => ({
             productId: item.product.id,
             quantity: item.quantity,
@@ -440,6 +431,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                 Takeaway
               </button>
             </div>
+            {sessionError && <div className="mt-3 rounded-2xl bg-neutral-50 px-4 py-3 text-[13px] leading-relaxed text-neutral-600">{sessionError}</div>}
           </div>
         </header>
 
@@ -507,11 +499,13 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                   <SkeletonCard key={i} />
                 ))}
               </div>
-            ) : menuError || filteredProducts.length === 0 ? (
-              <EmptyState
-                title={menuError ?? "Tidak ketemu"}
-                hint={menuError ? "Coba muat ulang halaman." : "Coba kata lain atau ganti kategori."}
-              />
+            ) : menuError ? (
+              <div>
+                <EmptyState title={menuError} hint="Periksa koneksi lalu coba lagi." />
+                <button type="button" onClick={() => window.location.reload()} className="mx-auto block h-11 rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white">Coba lagi</button>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <EmptyState title="Tidak ketemu" hint="Coba kata lain atau ganti kategori." />
             ) : (
               <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-7">
                 {filteredProducts.map((product) => (
@@ -551,6 +545,7 @@ export function OrderExperience({ tableToken }: { tableToken?: string }) {
                         onCheckout={beginCheckout}
                         checkoutLoading={checkoutLoading}
                         checkoutError={checkoutError}
+                        checkoutDisabled={Boolean((tableToken || generalToken) && !session)}
                       />
                     </div>
                   </div>

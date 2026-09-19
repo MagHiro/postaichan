@@ -1,6 +1,7 @@
 import { OrderExperience } from "@/components/order-experience";
 
-// Customer order status is access-token scoped, never table scoped.
-export default function CustomerOrderPage() {
-  return <OrderExperience />;
+// Legacy access-token links are treated as managed general-QR tokens.
+export default async function CustomerOrderPage({ params }: { params: Promise<{ accessToken: string }> }) {
+  const { accessToken } = await params;
+  return <OrderExperience generalToken={accessToken} />;
 }
