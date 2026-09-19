@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { MidtransProvider } from "@/lib/payments/midtrans";
 import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
-const schema = z.object({ amountIdr: z.number().int().positive().max(2_000_000_000), reason: z.string().trim().min(3).max(240) });
+const schema = z.object({ amountIdr: z.number().int().positive().max(2_000_000_000), reason: z.string().trim().min(3).max(240) }).strict();
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authorizeStaff("admin");
-  if (!auth.allowed) return NextResponse.json({ error: "Administrator authorization required." }, { status: auth.actorId ? 403 : 401, headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Order not found." }, { status: 400, headers: noStoreHeaders() });

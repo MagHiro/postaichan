@@ -17,8 +17,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const sessionHash = hashOpaqueToken(token);
     if (!(await consumeRateLimit(request, "payment-status", 30, 300, sessionHash.slice(0, 24)))) return NextResponse.json({ error: "Polling terlalu sering." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "60" } });
     const supabase = createAdminClient();
-    const { data: session } = await supabase.from("customer_sessions").select("id").eq("access_token_hash", sessionHash).gt("expires_at", new Date().toISOString()).maybeSingle();
+    const { data: session } = await supabase.from("customer_sessions").select("id, table_id, table_qr_version, source_table_id, source_table_qr_version, ordering_qr_code_id, ordering_qr_token_version").eq("access_token_hash", sessionHash).gt("expires_at", new Date().toISOString()).maybeSingle();
     if (!session) return NextResponse.json({ error: "Order session expired." }, { status: 401, headers: noStoreHeaders() });
+    const sourceTableId = session.source_table_id ?? session.table_id;
+    const sourceTableVersion = session.source_table_qr_version ?? session.table_qr_version;
+    if (sourceTableId && !(await supabase.from("restaurant_tables").select("id").eq("id", sourceTableId).eq("active", true).eq("qr_token_version", sourceTableVersion).maybeSingle()).data) return NextResponse.json({ error: "This table QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
+    if (session.ordering_qr_code_id && !(await supabase.from("ordering_qr_codes").select("id").eq("id", session.ordering_qr_code_id).eq("active", true).eq("token_version", session.ordering_qr_token_version).maybeSingle()).data) return NextResponse.json({ error: "This ordering QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
     const { data: order, error: orderError } = await supabase.from("orders").select("id, order_number, status").eq("id", id).eq("customer_session_id", session.id).maybeSingle();
     if (orderError) throw orderError;
     if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404, headers: noStoreHeaders() });

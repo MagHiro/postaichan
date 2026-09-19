@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { cashierOrderSchema } from "@/lib/schemas";
 import { jakartaDayRange } from "@/lib/reports";
 import { MidtransProvider } from "@/lib/payments/midtrans";
@@ -10,11 +10,21 @@ import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
-function fingerprint(input: unknown) { return createHash("sha256").update(JSON.stringify(input)).digest("hex"); }
+function fingerprint(input: { orderType: string; tableId: string | null; paymentMethod: string; items: Array<{ productId: string; quantity: number; variantOptionIds: string[]; addonOptionIds: string[]; note?: string }> }) {
+  const canonical = {
+    orderType: input.orderType,
+    tableId: input.tableId,
+    paymentMethod: input.paymentMethod,
+    items: input.items
+      .map((item) => ({ ...item, variantOptionIds: [...item.variantOptionIds].sort(), addonOptionIds: [...item.addonOptionIds].sort() }))
+      .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
+  };
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
+}
 
 export async function GET(request: Request) {
   const auth = await authorizeStaff();
-  if (!auth.allowed) return NextResponse.json({ error: "Staff authorization required." }, { status: 401, headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   try {
     const date = new URL(request.url).searchParams.get("date") ?? undefined;
     let range;
@@ -32,7 +42,7 @@ export async function GET(request: Request) {
     if (countError) throw countError;
     const counts = new Map<string, number>();
     for (const item of itemCounts ?? []) counts.set(item.order_id, (counts.get(item.order_id) ?? 0) + item.quantity);
-    return NextResponse.json({ orders: (data ?? []).map((order) => { const payments = Array.isArray(order.payments) ? order.payments : order.payments ? [order.payments] : []; const payment = payments.sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0]; const table = Array.isArray(order.restaurant_tables) ? order.restaurant_tables[0] : order.restaurant_tables; return { id: order.id, number: order.order_number, type: order.order_type === "dine_in" ? "Dine in" : "Takeaway", table: table?.label, items: counts.get(order.id) ?? 0, total: order.total_idr, payment: payment?.method === "cash" ? "Cash" : "QRIS", paymentStatus: payment?.status === "settled" ? "Paid" : "Pending", status: order.status === "paid" ? "New" : order.status === "accepted" || order.status === "processing" ? "Preparing" : order.status === "ready" ? "Ready" : order.status === "completed" ? "Completed" : "New", time: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(order.created_at)) }; }) }, { headers: noStoreHeaders() });
+    return NextResponse.json({ orders: (data ?? []).map((order) => { const payments = Array.isArray(order.payments) ? order.payments : order.payments ? [order.payments] : []; const payment = payments.sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0]; const table = Array.isArray(order.restaurant_tables) ? order.restaurant_tables[0] : order.restaurant_tables; const status = order.status === "awaiting_payment" ? "Pending" : order.status === "paid" ? "New" : order.status === "accepted" ? "Accepted" : order.status === "processing" ? "Preparing" : order.status === "ready" ? "Ready" : order.status === "completed" ? "Completed" : order.status === "cancelled" ? "Cancelled" : order.status === "refunded" ? "Refunded" : "Pending"; return { id: order.id, number: order.order_number, type: order.order_type === "dine_in" ? "Dine in" : "Takeaway", table: table?.label, items: counts.get(order.id) ?? 0, total: order.total_idr, payment: payment?.method === "cash" ? "Cash" : "QRIS", paymentStatus: payment?.status === "settled" || payment?.status === "partially_refunded" || payment?.status === "refunded" ? "Paid" : "Pending", status, time: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(order.created_at)) }; }) }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("pos_orders_failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Orders could not be loaded." }, { status: 503, headers: noStoreHeaders() });
@@ -41,7 +51,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const auth = await authorizeStaff();
-  if (!auth.allowed) return NextResponse.json({ error: "Staff authorization required." }, { status: 401, headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const parsed = cashierOrderSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Cashier order is incomplete." }, { status: 400, headers: noStoreHeaders() });
@@ -59,9 +69,11 @@ export async function POST(request: Request) {
       p_items: input.items,
     });
     if (error) {
-      const message = String(error.message || "").split(":")[0];
-      const status = ["MENU_CONFLICT", "INVALID_MODIFIERS", "INVALID_QUANTITY", "CASH_DISABLED", "QRIS_DISABLED", "IDEMPOTENCY_KEY_REUSED"].includes(message) ? 409 : 503;
-      return NextResponse.json({ error: message === "CASH_DISABLED" ? "Pembayaran tunai sedang tidak tersedia." : message === "QRIS_DISABLED" ? "Pembayaran QRIS sedang tidak tersedia." : "Pesanan kasir belum dapat dibuat." }, { status, headers: noStoreHeaders() });
+      const rawMessage = String(error.message || "");
+      const message = rawMessage.split(":")[0];
+      const stockProduct = message === "STOCK_CONFLICT" ? rawMessage.slice("STOCK_CONFLICT:".length).trim().slice(0, 120) : "";
+      const status = ["MENU_CONFLICT", "INVALID_MODIFIERS", "INVALID_QUANTITY", "INVALID_NOTE", "STOCK_CONFLICT", "CASH_DISABLED", "QRIS_DISABLED", "IDEMPOTENCY_KEY_REUSED", "TABLE_NOT_AVAILABLE", "TAKEAWAY_TABLE_CONFLICT"].includes(message) ? 409 : 503;
+      return NextResponse.json({ error: message === "CASH_DISABLED" ? "Pembayaran tunai sedang tidak tersedia." : message === "QRIS_DISABLED" ? "Pembayaran QRIS sedang tidak tersedia." : message === "STOCK_CONFLICT" ? stockProduct ? `Stok ${stockProduct} berubah. Kurangi jumlah item lalu coba lagi.` : "Stok berubah. Kurangi jumlah item lalu coba lagi." : message === "TABLE_NOT_AVAILABLE" ? "Meja tidak aktif. Pilih meja lain." : message === "TAKEAWAY_TABLE_CONFLICT" ? "Takeaway tidak dapat memakai meja." : "Pesanan kasir belum dapat dibuat." }, { status, headers: noStoreHeaders() });
     }
     const intent = Array.isArray(data) ? data[0] : data;
     if (!intent) return NextResponse.json({ error: "Pesanan kasir belum dapat dibuat." }, { status: 503, headers: noStoreHeaders() });

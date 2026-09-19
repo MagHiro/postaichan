@@ -1,27 +1,29 @@
 import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { authorizeStaff } from "@/lib/auth/authorize-staff";
-import { getDailyReport } from "@/lib/reports";
+import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { getReport } from "@/lib/reports";
 import { formatIDR } from "@/lib/format";
 import { noStoreHeaders } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
-function makePdf(report: Awaited<ReturnType<typeof getDailyReport>>) {
+function makePdf(report: Awaited<ReturnType<typeof getReport>>) {
   return new Promise<Buffer>((resolve, reject) => {
-    const document = new PDFDocument({ size: "A4", margin: 48, info: { Title: `Tempat Taichan Daily Report ${report.date}` } });
+    const document = new PDFDocument({ size: "A4", margin: 48, info: { Title: `Tempat Taichan Sales Report ${report.from} - ${report.to}` } });
     const chunks: Buffer[] = [];
     document.on("data", (chunk: Buffer) => chunks.push(chunk));
     document.on("end", () => resolve(Buffer.concat(chunks)));
     document.on("error", reject);
-    const orange = "#ed5b38";
+    const orange = "#FDBD2C";
     document.fillColor("#211d1a").fontSize(22).font("Helvetica-Bold").text("Tempat Taichan");
     document.fillColor("#7e7770").fontSize(10).font("Helvetica").text("Daily operations report · Asia/Jakarta");
-    document.moveDown(0.4).fillColor(orange).fontSize(13).font("Helvetica-Bold").text(report.date);
+    document.moveDown(0.4).fillColor(orange).fontSize(13).font("Helvetica-Bold").text(report.from === report.to ? report.from : `${report.from} — ${report.to}`);
     document.moveDown(1).fillColor("#211d1a").fontSize(12).font("Helvetica-Bold").text("Summary");
     const summary = [
-      ["Gross revenue", formatIDR(report.revenueIdr)],
+      ["Gross sales", formatIDR(report.grossRevenueIdr)],
+      ["Refunds", formatIDR(report.refundsIdr)],
+      ["Net sales", formatIDR(report.netRevenueIdr)],
       ["Paid orders", String(report.orderCount)],
       ["Average order value", formatIDR(report.averageOrderValueIdr)],
       ["Estimated COGS", formatIDR(report.estimatedCogsIdr)],
@@ -35,20 +37,24 @@ function makePdf(report: Awaited<ReturnType<typeof getDailyReport>>) {
     report.bestSellers.forEach((item, index) => { document.moveDown(0.3).fillColor("#211d1a").font("Helvetica").fontSize(10).text(`${index + 1}. ${item.name} — ${item.quantity} portions — ${formatIDR(item.revenueIdr)}`); });
     document.moveDown(1).fillColor("#211d1a").fontSize(12).font("Helvetica-Bold").text("Paid orders");
     report.orders.forEach((order) => { document.moveDown(0.3).fillColor("#7e7770").font("Helvetica").fontSize(9).text(`${order.orderNumber}  ${order.type.replace("_", " ")}  ${formatIDR(order.totalIdr)}  ${order.status}`); });
-    document.moveDown(1.5).fillColor("#9b9189").font("Helvetica-Oblique").fontSize(8).text("Estimated gross profit = revenue − snapshot COGS − known payment fees. This is not accounting net profit.");
+    document.moveDown(1.5).fillColor("#9b9189").font("Helvetica-Oblique").fontSize(8).text("Period uses payment settlement time in Asia/Jakarta. Refunds use their processed time. Estimated gross profit is not accounting net profit.");
     document.end();
   });
 }
 
 export async function GET(request: Request) {
-  const auth = await authorizeStaff();
-  if (!auth.allowed) return NextResponse.json({ error: "Staff authorization required." }, { status: 401, headers: noStoreHeaders() });
+  const auth = await authorizeStaff("admin");
+  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   try {
-    const date = new URL(request.url).searchParams.get("date") ?? undefined;
-    const pdf = await makePdf(await getDailyReport(createAdminClient(), date));
-    return new Response(new Uint8Array(pdf), { headers: { ...noStoreHeaders(), "content-type": "application/pdf", "content-disposition": `attachment; filename="tempat-taichan-daily-${date ?? "report"}.pdf"` } });
+    const params = new URL(request.url).searchParams;
+    const date = params.get("date") ?? undefined;
+    const from = params.get("from") ?? date;
+    const to = params.get("to") ?? date;
+    const report = await getReport(createAdminClient(), from ?? undefined, to ?? undefined);
+    const pdf = await makePdf(report);
+    return new Response(new Uint8Array(pdf), { headers: { ...noStoreHeaders(), "content-type": "application/pdf", "content-disposition": `attachment; filename="tempat-taichan-report-${report.from}-${report.to}.pdf"` } });
   } catch (error) {
-    if (error instanceof Error && error.message === "INVALID_REPORT_DATE") return NextResponse.json({ error: "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });
+    if (error instanceof Error && ["INVALID_REPORT_DATE", "REPORT_RANGE_LIMIT"].includes(error.message)) return NextResponse.json({ error: error.message === "REPORT_RANGE_LIMIT" ? "Rentang laporan maksimal 31 hari." : "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });
     console.error("daily_pdf_failed", error);
     return NextResponse.json({ error: "Daily PDF could not be generated." }, { status: 503, headers: noStoreHeaders() });
   }

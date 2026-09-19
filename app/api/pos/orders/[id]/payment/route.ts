@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { MidtransProvider } from "@/lib/payments/midtrans";
 import { presentQrMaterial } from "@/lib/payments/qr";
 import { uuidParamSchema } from "@/lib/schemas";
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authorizeStaff();
-  if (!auth.allowed) return NextResponse.json({ error: "Staff authorization required." }, { status: 401, headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   const { id } = await params;
   if (!uuidParamSchema.safeParse(id).success) return NextResponse.json({ error: "Order not found." }, { status: 400, headers: noStoreHeaders() });
   try {

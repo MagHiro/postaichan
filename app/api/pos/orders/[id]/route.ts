@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { uuidParamSchema } from "@/lib/schemas";
 import { noStoreHeaders } from "@/lib/security/request";
 
@@ -8,14 +8,14 @@ export const runtime = "nodejs";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authorizeStaff();
-  if (!auth.allowed) return NextResponse.json({ error: "Staff authorization required." }, { status: 401, headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   const { id } = await params;
   if (!uuidParamSchema.safeParse(id).success) return NextResponse.json({ error: "Order not found." }, { status: 400, headers: noStoreHeaders() });
   try {
     const supabase = createAdminClient();
     const [{ data: order, error: orderError }, { data: items, error: itemError }] = await Promise.all([
-      supabase.from("orders").select("id, order_number, order_type, status, subtotal_idr, total_idr, estimated_cost_idr, created_at, restaurant_tables(label), payments(method, provider, status, amount_idr, fee_idr, provider_order_id, expires_at, settled_at, created_at)").eq("id", id).single(),
-      supabase.from("order_items").select("id, product_name_snapshot, quantity, unit_price_idr, unit_cost_snapshot_idr, line_total_idr, note, order_item_modifiers(modifier_type, modifier_name_snapshot, price_adjustment_idr)").eq("order_id", id),
+      supabase.from("orders").select("id, order_number, order_type, status, subtotal_idr, total_idr, created_at, restaurant_tables(label), payments(method, provider, status, amount_idr, expires_at, settled_at, created_at)").eq("id", id).single(),
+      supabase.from("order_items").select("id, product_name_snapshot, quantity, unit_price_idr, line_total_idr, note, order_item_modifiers(modifier_type, modifier_name_snapshot, price_adjustment_idr)").eq("order_id", id),
     ]);
     if (orderError) throw orderError;
     if (itemError) throw itemError;

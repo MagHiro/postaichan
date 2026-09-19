@@ -6,6 +6,8 @@ export type ModifierOptionInput = {
   priceAdjustmentIdr: number;
   costAdjustmentIdr: number;
   available: boolean;
+  stockTracked?: boolean;
+  stockQuantity?: number;
 };
 
 export type ModifierGroupInput = {
@@ -26,6 +28,8 @@ export type CheckoutProductInput = {
   estimatedCostIdr: number;
   active: boolean;
   available: boolean;
+  stockTracked?: boolean;
+  stockQuantity?: number;
   archivedAt?: string | null;
   modifierGroups: ModifierGroupInput[];
 };
@@ -87,6 +91,9 @@ export function validateCheckoutLine(
   }
   if (!Number.isSafeInteger(line.quantity) || line.quantity < 1 || line.quantity > 99) {
     throw new CheckoutDomainError("INVALID_QUANTITY", "Quantity must be between 1 and 99.");
+  }
+  if (product.stockTracked && (product.stockQuantity ?? 0) < line.quantity) {
+    throw new CheckoutDomainError("STOCK_CONFLICT", "The selected quantity is no longer available.");
   }
   if (line.note && line.note.length > 240) {
     throw new CheckoutDomainError("INVALID_NOTE", "Notes must be 240 characters or fewer.");

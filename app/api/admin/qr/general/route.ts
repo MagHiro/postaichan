@@ -1,0 +1,37 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { createOpaqueToken, hashOpaqueToken } from "@/lib/domain/tokens";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
+
+export const runtime = "nodejs";
+const schema = z.object({ label: z.string().trim().min(1).max(80) }).strict();
+
+export async function GET() {
+  const auth = await authorizeStaff("admin");
+  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  const { data, error } = await createAdminClient().from("ordering_qr_codes").select("id, label, kind, active, token_version, created_at, updated_at").order("created_at", { ascending: false });
+  if (error) return NextResponse.json({ error: "QR umum belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });
+  return NextResponse.json({ codes: data ?? [] }, { headers: noStoreHeaders() });
+}
+
+export async function POST(request: Request) {
+  const auth = await authorizeStaff("admin");
+  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
+  const parsed = schema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Label QR umum wajib diisi." }, { status: 400, headers: noStoreHeaders() });
+  try {
+    if (!(await consumeRateLimit(request, "general-qr-create", 12, 900, auth.actorId ?? "dev"))) return NextResponse.json({ error: "Terlalu banyak pembuatan QR. Coba lagi nanti." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "900" } });
+    const rawToken = createOpaqueToken(32);
+    const { data: created, error } = await createAdminClient().rpc("create_general_qr", { p_label: parsed.data.label, p_token_hash: hashOpaqueToken(rawToken), p_actor_id: auth.actorId });
+    if (error) return NextResponse.json({ error: error.code === "23505" ? "Label QR sudah digunakan." : "QR umum belum dapat dibuat." }, { status: error.code === "23505" ? 409 : 503, headers: noStoreHeaders() });
+    const code = Array.isArray(created) ? created[0] : created;
+    if (!code) return NextResponse.json({ error: "QR umum belum dapat dibuat." }, { status: 503, headers: noStoreHeaders() });
+    return NextResponse.json({ code, orderingUrl: `/order/g/${rawToken}` }, { status: 201, headers: noStoreHeaders() });
+  } catch (error) {
+    console.error("general_qr_create_failed", error instanceof Error ? error.message : "unknown");
+    return NextResponse.json({ error: "QR umum belum dapat dibuat." }, { status: 503, headers: noStoreHeaders() });
+  }
+}

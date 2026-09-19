@@ -52,3 +52,7 @@ supabase/.temp
 # testing / coverage
 coverage/
 .nyc_output/
+
+# runtime menu uploads (keep the directory scaffolded)
+public/uploads/menu/*
+!public/uploads/menu/.gitkeep

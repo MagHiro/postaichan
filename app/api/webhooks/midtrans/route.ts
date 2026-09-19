@@ -31,12 +31,12 @@ export async function POST(request: Request) {
     if (event.payment_type && event.payment_type !== "qris") return NextResponse.json({ error: "Payment method mismatch" }, { status: 422, headers: noStoreHeaders() });
     const providerEventKey = createHash("sha256").update(JSON.stringify(event)).digest("hex");
     const { error: eventError } = await supabase.from("payment_events").insert({ payment_id: payment.id, provider_event_key: providerEventKey, provider_transaction_id: event.transaction_id ?? null, event_type: event.transaction_status, payload: event, verified: true });
-    if (eventError?.code === "23505") return NextResponse.json({ received: true, duplicate: true }, { headers: noStoreHeaders() });
-    if (eventError) throw eventError;
+    const duplicate = eventError?.code === "23505";
+    if (eventError && !duplicate) throw eventError;
     const nextStatus = paymentStatusFromProvider(event.transaction_status, event.fraud_status);
     const { error: transitionError } = await supabase.rpc("apply_payment_transition", { p_payment_id: payment.id, p_next_status: nextStatus, p_provider_status: event.transaction_status, p_provider_transaction_id: event.transaction_id ?? null, p_fee_idr: 0, p_settled_at: nextStatus === "settled" ? new Date().toISOString() : null });
     if (transitionError) throw transitionError;
-    return NextResponse.json({ received: true }, { headers: noStoreHeaders() });
+    return NextResponse.json({ received: true, ...(duplicate ? { duplicate: true } : {}) }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("midtrans_webhook_failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 503, headers: noStoreHeaders() });

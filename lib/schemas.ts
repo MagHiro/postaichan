@@ -6,14 +6,23 @@ export const checkoutItemSchema = z.object({
   variantOptionIds: z.array(z.string().uuid()).max(20).default([]),
   addonOptionIds: z.array(z.string().uuid()).max(20).default([]),
   note: z.string().trim().max(240).optional(),
-});
+}).strict();
 
 export const checkoutSchema = z.object({
   idempotencyKey: z.string().uuid(),
   sessionToken: z.string().min(32).max(240),
   orderType: z.enum(["dine_in", "takeaway"]),
-  tableToken: z.string().min(1).max(240).optional(),
   items: z.array(checkoutItemSchema).min(1).max(50),
+}).strict();
+
+export const customerSessionSchema = z.object({
+  orderType: z.enum(["dine_in", "takeaway"]),
+  tableToken: z.string().trim().min(32).max(240).optional(),
+  generalToken: z.string().trim().min(32).max(240).optional(),
+}).strict().superRefine((value, context) => {
+  if (value.tableToken && value.generalToken) {
+    context.addIssue({ code: "custom", message: "Only one QR context may be supplied.", path: ["tableToken"] });
+  }
 });
 
 export const midtransWebhookSchema = z.object({
@@ -25,7 +34,7 @@ export const midtransWebhookSchema = z.object({
   fraud_status: z.string().max(30).optional(),
   transaction_id: z.string().trim().max(120).optional(),
   payment_type: z.string().trim().max(40).optional(),
-});
+}).strict();
 
 export const cashierOrderSchema = z.object({
   idempotencyKey: z.string().uuid(),
@@ -33,6 +42,6 @@ export const cashierOrderSchema = z.object({
   tableId: z.string().uuid().nullable().optional(),
   paymentMethod: z.enum(["qris", "cash"]).default("qris"),
   items: z.array(checkoutItemSchema).min(1).max(50),
-});
+}).strict();
 
 export const uuidParamSchema = z.string().uuid();

@@ -6,6 +6,8 @@ export type ModifierOption = {
   priceAdjustmentIdr: number;
   costAdjustmentIdr: number;
   available: boolean;
+  stockTracked?: boolean;
+  stockQuantity?: number;
 };
 
 export type ModifierGroup = {
@@ -28,6 +30,8 @@ export type Product = {
   price: number;
   cost: number;
   available: boolean;
+  stockTracked?: boolean;
+  stockQuantity?: number;
   active?: boolean;
   popular?: boolean;
   modifierGroups?: ModifierGroup[];
@@ -60,7 +64,7 @@ export type Order = {
   total: number;
   payment: "QRIS" | "Cash";
   paymentStatus: "Paid" | "Pending";
-  status: "New" | "Preparing" | "Ready" | "Completed";
+  status: "Pending" | "New" | "Accepted" | "Preparing" | "Ready" | "Completed" | "Cancelled" | "Refunded";
   time: string;
   customer?: string;
 };
