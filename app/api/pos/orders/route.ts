@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     try {
       range = jakartaDayRange(date);
     } catch (error) {
-      if (error instanceof Error && error.message === "INVALID_REPORT_DATE") return NextResponse.json({ error: "Invalid report date." }, { status: 400, headers: noStoreHeaders() });
+      if (error instanceof Error && error.message === "INVALID_REPORT_DATE") return NextResponse.json({ error: "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });
       throw error;
     }
     const ordersResult = await query<{ id: string; order_number: string; order_type: string; table_id: string | null; status: string; total_idr: number; created_at: string; table_label: string | null; payment_method: string | null; payment_status: string | null; payment_created_at: string | null }>(
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ orders: data.map((order) => { const status = order.status === "awaiting_payment" ? "Pending" : order.status === "paid" ? "New" : order.status === "accepted" ? "Accepted" : order.status === "processing" ? "Preparing" : order.status === "ready" ? "Ready" : order.status === "completed" ? "Completed" : order.status === "cancelled" ? "Cancelled" : order.status === "refunded" ? "Refunded" : "Pending"; return { id: order.id, number: order.order_number, type: order.order_type === "dine_in" ? "Dine in" : "Takeaway", table: order.table_label ?? undefined, items: counts.get(order.id) ?? 0, total: order.total_idr, payment: order.payment_method === "cash" ? "Cash" : "QRIS", paymentStatus: order.payment_status === "settled" || order.payment_status === "partially_refunded" || order.payment_status === "refunded" ? "Paid" : "Pending", status, time: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(order.created_at)) }; }) }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("pos_orders_failed", error instanceof Error ? error.message : "unknown");
-    return NextResponse.json({ error: "Orders could not be loaded." }, { status: 503, headers: noStoreHeaders() });
+    return NextResponse.json({ error: "Pesanan belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }
 
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const parsed = cashierOrderSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Cashier order is incomplete." }, { status: 400, headers: noStoreHeaders() });
+  if (!parsed.success) return NextResponse.json({ error: "Pesanan kasir belum lengkap." }, { status: 400, headers: noStoreHeaders() });
   const input = parsed.data;
   try {
     let intentResult;
@@ -105,6 +105,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ orderId: intent.order_id, orderNumber: intent.order_number, totalIdr: intent.amount_idr, paymentId: intent.payment_id, qrString, qrImageUrl, expiresAt, replayed: intent.replayed }, { status: intent.replayed ? 200 : 201, headers: noStoreHeaders() });
   } catch (error) {
     console.error("cashier_order_create_failed", error instanceof Error ? error.message : "unknown");
-    return NextResponse.json({ error: "Cashier order could not be created." }, { status: 503, headers: noStoreHeaders() });
+    return NextResponse.json({ error: "Pesanan kasir belum dapat dibuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }

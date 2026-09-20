@@ -103,6 +103,7 @@ export function PaymentView({
     <main className="flex min-h-screen justify-center bg-white text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
       <div className="w-full max-w-[440px] px-5 pb-10 pt-[calc(1.25rem+env(safe-area-inset-top))]">
         <button
+          type="button"
           onClick={onBack}
           className="mb-8 flex items-center gap-2 text-[13px] text-neutral-500 transition active:scale-95"
         >
@@ -113,7 +114,10 @@ export function PaymentView({
             Order {payment.orderNumber} ·{" "}
             {orderType === "Dine in" ? tableLabel : "Takeaway"}
           </p>
-          <p className="mt-3 text-3xl font-medium tabular-nums tracking-tight">
+          <h1 className="mt-3 text-[22px] font-medium tracking-tight">
+            Bayar pesanan
+          </h1>
+          <p className="mt-2 text-3xl font-medium tabular-nums tracking-tight">
             {formatIDR(payment.amountIdr)}
           </p>
           <p className="mt-1 text-[13px] text-neutral-400">
@@ -123,11 +127,14 @@ export function PaymentView({
           </p>
           <div className="shadow-soft mx-auto mt-8 w-fit rounded-3xl border border-neutral-100 bg-white p-4">
             {payment.qrImageUrl && !isExpired ? (
-              <img src={payment.qrImageUrl} alt="QRIS payment code" className="h-[220px] w-[220px] rounded-2xl bg-white" />
+              <img src={payment.qrImageUrl} alt={`QRIS pembayaran untuk pesanan ${payment.orderNumber}`} width={220} height={220} decoding="async" className="h-[220px] w-[220px] rounded-2xl bg-white" />
             ) : qrDataUrl && !isExpired ? (
               <img
                 src={qrDataUrl}
-                alt="QRIS payment code"
+                alt={`QRIS pembayaran untuk pesanan ${payment.orderNumber}`}
+                width={220}
+                height={220}
+                decoding="async"
                 className="h-[220px] w-[220px] rounded-2xl bg-white"
               />
             ) : isExpired ? (
@@ -147,6 +154,7 @@ export function PaymentView({
           <div className="mx-auto mt-8 max-w-[280px] space-y-3">
             {isExpired ? (
               <button
+                type="button"
                 onClick={onRetry ?? onBack}
                 className="flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
               >
@@ -154,6 +162,7 @@ export function PaymentView({
               </button>
             ) : (
               <button
+                type="button"
                 onClick={() => void checkPayment()}
                 disabled={checking}
                 className="flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-60"
@@ -161,7 +170,7 @@ export function PaymentView({
                 {checking ? "Mengecek…" : "Saya sudah bayar"}
               </button>
             )}
-            <p className="text-xs text-neutral-400">{statusMessage}</p>
+            <p role="status" aria-live="polite" className="text-xs text-neutral-400">{statusMessage}</p>
           </div>
         </div>
       </div>

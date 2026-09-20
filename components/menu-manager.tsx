@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useDialogFocus } from "@/components/use-dialog-focus";
 
 type AdminProduct = {
   id: string;
@@ -160,6 +161,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           <p className="text-[13px] text-neutral-500 lg:mt-1">{activeCount} produk aktif · perubahan berlaku saat checkout</p>
         </div>
         <button
+          type="button"
           onClick={openCreate}
           className="flex h-12 items-center justify-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
         >
@@ -168,8 +170,10 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
       </div>
 
       <div className="relative mt-6">
+        <label htmlFor="menu-manager-search" className="sr-only">Cari menu</label>
         <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
         <input
+          id="menu-manager-search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Cari menu…"
@@ -177,6 +181,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
         />
         {query && (
           <button
+            type="button"
             onClick={() => setQuery("")}
             aria-label="Hapus pencarian"
             className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400"
@@ -194,6 +199,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           ] as const
         ).map(({ key, label }) => (
           <button
+            type="button"
             key={label}
             onClick={() => setShowArchived(key)}
             aria-pressed={showArchived === key}
@@ -207,7 +213,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
         ))}
       </div>
 
-      {error && <p className="mt-6 text-center text-[13px] text-neutral-500">{error}</p>}
+      {error && <div role="alert" className="mt-6 flex flex-col items-center gap-3 rounded-2xl bg-neutral-50 px-4 py-4 text-center text-[13px] text-neutral-600"><p>{error}</p><button type="button" onClick={() => void loadMenu()} className="h-10 rounded-full bg-neutral-900 px-4 text-[13px] font-medium text-white">Coba lagi</button></div>}
 
       <div className="mt-2">
         {loading ? (
@@ -217,6 +223,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
             {visibleProducts.map((product) => (
               <div key={product.id} className="flex items-center gap-3 py-2">
                 <button
+                  type="button"
                   onClick={() => openEdit(product)}
                   className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left active:bg-neutral-50"
                   aria-label={`Ubah ${product.name}`}
@@ -231,6 +238,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                 </button>
                 {product.active ? (
                   <button
+                    type="button"
                     onClick={() => void toggleAvailability(product)}
                     aria-label={`${product.name}: ${product.available ? "tersedia" : "habis"}`}
                     aria-pressed={product.available}
@@ -243,6 +251,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                   </button>
                 ) : (
                   <button
+                    type="button"
                     onClick={() => openEdit(product)}
                     className="flex h-11 shrink-0 items-center rounded-full px-5 text-[13px] font-medium text-neutral-900 active:bg-neutral-50"
                   >
@@ -266,6 +275,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           form={form}
           setForm={setForm}
           categories={categories}
+          error={error}
           saving={saving}
           uploading={uploading}
           onClose={closeEditor}
@@ -291,33 +301,40 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
   );
 }
 
-function ProductEditor({ editor, form, setForm, categories, saving, uploading, onClose, onSave, onUpload, onArchive, onRestore }: { editor: "create" | AdminProduct; form: FormState; setForm: (form: FormState) => void; categories: Category[]; saving: boolean; uploading: boolean; onClose: () => void; onSave: () => void; onUpload: (file: File) => void; onArchive?: (product: AdminProduct) => void; onRestore?: (product: AdminProduct) => void }) {
+function ProductEditor({ editor, form, setForm, categories, error, saving, uploading, onClose, onSave, onUpload, onArchive, onRestore }: { editor: "create" | AdminProduct; form: FormState; setForm: (form: FormState) => void; categories: Category[]; error: string | null; saving: boolean; uploading: boolean; onClose: () => void; onSave: () => void; onUpload: (file: File) => void; onArchive?: (product: AdminProduct) => void; onRestore?: (product: AdminProduct) => void }) {
   const isCreate = editor === "create";
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(dialogRef, onClose);
   return (
     <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 sm:items-center sm:p-5" onClick={onClose}>
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         className="ord-sheet max-h-[92vh] w-full max-w-[520px] overflow-y-auto rounded-t-[28px] bg-white p-5 sm:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
+        aria-labelledby="product-editor-title"
       >
         <div className="mx-auto h-1 w-9 rounded-full bg-neutral-200 sm:hidden" />
         <div className="mt-2 flex items-start justify-between sm:mt-0">
           <div>
             <p className="text-xs text-neutral-400">{isCreate ? "Produk baru" : "Ubah produk"}</p>
-            <h2 className="mt-1 text-lg font-medium tracking-tight">{isCreate ? "Tambah ke menu" : (editor as AdminProduct).name}</h2>
+            <h2 id="product-editor-title" className="mt-1 text-lg font-medium tracking-tight">{isCreate ? "Tambah ke menu" : (editor as AdminProduct).name}</h2>
           </div>
-          <button onClick={onClose} aria-label="Tutup" className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95">
+          <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95">
             <X size={15} />
           </button>
         </div>
+        {error && <p role="alert" className="mt-5 rounded-xl bg-neutral-50 px-4 py-3 text-[13px] text-neutral-600">{error}</p>}
 
+        <form onSubmit={(event) => { event.preventDefault(); onSave(); }}>
         <div className="mt-6 space-y-7">
           <Field label="Nama produk">
-            <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Sate Taichan 10 Tusuk" className="input" />
+            <input id="product-name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Sate Taichan 10 Tusuk" className="input" />
           </Field>
           <Field label="Kategori">
-            <select value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })} className="input">
+            <select id="product-category" required value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })} className="input">
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
           </Field>
@@ -332,25 +349,26 @@ function ProductEditor({ editor, form, setForm, categories, saving, uploading, o
             </div>
           </Field>
           <Field label="Deskripsi">
-            <textarea rows={2} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Deskripsi singkat" className="input resize-none" />
+            <textarea id="product-description" rows={2} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Deskripsi singkat" className="input resize-none" />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Harga jual">
-              <input type="number" min="0" value={form.priceIdr} onChange={(event) => setForm({ ...form, priceIdr: event.target.value })} placeholder="28000" className="input tabular-nums" />
+              <input id="product-price" required type="number" min="0" value={form.priceIdr} onChange={(event) => setForm({ ...form, priceIdr: event.target.value })} placeholder="28000" className="input tabular-nums" />
             </Field>
             <Field label="Est. modal">
-              <input type="number" min="0" value={form.estimatedCostIdr} onChange={(event) => setForm({ ...form, estimatedCostIdr: event.target.value })} placeholder="10500" className="input tabular-nums" />
+              <input id="product-cost" type="number" min="0" value={form.estimatedCostIdr} onChange={(event) => setForm({ ...form, estimatedCostIdr: event.target.value })} placeholder="10500" className="input tabular-nums" />
             </Field>
           </div>
-          <div>
-            <p className="mb-3 text-[13px] font-medium">Stok</p>
+          <fieldset className="border-0 p-0">
+            <legend className="mb-3 text-[13px] font-medium">Stok</legend>
             <div className="space-y-2">
               <label className="flex items-center gap-3 text-[13px] text-neutral-600"><input type="radio" name="stock-mode" checked={!form.stockTracked} onChange={() => setForm({ ...form, stockTracked: false })} /> Unlimited</label>
               <label className="flex items-center gap-3 text-[13px] text-neutral-600"><input type="radio" name="stock-mode" checked={form.stockTracked} onChange={() => setForm({ ...form, stockTracked: true })} /> Track stock</label>
-              {form.stockTracked && <input type="number" min="0" max="1000000" value={form.stockQuantity} onChange={(event) => setForm({ ...form, stockQuantity: event.target.value })} className="input tabular-nums" aria-label="Jumlah stok" placeholder="24" />}
+              {form.stockTracked && <input id="product-stock" required type="number" min="0" max="1000000" value={form.stockQuantity} onChange={(event) => setForm({ ...form, stockQuantity: event.target.value })} className="input tabular-nums" aria-label="Jumlah stok" placeholder="24" />}
             </div>
-          </div>
+          </fieldset>
           <button
+            type="button"
             onClick={() => setForm({ ...form, available: !form.available })}
             className="flex w-full items-center justify-between py-1 text-left"
           >
@@ -361,7 +379,7 @@ function ProductEditor({ editor, form, setForm, categories, saving, uploading, o
 
         <div className="mt-8 space-y-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           <button
-            onClick={onSave}
+            type="submit"
             disabled={saving || uploading || !form.name || !form.categoryId || form.priceIdr === "" || (form.stockTracked && form.stockQuantity === "")}
             className="h-[52px] w-full rounded-2xl bg-[#FDBD2C] text-[15px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
           >
@@ -369,17 +387,19 @@ function ProductEditor({ editor, form, setForm, categories, saving, uploading, o
           </button>
           {!isCreate && onArchive && (
             <button
+              type="button"
               onClick={() => onArchive(editor as AdminProduct)}
               className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-400 active:bg-neutral-50"
             >
               Arsipkan produk
             </button>
           )}
-          {!isCreate && onRestore && <button onClick={() => onRestore(editor as AdminProduct)} className="h-11 w-full rounded-full bg-neutral-900 text-[13px] font-medium text-white active:scale-[0.98]">Pulihkan produk</button>}
-          <button onClick={onClose} className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500 active:bg-neutral-50">
+          {!isCreate && onRestore && <button type="button" onClick={() => onRestore(editor as AdminProduct)} className="h-11 w-full rounded-full bg-neutral-900 text-[13px] font-medium text-white active:scale-[0.98]">Pulihkan produk</button>}
+          <button type="button" onClick={onClose} className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500 active:bg-neutral-50">
             Batal
           </button>
         </div>
+        </form>
       </section>
     </div>
   );

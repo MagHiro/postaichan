@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { authorizeStaff } from "@/lib/auth/authorize-staff";
+
+export const metadata: Metadata = { title: "Admin & pengaturan" };
 
 export default async function AdminPage() {
   const auth = await authorizeStaff("admin");

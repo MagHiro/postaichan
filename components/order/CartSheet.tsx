@@ -46,8 +46,8 @@ export function CartSheet({
               qty={item.quantity}
               onMinus={() => onUpdate(item.key, -1)}
               onPlus={() => onUpdate(item.key, 1)}
-              minusLabel="Kurangi"
-              plusLabel="Tambah"
+              minusLabel={`Kurangi ${item.product.name}`}
+              plusLabel={`Tambah ${item.product.name}`}
             />
           </div>
         ))}
@@ -68,7 +68,7 @@ export function CartSheet({
           {checkoutLoading ? "Menyiapkan pembayaran…" : "Bayar"}
         </button>
         {checkoutError && (
-          <p className="mt-2 text-center text-[13px] text-neutral-500">
+          <p role="alert" className="mt-2 text-center text-[13px] text-neutral-500">
             {checkoutError}
           </p>
         )}

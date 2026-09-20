@@ -20,6 +20,7 @@ export function ProductCard({
   return (
     <article className="flex min-w-0 flex-col">
       <button
+        type="button"
         onClick={() => onOpen(product)}
         disabled={!product.available}
         className="block w-full text-left disabled:cursor-not-allowed"
@@ -40,6 +41,7 @@ export function ProductCard({
       </button>
       <div className="mt-2.5 flex items-start justify-between gap-2 px-0.5">
         <button
+          type="button"
           onClick={() => onOpen(product)}
           disabled={!product.available}
           className="min-w-0 flex-1 text-left disabled:cursor-not-allowed"
@@ -53,6 +55,7 @@ export function ProductCard({
           {product.stockTracked && product.available && <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{product.stockQuantity ?? 0} tersisa</p>}
         </button>
         <button
+          type="button"
           aria-label={`Tambah ${product.name}`}
           onClick={() => onQuickAdd(product)}
           disabled={!product.available}

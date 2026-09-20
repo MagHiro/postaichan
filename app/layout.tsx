@@ -10,14 +10,17 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Tempat Taichan POS",
+  title: {
+    default: "Tempat Taichan",
+    template: "%s · Tempat Taichan",
+  },
   description: "Operational ordering and POS for Tempat Taichan.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#faf8f4",
+  themeColor: "#ffffff",
   colorScheme: "light",
 };
 

@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const parsed = customerSessionSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Order session is invalid." }, { status: 400, headers: noStoreHeaders() });
+  if (!parsed.success) return NextResponse.json({ error: "Sesi pemesanan tidak valid." }, { status: 400, headers: noStoreHeaders() });
   try {
     if (!(await consumeRateLimit(request, "customer-session", 12, 300))) return NextResponse.json({ error: "Terlalu banyak percobaan. Coba lagi sebentar." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "300" } });
     let tableId: string | null = null;
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     if (parsed.data.tableToken) {
       const tableResult = await query<{ id: string; label: string; active: boolean; qr_token_version: number }>("select id, label, active, qr_token_version from public.restaurant_tables where qr_token_hash = $1 limit 1", [hashOpaqueToken(parsed.data.tableToken)]);
       const table = tableResult.rows[0];
-      if (!table?.active) return NextResponse.json({ error: "This table QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
+      if (!table?.active) return NextResponse.json({ error: "QR meja sudah tidak berlaku. Scan QR terbaru." }, { status: 410, headers: noStoreHeaders() });
       sourceTableId = table.id;
       sourceTableQrVersion = table.qr_token_version;
       if (parsed.data.orderType === "dine_in") {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     if (parsed.data.generalToken) {
       const codeResult = await query<{ id: string; active: boolean; token_version: number }>("select id, active, token_version from public.ordering_qr_codes where token_hash = $1 limit 1", [hashOpaqueToken(parsed.data.generalToken)]);
       const code = codeResult.rows[0];
-      if (!code?.active) return NextResponse.json({ error: "This ordering QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
+      if (!code?.active) return NextResponse.json({ error: "QR pemesanan sudah tidak berlaku. Scan QR terbaru." }, { status: 410, headers: noStoreHeaders() });
       orderingQrCodeId = code.id;
       orderingQrTokenVersion = code.token_version;
     }
@@ -47,6 +47,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ sessionToken: rawToken, orderType: parsed.data.orderType, tableLabel: parsed.data.orderType === "dine_in" ? tableLabel : null, expiresAt, hasTable: parsed.data.orderType === "dine_in" && tableId !== null }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("customer_session_failed", error instanceof Error ? error.message : "unknown");
-    return NextResponse.json({ error: "We couldn't start this order. Please scan the QR again." }, { status: 503, headers: noStoreHeaders() });
+    return NextResponse.json({ error: "Pesanan belum dapat dimulai. Scan QR terbaru lalu coba lagi." }, { status: 503, headers: noStoreHeaders() });
   }
 }

@@ -17,7 +17,7 @@ export async function GET() {
     return NextResponse.json({ tables: result.rows }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("admin_tables_list_failed", error instanceof Error ? error.message : "unknown");
-    return NextResponse.json({ error: "Tables could not be loaded." }, { status: 503, headers: noStoreHeaders() });
+    return NextResponse.json({ error: "Meja belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }
 
@@ -26,16 +26,16 @@ export async function POST(request: Request) {
   if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const parsed = createSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Table data is invalid." }, { status: 400, headers: noStoreHeaders() });
+  if (!parsed.success) return NextResponse.json({ error: "Data meja belum lengkap atau tidak valid." }, { status: 400, headers: noStoreHeaders() });
   const rawToken = createOpaqueToken(32);
   let result;
   try {
     result = await query("select * from public.create_table_with_qr($1, $2, $3, $4, $5::uuid)", [parsed.data.label, parsed.data.code, parsed.data.active, hashOpaqueToken(rawToken), auth.actorId]);
   } catch (error) {
     const duplicate = databaseErrorCode(error) === "23505";
-    return NextResponse.json({ error: duplicate ? "Table code already exists." : "Table could not be created." }, { status: duplicate ? 409 : 503, headers: noStoreHeaders() });
+    return NextResponse.json({ error: duplicate ? "Kode meja sudah digunakan." : "Meja belum dapat dibuat." }, { status: duplicate ? 409 : 503, headers: noStoreHeaders() });
   }
   const data = result.rows[0];
-  if (!data) return NextResponse.json({ error: "Table could not be created." }, { status: 503, headers: noStoreHeaders() });
+  if (!data) return NextResponse.json({ error: "Meja belum dapat dibuat." }, { status: 503, headers: noStoreHeaders() });
   return NextResponse.json({ table: data, orderingUrl: `/order/t/${rawToken}` }, { status: 201, headers: noStoreHeaders() });
 }

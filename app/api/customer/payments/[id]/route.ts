@@ -13,24 +13,24 @@ type Context = { params: Promise<{ id: string }> };
 async function getPaymentStatus(request: Request, { params }: Context, synchronizeProvider: boolean) {
   const token = request.headers.get("x-order-access-token");
   const { id } = await params;
-  if (!token) return NextResponse.json({ error: "Order access token required." }, { status: 401, headers: noStoreHeaders() });
-  if (!uuidParamSchema.safeParse(id).success) return NextResponse.json({ error: "Order not found." }, { status: 400, headers: noStoreHeaders() });
+  if (!token) return NextResponse.json({ error: "Token akses pesanan dibutuhkan." }, { status: 401, headers: noStoreHeaders() });
+  if (!uuidParamSchema.safeParse(id).success) return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
   try {
     const sessionHash = hashOpaqueToken(token);
     if (!(await consumeRateLimit(request, "payment-status", 30, 300, sessionHash.slice(0, 24)))) return NextResponse.json({ error: "Polling terlalu sering." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "60" } });
     const sessionResult = await query<{ id: string; table_id: string | null; table_qr_version: number | null; source_table_id: string | null; source_table_qr_version: number | null; ordering_qr_code_id: string | null; ordering_qr_token_version: number | null }>("select id, table_id, table_qr_version, source_table_id, source_table_qr_version, ordering_qr_code_id, ordering_qr_token_version from public.customer_sessions where access_token_hash = $1 and expires_at > timezone('utc', now()) limit 1", [sessionHash]);
     const session = sessionResult.rows[0];
-    if (!session) return NextResponse.json({ error: "Order session expired." }, { status: 401, headers: noStoreHeaders() });
+    if (!session) return NextResponse.json({ error: "Sesi pemesanan sudah berakhir. Scan QR terbaru." }, { status: 401, headers: noStoreHeaders() });
     const sourceTableId = session.source_table_id ?? session.table_id;
     const sourceTableVersion = session.source_table_qr_version ?? session.table_qr_version;
-    if (sourceTableId && (await query("select id from public.restaurant_tables where id = $1 and active = true and qr_token_version = $2", [sourceTableId, sourceTableVersion])).rowCount === 0) return NextResponse.json({ error: "This table QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
-    if (session.ordering_qr_code_id && (await query("select id from public.ordering_qr_codes where id = $1 and active = true and token_version = $2", [session.ordering_qr_code_id, session.ordering_qr_token_version])).rowCount === 0) return NextResponse.json({ error: "This ordering QR is no longer active." }, { status: 410, headers: noStoreHeaders() });
+    if (sourceTableId && (await query("select id from public.restaurant_tables where id = $1 and active = true and qr_token_version = $2", [sourceTableId, sourceTableVersion])).rowCount === 0) return NextResponse.json({ error: "QR meja sudah tidak berlaku. Scan QR terbaru." }, { status: 410, headers: noStoreHeaders() });
+    if (session.ordering_qr_code_id && (await query("select id from public.ordering_qr_codes where id = $1 and active = true and token_version = $2", [session.ordering_qr_code_id, session.ordering_qr_token_version])).rowCount === 0) return NextResponse.json({ error: "QR pemesanan sudah tidak berlaku. Scan QR terbaru." }, { status: 410, headers: noStoreHeaders() });
     const orderResult = await query<{ id: string; order_number: string; status: string }>("select id, order_number, status from public.orders where id = $1 and customer_session_id = $2", [id, session.id]);
     const order = orderResult.rows[0];
-    if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404, headers: noStoreHeaders() });
+    if (!order) return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 404, headers: noStoreHeaders() });
     const paymentResult = await query<{ id: string; provider: string; status: string; expires_at: string | null; amount_idr: number; provider_order_id: string; qr_string: string | null }>("select id, provider, status, expires_at, amount_idr, provider_order_id, qr_string from public.payments where order_id = $1 order by created_at desc limit 1", [id]);
     const payment = paymentResult.rows[0];
-    if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404, headers: noStoreHeaders() });
+    if (!payment) return NextResponse.json({ error: "Pembayaran tidak ditemukan." }, { status: 404, headers: noStoreHeaders() });
     let paymentStatus = payment.status as string;
     let orderStatus = order.status as string;
     if (synchronizeProvider && paymentStatus === "pending" && payment.provider === "midtrans" && payment.provider_order_id) {
@@ -49,7 +49,7 @@ async function getPaymentStatus(request: Request, { params }: Context, synchroni
     return NextResponse.json({ orderNumber: order.order_number, orderStatus, paymentStatus, expiresAt: payment.expires_at, amountIdr: payment.amount_idr, ...qr }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("customer_payment_status_failed", error instanceof Error ? error.message : "unknown");
-    return NextResponse.json({ error: "We couldn't check payment yet." }, { status: 503, headers: noStoreHeaders() });
+    return NextResponse.json({ error: "Status pembayaran belum dapat dicek. Coba lagi." }, { status: 503, headers: noStoreHeaders() });
   }
 }
 

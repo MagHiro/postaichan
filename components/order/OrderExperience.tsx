@@ -25,6 +25,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const [menuProducts, setMenuProducts] = useState<Product[]>([]);
   const [menuLoading, setMenuLoading] = useState(true);
   const [menuError, setMenuError] = useState<string | null>(null);
+  const [menuRetry, setMenuRetry] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [category, setCategory] = useState<OrderCategory>("Semua Menu");
   const [search, setSearch] = useState("");
@@ -60,18 +61,26 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
   useEffect(() => {
     let active = true;
+    setMenuLoading(true);
+    setMenuError(null);
     fetch("/api/menu", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error ?? "Menu belum dapat dimuat.");
+        }
+        return payload;
+      })
       .then((payload) => {
         if (!active) return;
         if (payload?.products?.length) {
           setMenuError(null);
           setMenuProducts(payload.products);
           setCategories(["Semua Menu", ...(payload.categories ?? []).map((item: { name: string }) => item.name), ...(payload.products.some((item: Product) => item.popular) ? ["Paket Hemat"] : [])]);
-        } else setMenuError("Menu belum tersedia.");
+        } else setMenuError("Menu belum tersedia saat ini.");
       })
-      .catch(() => {
-        if (active) setMenuError("Menu belum dapat dimuat. Coba lagi.");
+      .catch((error) => {
+        if (active) setMenuError(error instanceof Error ? error.message : "Menu belum dapat dimuat. Coba lagi.");
       })
       .finally(() => {
         if (active) setMenuLoading(false);
@@ -81,12 +90,12 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         setMenuLoading(false);
         setMenuError("Menu belum dapat dimuat. Coba lagi.");
       }
-    }, 2500);
+    }, 8000);
     return () => {
       active = false;
       window.clearTimeout(loadingTimeout);
     };
-  }, []);
+  }, [menuRetry]);
 
   useEffect(() => {
     const want = orderType === "Dine in" ? "dine_in" : "takeaway";
@@ -187,7 +196,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
   function openProduct(product: Product) {
     if (!product.available) return;
-    if ((tableToken || generalToken) && !session) { setCheckoutError(sessionError ?? "Sesi pemesanan belum siap."); return; }
+    if ((tableToken || generalToken) && !session) { showToast(sessionError ?? "Sesi pemesanan belum siap."); return; }
     setSelectedProduct(product);
     setVariantOptionIds([]);
     setAddonOptionIds([]);
@@ -216,7 +225,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
   function quickAdd(product: Product) {
     if (!product.available) return;
-    if ((tableToken || generalToken) && !session) { setCheckoutError(sessionError ?? "Sesi pemesanan belum siap."); return; }
+    if ((tableToken || generalToken) && !session) { showToast(sessionError ?? "Sesi pemesanan belum siap."); return; }
     if ((product.modifierGroups ?? []).length > 0)
       return openProduct(product);
     const item = buildCartItem(product, [], [], 1);
@@ -266,7 +275,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         const sessionPayload = await sessionResponse.json();
         if (!sessionResponse.ok || !sessionPayload.sessionToken)
           throw new Error(
-            sessionPayload.error ?? "We couldn't start your order.",
+            sessionPayload.error ?? "Pesanan belum dapat dimulai. Coba lagi.",
           );
         activeSessionToken = sessionPayload.sessionToken as string;
           setSession({ token: activeSessionToken as string, orderType: want, tableLabel: sessionPayload.tableLabel ?? null });
@@ -290,7 +299,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
       });
       const payload = await response.json();
       if (!response.ok)
-        throw new Error(payload.error ?? "We couldn't start payment.");
+        throw new Error(payload.error ?? "Pembayaran belum dapat dibuat. Coba lagi.");
       if (!payload.qrString && !payload.qrImageUrl) throw new Error("Pembayaran belum siap. Coba lagi dengan tombol yang sama.");
       setPayment({
         orderId: payload.orderId,
@@ -304,7 +313,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
       window.sessionStorage.setItem("tt-active-payment", JSON.stringify({ orderId: payload.orderId, idempotencyKey: checkoutIntentKey.current }));
     } catch (error) {
       setCheckoutError(
-        error instanceof Error ? error.message : "We couldn't start payment.",
+        error instanceof Error ? error.message : "Pembayaran belum dapat dibuat. Coba lagi.",
       );
     } finally {
       setCheckoutLoading(false);
@@ -407,9 +416,11 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                 </p>
               )}
             </div>
-            <div className="mt-3 flex rounded-full bg-neutral-100 p-1">
+            <div role="group" aria-label="Jenis pesanan" className="mt-3 flex rounded-full bg-neutral-100 p-1">
               <button
+                type="button"
                 onClick={() => { resetCheckoutIntent(); setOrderType("Dine in"); }}
+                aria-pressed={dineIn}
                 className={cn(
                   "flex-1 rounded-full py-1.5 text-center text-[13px] transition",
                   dineIn
@@ -420,7 +431,9 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                 Dine in
               </button>
               <button
+                type="button"
                 onClick={() => { resetCheckoutIntent(); setOrderType("Takeaway"); }}
+                aria-pressed={!dineIn}
                 className={cn(
                   "flex-1 rounded-full py-1.5 text-center text-[13px] transition",
                   !dineIn
@@ -431,12 +444,12 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                 Takeaway
               </button>
             </div>
-            {sessionError && <div className="mt-3 rounded-2xl bg-neutral-50 px-4 py-3 text-[13px] leading-relaxed text-neutral-600">{sessionError}</div>}
+            {sessionError && <div role="alert" className="mt-3 rounded-2xl bg-neutral-50 px-4 py-3 text-[13px] leading-relaxed text-neutral-600">{sessionError}</div>}
           </div>
         </header>
 
         {activeTab === "home" ? (
-          <div key="home" className="ord-rise flex-1 px-5 pt-7">
+          <div key="home" className="ord-rise flex-1 px-5 pt-7" aria-busy={menuLoading}>
             <h1 className="text-[22px] font-medium leading-snug tracking-tight">
               Mau makan apa?
             </h1>
@@ -450,7 +463,9 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-neutral-400">
                 <Search size={16} />
               </div>
+              <label htmlFor="menu-search" className="sr-only">Cari menu</label>
               <input
+                id="menu-search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Cari menu"
@@ -459,6 +474,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               {search && (
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                   <button
+                    type="button"
                     aria-label="Hapus pencarian"
                     onClick={() => setSearch("")}
                     className="rounded-full p-1 text-neutral-400"
@@ -473,7 +489,9 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               {categories.map((item) => (
                 <button
                   key={item}
+                  type="button"
                   onClick={() => setCategory(item)}
+                  aria-pressed={category === item}
                   className={cn(
                     "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] transition",
                     category === item
@@ -502,7 +520,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
             ) : menuError ? (
               <div>
                 <EmptyState title={menuError} hint="Periksa koneksi lalu coba lagi." />
-                <button type="button" onClick={() => window.location.reload()} className="mx-auto block h-11 rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white">Coba lagi</button>
+                <button type="button" onClick={() => setMenuRetry((attempt) => attempt + 1)} className="mx-auto block h-11 rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white">Coba lagi</button>
               </div>
             ) : filteredProducts.length === 0 ? (
               <EmptyState title="Tidak ketemu" hint="Coba kata lain atau ganti kategori." />
@@ -593,10 +611,12 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
           </div>
         )}
 
-        <nav className="fixed inset-x-0 bottom-0 z-40">
+        <nav aria-label="Navigasi pemesanan" className="fixed inset-x-0 bottom-0 z-40">
           <div className="shadow-sheet mx-auto flex max-w-[440px] border-t border-neutral-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
             <button
+              type="button"
               onClick={() => setActiveTab("home")}
+              aria-current={activeTab === "home" ? "page" : undefined}
               className={cn(
                 "flex flex-1 flex-col items-center gap-1 py-2.5 transition",
                 activeTab === "home" ? "text-neutral-900" : "text-neutral-400",
@@ -613,7 +633,9 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               </span>
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab("orders")}
+              aria-current={activeTab === "orders" ? "page" : undefined}
               className={cn(
                 "flex flex-1 flex-col items-center gap-1 py-2.5 transition",
                 activeTab === "orders"
@@ -638,7 +660,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                   activeTab === "orders" ? "font-medium" : "font-normal",
                 )}
               >
-                Orders
+                Pesanan
               </span>
             </button>
           </div>
@@ -646,7 +668,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
         {toast && (
           <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-5">
-            <p className="ord-toast shadow-soft rounded-full bg-neutral-900 px-4 py-2 text-[13px] text-white">
+            <p role="status" aria-live="polite" className="ord-toast shadow-soft rounded-full bg-neutral-900 px-4 py-2 text-[13px] text-white">
               {toast}
             </p>
           </div>

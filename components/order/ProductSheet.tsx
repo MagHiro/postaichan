@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useRef } from "react";
 import { Minus, Plus, X } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import type { ModifierGroup, Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ProductImage } from "./ui";
+import { useDialogFocus } from "../use-dialog-focus";
 
 export function ProductSheet({ product, quantity, setQuantity, variantOptionIds, setVariantOptionIds, addonOptionIds, setAddonOptionIds, note, setNote, onClose, onAdd }: {
   product: Product;
@@ -20,6 +21,7 @@ export function ProductSheet({ product, quantity, setQuantity, variantOptionIds,
   onClose: () => void;
   onAdd: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
   const groups = product.modifierGroups ?? [];
   const selectedIds = [...variantOptionIds, ...addonOptionIds];
   const selectedOptions = groups.flatMap((group) => group.options.filter((option) => selectedIds.includes(option.id)));
@@ -29,11 +31,7 @@ export function ProductSheet({ product, quantity, setQuantity, variantOptionIds,
     return group.required ? count < Math.max(1, group.minSelection) : count < group.minSelection;
   });
 
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) { if (event.key === "Escape") onClose(); }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useDialogFocus(dialogRef, onClose);
 
   function toggle(group: ModifierGroup, optionId: string) {
     const current = group.type === "variant" ? variantOptionIds : addonOptionIds;
@@ -49,16 +47,16 @@ export function ProductSheet({ product, quantity, setQuantity, variantOptionIds,
 
   return (
     <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30" onClick={onClose}>
-      <div onClick={(event) => event.stopPropagation()} className="ord-sheet max-h-[92vh] w-full max-w-[440px] overflow-y-auto rounded-t-[28px] bg-white" role="dialog" aria-modal="true" aria-labelledby="product-sheet-title">
+      <div ref={dialogRef} tabIndex={-1} onClick={(event) => event.stopPropagation()} className="ord-sheet max-h-[92vh] w-full max-w-[440px] overflow-y-auto rounded-t-[28px] bg-white" role="dialog" aria-modal="true" aria-labelledby="product-sheet-title" aria-describedby="product-sheet-description">
         <div className="px-5 pb-4 pt-3">
           <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-neutral-200" />
-          <div className="relative"><ProductImage product={product} eager className="aspect-[16/10] w-full rounded-2xl" /><button aria-label="Tutup" onClick={onClose} className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-500 backdrop-blur transition active:scale-95"><X size={15} /></button></div>
-          <div className="mt-4"><h2 id="product-sheet-title" className="text-lg font-medium tracking-tight">{product.name}</h2><p className="mt-0.5 text-sm tabular-nums text-neutral-500">{formatCompactIDR(product.price)}</p><p className="mt-2 text-[13px] leading-relaxed text-neutral-500">{product.description}</p></div>
+          <div className="relative"><ProductImage product={product} eager className="aspect-[16/10] w-full rounded-2xl" /><button type="button" aria-label="Tutup pilihan produk" onClick={onClose} className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-500 backdrop-blur transition active:scale-95"><X size={15} /></button></div>
+          <div className="mt-4"><h2 id="product-sheet-title" className="text-lg font-medium tracking-tight">{product.name}</h2><p className="mt-0.5 text-sm tabular-nums text-neutral-500">{formatCompactIDR(product.price)}</p><p id="product-sheet-description" className="mt-2 text-[13px] leading-relaxed text-neutral-500">{product.description}</p></div>
         </div>
         <div className="space-y-7 px-5 pb-5">
           {groups.map((group) => <OptionGroup key={group.id} group={group} selectedIds={selectedIds} onToggle={(id) => toggle(group, id)} />)}
-          <div><label htmlFor="product-note" className="mb-2 block text-[13px] font-medium">Catatan <span className="font-normal text-neutral-400">· opsional</span></label><textarea id="product-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: sambal dipisah" rows={2} maxLength={240} className="w-full resize-none rounded-2xl bg-neutral-100 px-4 py-3 text-sm outline-none transition placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50" /></div>
-          <div className="sticky bottom-0 -mx-5 border-t border-neutral-100 bg-white/95 px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur"><div className="flex items-center gap-3"><div className="flex items-center gap-2.5"><button aria-label="Kurangi" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 text-neutral-500 transition active:scale-95"><Minus size={15} /></button><span className="w-5 text-center text-sm font-medium tabular-nums">{quantity}</span><button aria-label="Tambah" onClick={() => setQuantity(Math.min(99, quantity + 1))} className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-900 text-white transition active:scale-95"><Plus size={15} /></button></div><button onClick={onAdd} disabled={missingRequired} className="flex h-12 flex-1 items-center justify-center rounded-full bg-[#FDBD2C] px-4 text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40">{missingRequired ? "Pilih opsi wajib" : <>Tambah · <span className="tabular-nums">{formatCompactIDR(total)}</span></>}</button></div></div>
+          <div><label htmlFor="product-note" className="mb-2 block text-[13px] font-medium">Catatan <span className="font-normal text-neutral-400">· opsional</span></label><textarea id="product-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: sambal dipisah" rows={2} maxLength={240} aria-describedby="product-note-hint" className="w-full resize-none rounded-2xl bg-neutral-100 px-4 py-3 text-sm outline-none transition placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50" /><p id="product-note-hint" className="mt-1 text-xs text-neutral-400">Maksimal 240 karakter.</p></div>
+          <div className="sticky bottom-0 -mx-5 border-t border-neutral-100 bg-white/95 px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur"><div className="flex items-center gap-3"><div className="flex items-center gap-2.5"><button type="button" aria-label="Kurangi jumlah" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 text-neutral-500 transition active:scale-95"><Minus size={15} /></button><span className="w-5 text-center text-sm font-medium tabular-nums" aria-live="polite">{quantity}</span><button type="button" aria-label="Tambah jumlah" onClick={() => setQuantity(Math.min(99, quantity + 1))} className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-900 text-white transition active:scale-95"><Plus size={15} /></button></div><button type="button" onClick={onAdd} disabled={missingRequired} className="flex h-12 flex-1 items-center justify-center rounded-full bg-[#FDBD2C] px-4 text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40">{missingRequired ? "Pilih opsi wajib" : <>Tambah · <span className="tabular-nums">{formatCompactIDR(total)}</span></>}</button></div></div>
         </div>
       </div>
     </div>
@@ -69,8 +67,8 @@ function OptionGroup({ group, selectedIds, onToggle }: { group: ModifierGroup; s
   const selectedCount = group.options.filter((option) => selectedIds.includes(option.id)).length;
   const hint = group.required ? `wajib · ${group.minSelection === group.maxSelection ? group.maxSelection : `${group.minSelection}–${group.maxSelection}`} pilihan` : "opsional";
   return (
-    <div>
-      <p className="mb-3 text-[13px] font-medium">{group.name} <span className="font-normal text-neutral-400">· {hint}</span></p>
+    <fieldset className="min-w-0 border-0 p-0">
+      <legend className="mb-3 text-[13px] font-medium">{group.name} <span className="font-normal text-neutral-400">· {hint}</span></legend>
       {group.type === "addon" ? (
         <div className="divide-y divide-neutral-100">
           {group.options.map((option) => {
@@ -87,6 +85,6 @@ function OptionGroup({ group, selectedIds, onToggle }: { group: ModifierGroup; s
         </div>
       )}
       {group.selection === "multiple" && <p className="mt-2 text-xs text-neutral-400">Dipilih {selectedCount} dari maksimal {group.maxSelection}</p>}
-    </div>
+    </fieldset>
   );
 }

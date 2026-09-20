@@ -11,6 +11,7 @@ import type { DailyReport } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 import { MenuManager } from "@/components/menu-manager";
 import { ProductSheet } from "@/components/order/ProductSheet";
+import { useDialogFocus } from "@/components/use-dialog-focus";
 
 type NavItem = "Overview" | "Orders" | "POS" | "Menu" | "Reports";
 type Detail = {
@@ -40,6 +41,14 @@ type Detail = {
 
 const NAV_LABEL: Record<NavItem, string> = {
   Overview: "Ringkasan",
+  Orders: "Pesanan",
+  POS: "Kasir",
+  Menu: "Menu",
+  Reports: "Laporan",
+};
+
+const NAV_SHORT_LABEL: Record<NavItem, string> = {
+  Overview: "Ringkas",
   Orders: "Pesanan",
   POS: "Kasir",
   Menu: "Menu",
@@ -87,13 +96,21 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   const [summary, setSummary] = useState<DailyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [advancingId, setAdvancingId] = useState<string | null>(null);
   const date = jakartaToday();
   const activeCount = orders.filter(isActiveOrder).length;
+  const noticeTimer = useRef<number | null>(null);
 
   function showNotice(message: string) {
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
     setNotice(message);
-    window.setTimeout(() => setNotice(null), 2200);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 3200);
   }
+
+  useEffect(() => () => {
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+  }, []);
 
   async function loadOperations(silent = false) {
     if (!silent) setLoading(true);
@@ -108,8 +125,14 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
       }
       if (ordersResponse.ok) setOrders(ordersPayload.orders ?? []);
       if (reportResponse?.ok) setSummary(reportPayload);
-      if (!silent && (!ordersResponse.ok || reportResponse?.ok === false)) showNotice("Sebagian data belum termuat.");
+      if (!ordersResponse.ok || reportResponse?.ok === false) {
+        setWorkspaceError("Sebagian data belum termuat. Coba muat ulang.");
+        if (!silent) showNotice("Sebagian data belum termuat.");
+      } else {
+        setWorkspaceError(null);
+      }
     } catch {
+      setWorkspaceError("Koneksi terputus. Coba muat ulang untuk melihat data terbaru.");
       if (!silent) showNotice("Koneksi terputus. Coba muat ulang.");
     } finally {
       if (!silent) setLoading(false);
@@ -131,25 +154,33 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   }, [date, hasActive]);
 
   async function advanceOrder(order: Order) {
-  const next =
+    if (advancingId) return;
+    const next =
       order.status === "New" ? "accepted" : order.status === "Accepted" ? "processing" : order.status === "Preparing" ? "ready" : order.status === "Ready" ? "completed" : null;
     if (!next) return;
-    const response = await fetch(`/api/pos/orders/${order.id}/status`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: next }),
-    });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      if (response.status === 409 && order.paymentStatus !== "Paid") {
-        showNotice(`Pesanan ${order.number} belum lunas.`);
+    setAdvancingId(order.id);
+    try {
+      const response = await fetch(`/api/pos/orders/${order.id}/status`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: next }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        if (response.status === 409 && order.paymentStatus !== "Paid") {
+          showNotice(`Pesanan ${order.number} belum lunas.`);
+          return;
+        }
+        showNotice(payload?.error ?? "Status gagal diperbarui.");
         return;
       }
-      showNotice(payload?.error ?? "Status gagal diperbarui.");
-      return;
+      await loadOperations();
+      showNotice("Status diperbarui.");
+    } catch {
+      showNotice("Koneksi terputus. Status belum berubah.");
+    } finally {
+      setAdvancingId(null);
     }
-    await loadOperations();
-    showNotice("Status diperbarui.");
   }
 
   function advanceOrderGuarded(order: Order) {
@@ -168,12 +199,13 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
       <aside className="sticky top-0 hidden h-screen w-[216px] shrink-0 flex-col bg-white px-5 py-6 lg:flex">
         <p className="text-[15px] font-medium tracking-tight">Tempat Taichan</p>
         <p className="mt-1 text-xs text-neutral-400">{role === "admin" ? "Administrator" : "Staff"}</p>
-        <nav className="mt-10 space-y-1">
+        <nav aria-label="Navigasi workspace" className="mt-10 space-y-1">
           {navItems.map((item) => {
             const Icon = NAV_ICON[item];
             const active = nav === item;
             return (
               <button
+                type="button"
                 key={item}
                 onClick={() => setNav(item)}
                 className={cn(
@@ -210,10 +242,11 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
             </div>
             {nav !== "POS" && (
               <button
+                type="button"
                 onClick={() => setNav("POS")}
                 className="flex h-10 shrink-0 items-center rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
               >
-                Baru
+                Pesanan baru
               </button>
             )}
           </div>
@@ -227,7 +260,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
               <h1 className="mt-1 text-[22px] font-medium leading-snug tracking-tight">{pageTitle(nav)}</h1>
             </div>
             <div className="flex items-center gap-5">
-              <button onClick={() => void loadOperations()} className="text-[13px] font-normal text-neutral-500 active:scale-[0.98]">
+              <button type="button" onClick={() => void loadOperations()} disabled={loading} className="text-[13px] font-normal text-neutral-500 active:scale-[0.98] disabled:opacity-50">
                 {loading ? "Memuat…" : "Muat ulang"}
               </button>
               <button
@@ -248,6 +281,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
           )}
         >
           <div key={nav} className="ord-rise">
+            {workspaceError && <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-[13px] text-neutral-600"><span>{workspaceError}</span><button type="button" onClick={() => void loadOperations()} className="h-9 rounded-full bg-neutral-900 px-4 text-xs font-medium text-white">Muat ulang</button></div>}
             {nav === "Overview" && (
               <LiveOverview
                 orders={orders}
@@ -255,11 +289,12 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 isAdmin={role === "admin"}
                 loading={loading}
                 onAdvance={advanceOrderGuarded}
+                advancingId={advancingId}
                 onOpenOrders={() => setNav("Orders")}
               />
             )}
-            {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} onAdvance={advanceOrderGuarded} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} />}
-            {nav === "POS" && <LiveCashier onShowNotice={showNotice} />}
+            {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} onAdvance={advanceOrderGuarded} advancingId={advancingId} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} />}
+            {nav === "POS" && <LiveCashier onShowNotice={showNotice} onOrderCreated={() => loadOperations(true)} />}
             {nav === "Menu" && role === "admin" && <MenuManager onShowNotice={showNotice} />}
             {nav === "Reports" && role === "admin" && <LiveReports initialReport={summary} onShowNotice={showNotice} />}
           </div>
@@ -267,13 +302,14 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
       </div>
 
       {/* Mobile bottom tabs */}
-      <nav className="shadow-sheet fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-white/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
+      <nav aria-label="Navigasi workspace" className="shadow-sheet fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-white/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
         <div className="mx-auto grid max-w-[440px] grid-cols-5 gap-1">
           {navItems.map((item) => {
             const Icon = NAV_ICON[item];
             const active = nav === item;
             return (
               <button
+                type="button"
                 key={item}
                 onClick={() => setNav(item)}
                 aria-current={active ? "page" : undefined}
@@ -284,7 +320,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
               >
                 <Icon size={21} strokeWidth={active ? 2.2 : 1.6} className={active ? "text-neutral-900" : "text-neutral-400"} />
                 <span className={cn("flex items-center gap-1 text-[11px] leading-none", active ? "font-medium text-neutral-900" : "font-normal text-neutral-400")}>
-                  {NAV_LABEL[item]}
+                  {NAV_SHORT_LABEL[item]}
                   {item === "Orders" && activeCount > 0 && (
                     <span className="rounded-full bg-[#FDBD2C] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-neutral-900">
                       {activeCount > 99 ? "99+" : activeCount}
@@ -299,7 +335,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
 
       {notice && (
         <div className="pointer-events-none fixed inset-x-0 top-[max(4.5rem,env(safe-area-inset-top))] z-[60] flex justify-center px-5 lg:top-20">
-          <p className="ord-toast shadow-soft pointer-events-auto max-w-[440px] truncate rounded-full bg-neutral-900 px-4 py-2.5 text-[13px] text-white">{notice}</p>
+          <p role="status" aria-live="polite" className="ord-toast shadow-soft pointer-events-auto max-w-[440px] truncate rounded-full bg-neutral-900 px-4 py-2.5 text-[13px] text-white">{notice}</p>
         </div>
       )}
     </div>
@@ -348,11 +384,13 @@ function EmptyBlock({ title, sub }: { title: string; sub: string }) {
   );
 }
 
-function SearchField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+function SearchField({ value, onChange, placeholder, id = "workspace-search" }: { value: string; onChange: (v: string) => void; placeholder: string; id?: string }) {
   return (
     <div className="relative">
+      <label htmlFor={id} className="sr-only">{placeholder}</label>
       <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
       <input
+        id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
@@ -360,6 +398,7 @@ function SearchField({ value, onChange, placeholder }: { value: string; onChange
       />
       {value && (
         <button
+          type="button"
           onClick={() => onChange("")}
           aria-label="Hapus pencarian"
           className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400 active:bg-neutral-200"
@@ -371,21 +410,23 @@ function SearchField({ value, onChange, placeholder }: { value: string; onChange
   );
 }
 
-function QtyStepper({ count, onMinus, onPlus, large = false }: { count: number; onMinus: () => void; onPlus: () => void; large?: boolean }) {
+function QtyStepper({ count, onMinus, onPlus, large = false, itemName }: { count: number; onMinus: () => void; onPlus: () => void; large?: boolean; itemName?: string }) {
   const size = large ? "h-11 w-11" : "h-9 w-9";
   return (
     <div className="flex items-center gap-3">
       <button
+        type="button"
         onClick={onMinus}
-        aria-label="Kurangi"
+        aria-label={itemName ? `Kurangi ${itemName}` : "Kurangi"}
         className={cn("flex items-center justify-center rounded-full border border-neutral-200 text-neutral-500 active:scale-95", size)}
       >
         <Minus size={15} />
       </button>
-      <span className={cn("text-center font-medium tabular-nums", large ? "w-6 text-[15px]" : "w-5 text-sm")}>{count}</span>
+      <span aria-live="polite" className={cn("text-center font-medium tabular-nums", large ? "w-6 text-[15px]" : "w-5 text-sm")}>{count}</span>
       <button
+        type="button"
         onClick={onPlus}
-        aria-label="Tambah"
+        aria-label={itemName ? `Tambah ${itemName}` : "Tambah"}
         className={cn("flex items-center justify-center rounded-full bg-neutral-900 text-white active:scale-95", size)}
       >
         <Plus size={15} />
@@ -402,6 +443,7 @@ function LiveOverview({
   isAdmin,
   loading,
   onAdvance,
+  advancingId,
   onOpenOrders,
 }: {
   orders: Order[];
@@ -409,6 +451,7 @@ function LiveOverview({
   isAdmin: boolean;
   loading: boolean;
   onAdvance: (order: Order) => void;
+  advancingId: string | null;
   onOpenOrders: () => void;
 }) {
   const active = orders.filter(isActiveOrder);
@@ -432,7 +475,7 @@ function LiveOverview({
             {active.length > 0 && <span className="ml-2 font-normal tabular-nums text-neutral-400">{active.length}</span>}
           </h3>
           {active.length > 5 && (
-            <button onClick={onOpenOrders} className="text-[13px] font-normal text-neutral-500">
+            <button type="button" onClick={onOpenOrders} className="text-[13px] font-normal text-neutral-500">
               Semua
             </button>
           )}
@@ -445,6 +488,7 @@ function LiveOverview({
               {active.slice(0, 5).map((order) => (
                 <div key={order.id} className="flex items-center gap-3 py-2">
                   <button
+                    type="button"
                     onClick={onOpenOrders}
                     className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left active:bg-neutral-50"
                     aria-label={`Lihat ${order.number}`}
@@ -459,8 +503,10 @@ function LiveOverview({
                     <p className="mt-1 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(order.total)}</p>
                   </button>
                   <button
+                    type="button"
                     onClick={() => onAdvance(order)}
-                    disabled={order.status === "Pending"}
+                    disabled={order.status === "Pending" || advancingId === order.id}
+                    aria-busy={advancingId === order.id}
                     aria-label={`Lanjut ${order.number}`}
                     className="flex h-11 shrink-0 items-center rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98] disabled:bg-neutral-100 disabled:text-neutral-400"
                   >
@@ -518,6 +564,7 @@ function LiveOrders({
   orders,
   isAdmin,
   onAdvance,
+  advancingId,
   loading,
   onShowNotice,
   onRefresh,
@@ -525,6 +572,7 @@ function LiveOrders({
   orders: Order[];
   isAdmin: boolean;
   onAdvance: (order: Order) => void;
+  advancingId: string | null;
   loading: boolean;
   onShowNotice: (message: string) => void;
   onRefresh: () => Promise<void>;
@@ -533,6 +581,7 @@ function LiveOrders({
   const [filter, setFilter] = useState("All");
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
 
   const counts = FILTERS.map(({ key }) => ({ key, n: key === "All" ? orders.length : orders.filter((o) => o.status === key).length }));
   const filtered = orders.filter(
@@ -541,11 +590,24 @@ function LiveOrders({
   );
 
   async function openDetail(order: Order) {
+    if (openingId) return;
+    setOpeningId(order.id);
     setDetailId(order.id);
-    const response = await fetch(`/api/pos/orders/${order.id}`, { cache: "no-store" });
-    const payload = await response.json();
-    setDetail(response.ok ? payload : null);
-    if (!response.ok) onShowNotice(payload.error ?? "Detail tidak tersedia.");
+    try {
+      const response = await fetch(`/api/pos/orders/${order.id}`, { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      setDetail(response.ok ? payload : null);
+      if (!response.ok) {
+        setDetailId(null);
+        onShowNotice(payload?.error ?? "Detail tidak tersedia.");
+      }
+    } catch {
+      setDetail(null);
+      setDetailId(null);
+      onShowNotice("Koneksi terputus. Detail belum dapat dibuka.");
+    } finally {
+      setOpeningId(null);
+    }
   }
 
   async function refreshDetail(orderId: string) {
@@ -576,6 +638,7 @@ function LiveOrders({
           const isActive = filter === key;
           return (
             <button
+              type="button"
               key={key}
               onClick={() => setFilter(key)}
               aria-pressed={isActive}
@@ -598,7 +661,10 @@ function LiveOrders({
             {filtered.map((order) => (
               <div key={order.id} className="flex items-center gap-3 py-2">
                 <button
+                  type="button"
                   onClick={() => void openDetail(order)}
+                  disabled={openingId === order.id}
+                  aria-busy={openingId === order.id}
                   className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left active:bg-neutral-50"
                   aria-label={`Detail ${order.number}`}
                 >
@@ -616,8 +682,10 @@ function LiveOrders({
                 </button>
                 {isActiveOrder(order) ? (
                   <button
+                    type="button"
                     onClick={() => onAdvance(order)}
-                    disabled={order.status === "Pending"}
+                    disabled={order.status === "Pending" || advancingId === order.id}
+                    aria-busy={advancingId === order.id}
                     aria-label={`Lanjut ${order.number}`}
                     className="flex h-11 shrink-0 items-center rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98] disabled:bg-neutral-100 disabled:text-neutral-400"
                   >
@@ -717,6 +785,8 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
   const payRemainingMs = payExpiresMs !== null ? payExpiresMs - nowMs : null;
   const [checkingPay, setCheckingPay] = useState(false);
   const [resumeQr, setResumeQr] = useState<{ qrString?: string; qrImageUrl?: string; expiresAt: string } | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(dialogRef, onClose);
 
   async function checkPaymentNow() {
     setCheckingPay(true);
@@ -769,28 +839,22 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
   }
 
   useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
     return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previousOverflow;
       window.clearInterval(timer);
     };
-  }, [onClose]);
+  }, []);
 
   return createPortal(
     <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30" onClick={onClose}>
       <aside
+        ref={dialogRef}
+        tabIndex={-1}
         className="ord-sheet flex max-h-[92vh] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[28px] bg-white"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label={`Detail ${detail.order.order_number}`}
+        aria-labelledby="order-detail-title"
       >
         <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-neutral-200" />
         <div className="flex items-start justify-between gap-3 px-5 pb-4 pt-3">
@@ -798,7 +862,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
             <p className="text-xs text-neutral-400">
               Detail · {rawStatusLabel(detail.order.status)}
             </p>
-            <h2 className="mt-1 text-lg font-medium tabular-nums tracking-tight">{detail.order.order_number}</h2>
+            <h2 id="order-detail-title" className="mt-1 text-lg font-medium tabular-nums tracking-tight">{detail.order.order_number}</h2>
             <p className="mt-0.5 text-[13px] text-neutral-500">
               {formatCreatedAt(detail.order.created_at)} · {totalItems} porsi
             </p>
@@ -807,6 +871,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Tutup detail"
             autoFocus
@@ -881,6 +946,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
 
         <div className="border-t border-neutral-100 bg-white/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
           <button
+            type="button"
             onClick={onAdvance}
             disabled={done}
             className="h-[52px] w-full rounded-2xl bg-[#FDBD2C] text-[15px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
@@ -890,6 +956,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
           {payment?.status === "pending" && (
             <div className="mt-1 grid grid-cols-2 gap-2">
               <button
+                type="button"
                 onClick={() => void checkPaymentNow()}
                 disabled={checkingPay}
                 className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500 active:bg-neutral-50 disabled:opacity-60"
@@ -897,6 +964,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
                 {checkingPay ? "Mengecek…" : "Cek pembayaran"}
               </button>
               <button
+                type="button"
                 onClick={() => void resumeQrCode()}
                 disabled={checkingPay}
                 className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500 active:bg-neutral-50 disabled:opacity-60"
@@ -927,6 +995,8 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
 function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalIdr, onClose }: { qrString?: string; qrImageUrl?: string; expiresAt: string; orderNumber: string; totalIdr: number; onClose: () => void }) {
   const [qr, setQr] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(dialogRef, onClose);
   useEffect(() => {
     if (!qrString) {
       setQr("");
@@ -944,13 +1014,15 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-900/30 p-4" onClick={onClose}>
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         className="shadow-soft w-full max-w-[300px] rounded-3xl bg-white p-5 text-center"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label={`QRIS ${orderNumber}`}
+        aria-labelledby="resume-qr-title"
       >
-        <p className="text-xs text-neutral-400">QRIS · {orderNumber}</p>
+        <p id="resume-qr-title" className="text-xs text-neutral-400">QRIS · {orderNumber}</p>
         {qrImageUrl ? (
           <img src={qrImageUrl} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-neutral-100 p-2" />
         ) : qr ? (
@@ -962,7 +1034,7 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
         <p className="mt-1 text-[13px] text-neutral-400">
           {remainingMs > 0 ? <span>Berlaku {formatCountdown(remainingMs)}</span> : <span>Kedaluwarsa</span>}
         </p>
-        <button onClick={onClose} className="mt-4 h-12 w-full rounded-full bg-neutral-900 text-sm font-medium text-white active:scale-[0.98]">
+        <button type="button" onClick={onClose} className="mt-4 h-12 w-full rounded-full bg-neutral-900 text-sm font-medium text-white active:scale-[0.98]">
           Tutup
         </button>
       </section>
@@ -972,7 +1044,7 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
 
 type CartLine = CartItem;
 
-function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void }) {
+function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message: string) => void; onOrderCreated?: () => Promise<void> }) {
   const [menu, setMenu] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"qris" | "cash">("qris");
@@ -992,6 +1064,8 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
   const [saving, setSaving] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const intentKey = useRef<string | null>(null);
+  const cartDialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(cartDialogRef, () => setCartOpen(false), cartOpen);
 
   useEffect(() => {
     fetch("/api/menu", { cache: "no-store" })
@@ -1060,6 +1134,14 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
     );
   }
 
+  function clearCart() {
+    if (!cart.length) return;
+    if (window.confirm("Kosongkan semua item dari pesanan berjalan?")) {
+      intentKey.current = null;
+      setCart([]);
+    }
+  }
+
   async function createOrder() {
     if (!cart.length || saving) return;
     if (paymentMethod === "qris" && !paymentSettings.qrisEnabled) { onShowNotice("QRIS sedang tidak tersedia."); return; }
@@ -1077,17 +1159,18 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
           items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity, variantOptionIds: item.variantOptionIds, addonOptionIds: item.addonOptionIds, note: item.note })),
         }),
       });
-      const payload = await response.json();
-      if (!response.ok || (paymentMethod === "qris" && !payload.qrString && !payload.qrImageUrl)) {
-        onShowNotice(payload.error ?? "Pesanan gagal dibuat.");
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload || (paymentMethod === "qris" && !payload.qrString && !payload.qrImageUrl)) {
+        onShowNotice(payload?.error ?? "Pesanan gagal dibuat.");
         return;
       }
       if (paymentMethod === "cash") {
-        setCart([]); intentKey.current = null; setCartOpen(false); onShowNotice(`${payload.orderNumber} lunas tunai.`); return;
+        setCart([]); intentKey.current = null; setCartOpen(false); await onOrderCreated?.(); onShowNotice(`${payload.orderNumber} lunas tunai.`); return;
       }
       setPayment({ orderId: payload.orderId, qrString: payload.qrString ?? undefined, qrImageUrl: payload.qrImageUrl ?? undefined, orderNumber: payload.orderNumber, totalIdr: payload.totalIdr, expiresAt: payload.expiresAt });
       setCart([]);
       setCartOpen(false);
+      await onOrderCreated?.();
     } catch {
       onShowNotice("Pesanan gagal dibuat.");
     } finally {
@@ -1102,7 +1185,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
       </div>
 
       <div className="mt-3 flex max-w-md gap-2">
-        {([{ key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }, { key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }] as const).map((method) => <button key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-10 flex-1 rounded-full border text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-200 text-neutral-500")}>{method.label}</button>)}
+        {([{ key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }, { key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-10 flex-1 rounded-full border text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-200 text-neutral-500")}>{method.label}</button>)}
       </div>
 
       <div className="flex max-w-md rounded-2xl bg-neutral-100 p-1 lg:mt-6 lg:rounded-full">
@@ -1113,6 +1196,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
           ] as const
         ).map(({ key, label }) => (
           <button
+            type="button"
             key={key}
             onClick={() => { setOrderType(key); if (key === "takeaway") setTableId(null); }}
             aria-pressed={orderType === key}
@@ -1126,9 +1210,9 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
         ))}
       </div>
       {orderType === "dine_in" && (
-        <label className="mt-3 block max-w-md text-[13px] text-neutral-500">
+          <label htmlFor="cashier-table" className="mt-3 block max-w-md text-[13px] text-neutral-500">
           Meja <span className="text-neutral-400">· opsional</span>
-          <select value={tableId ?? ""} onChange={(event) => setTableId(event.target.value || null)} className="input mt-1">
+          <select id="cashier-table" value={tableId ?? ""} onChange={(event) => setTableId(event.target.value || null)} className="input mt-1">
             <option value="">Tanpa meja / walk-in</option>
             {tables.map((table) => <option key={table.id} value={table.id}>{table.label}</option>)}
           </select>
@@ -1141,6 +1225,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
           <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1">
             {categories.map((item) => (
               <button
+                type="button"
                 key={item}
                 onClick={() => setCategory(item)}
                 aria-pressed={category === item}
@@ -1165,6 +1250,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
                   const qty = cart.filter((item) => item.product.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
                   return (
                     <button
+                      type="button"
                       key={product.id}
                       onClick={() => add(product)}
                       disabled={!product.available}
@@ -1210,7 +1296,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
         <aside className="sticky top-24 hidden xl:block">
           <h3 className="text-sm font-medium">Pesanan berjalan</h3>
           <p className="mt-1 text-[13px] text-neutral-500">
-            {orderType === "dine_in" ? "Dine in" : "Takeaway"} · QRIS
+            {orderType === "dine_in" ? "Dine in" : "Takeaway"} · {paymentMethod === "cash" ? "Tunai" : "QRIS"}
           </p>
           <div className="mt-2">
             {cart.length ? (
@@ -1222,7 +1308,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
                       <p className="mt-0.5 text-xs text-neutral-400">{[...item.variantLabels, ...item.addonLabels].join(" · ") || "Original"}</p>
                       <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{formatCompactIDR(item.unitPrice)} / porsi</p>
                       <div className="mt-2">
-                        <QtyStepper count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
+                        <QtyStepper itemName={item.product.name} count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
                       </div>
                     </div>
                     <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.unitPrice * item.quantity)}</span>
@@ -1238,6 +1324,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
             <span className="text-[15px] font-medium tabular-nums">{formatIDR(total)}</span>
           </div>
           <button
+            type="button"
             disabled={!cart.length || saving}
             onClick={() => void createOrder()}
             className="mt-4 h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
@@ -1245,7 +1332,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
             {saving ? "Membuat…" : "Buat pembayaran"}
           </button>
           {cart.length > 0 && (
-            <button onClick={() => setCart([])} className="mt-1 h-12 w-full rounded-full text-sm font-normal text-neutral-500">
+            <button type="button" onClick={clearCart} className="mt-1 h-12 w-full rounded-full text-sm font-normal text-neutral-500">
               Kosongkan
             </button>
           )}
@@ -1255,8 +1342,9 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
       {/* Cart — mobile bar */}
       {cart.length > 0 && !cartOpen && (
         <div className="fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-30 mx-auto max-w-[440px] px-4 xl:hidden">
-          <button
-            onClick={() => setCartOpen(true)}
+                <button
+                  type="button"
+                  onClick={() => setCartOpen(true)}
             aria-label={`Buka keranjang, ${count} item, ${formatIDR(total)}`}
             className="shadow-soft flex w-full items-center justify-between gap-3 rounded-2xl border border-neutral-900 bg-neutral-900 py-3 pl-4 pr-3 text-white active:scale-[0.99]"
           >
@@ -1274,11 +1362,14 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
       {/* Cart — mobile sheet */}
       {cartOpen && (
         <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 xl:hidden" onClick={() => setCartOpen(false)}>
-          <section
+            <section
+            ref={cartDialogRef}
+            tabIndex={-1}
             className="ord-sheet flex max-h-[88vh] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[28px] bg-white"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
+            aria-labelledby="cashier-cart-title"
             aria-label="Keranjang"
           >
             <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-neutral-200" />
@@ -1287,11 +1378,12 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
                 <p className="text-xs text-neutral-400">
                   Pesanan berjalan · {orderType === "dine_in" ? "Dine in" : "Takeaway"}
                 </p>
-                <h2 className="mt-1 text-lg font-medium tabular-nums tracking-tight">
+                <h2 id="cashier-cart-title" className="mt-1 text-lg font-medium tabular-nums tracking-tight">
                   {count} item · {formatIDR(total)}
                 </h2>
               </div>
               <button
+                type="button"
                 onClick={() => setCartOpen(false)}
                 aria-label="Tutup keranjang"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
@@ -1309,7 +1401,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
                         <p className="mt-0.5 truncate text-xs text-neutral-400">{[...item.variantLabels, ...item.addonLabels].join(" · ") || "Original"}</p>
                         <p className="mt-0.5 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.unitPrice * item.quantity)}</p>
                       </div>
-                      <QtyStepper count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
+                      <QtyStepper itemName={item.product.name} count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
                     </div>
                   ))}
                 </div>
@@ -1323,6 +1415,7 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
                 <span className="text-base font-medium tabular-nums">{formatIDR(total)}</span>
               </div>
               <button
+                type="button"
                 disabled={!cart.length || saving}
                 onClick={() => void createOrder()}
                 className="h-[52px] w-full rounded-2xl bg-[#FDBD2C] text-[15px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
@@ -1331,7 +1424,8 @@ function LiveCashier({ onShowNotice }: { onShowNotice: (message: string) => void
               </button>
               {cart.length > 0 && (
                 <button
-                  onClick={() => setCart([])}
+                  type="button"
+                  onClick={clearCart}
                   className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-400 active:bg-neutral-50"
                 >
                   Kosongkan
@@ -1384,6 +1478,8 @@ function CashierPayment({
   const [phase, setPhase] = useState<"pending" | "settled" | "expired" | "failed">("pending");
   const [now, setNow] = useState(() => Date.now());
   const settledRef = useRef(false);
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(dialogRef, onClose);
 
   useEffect(() => {
     if (!payment.qrString) {
@@ -1399,14 +1495,6 @@ function CashierPayment({
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   const remainingMs = new Date(payment.expiresAt).getTime() - now;
   const timedOut = remainingMs <= 0;
@@ -1443,18 +1531,21 @@ function CashierPayment({
   return createPortal(
     <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 p-0 sm:items-center sm:p-4" onClick={onClose}>
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         className="ord-sheet w-full max-w-[380px] rounded-t-[28px] bg-white p-5 text-center sm:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label={`Pembayaran ${payment.orderNumber}`}
+        aria-labelledby="cashier-payment-title"
       >
         <div className="flex items-start justify-between text-left">
           <div>
-            <p className="text-xs text-neutral-400">QRIS · {payment.orderNumber}</p>
+            <p id="cashier-payment-title" className="text-xs text-neutral-400">QRIS · {payment.orderNumber}</p>
             <p className="mt-3 text-3xl font-medium tabular-nums tracking-tight">{formatIDR(payment.totalIdr)}</p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Tutup pembayaran"
             className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
@@ -1473,9 +1564,9 @@ function CashierPayment({
           ) : state === "failed" ? (
             <p className="flex h-56 w-56 items-center justify-center px-6 text-center text-[13px] text-neutral-500">Pembayaran gagal. Coba lagi.</p>
           ) : payment.qrImageUrl ? (
-            <img src={payment.qrImageUrl} alt="QRIS pembayaran" className="h-56 w-56 rounded-2xl" />
+            <img src={payment.qrImageUrl} alt="QRIS pembayaran" width={224} height={224} decoding="async" className="h-56 w-56 rounded-2xl" />
           ) : qr ? (
-            <img src={qr} alt="QRIS pembayaran" className="h-56 w-56 rounded-2xl" />
+            <img src={qr} alt="QRIS pembayaran" width={224} height={224} decoding="async" className="h-56 w-56 rounded-2xl" />
           ) : (
             <div className="ord-skeleton h-56 w-56 rounded-2xl" />
           )}
@@ -1494,6 +1585,7 @@ function CashierPayment({
           )}
         </p>
         <button
+          type="button"
           onClick={onClose}
           className="mb-[max(0.25rem,env(safe-area-inset-bottom))] mt-8 h-[52px] w-full rounded-2xl bg-[#FDBD2C] text-[15px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
         >
@@ -1540,7 +1632,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
         action={
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
             <div className="flex flex-wrap items-center gap-2">
-              {(["Today", "Yesterday", "Last 7 days"] as const).map((preset) => <button key={preset} type="button" onClick={() => { const today = jakartaToday(); if (preset === "Today") { setFrom(today); setTo(today); } else if (preset === "Yesterday") { const date = new Date(`${today}T12:00:00+07:00`); date.setDate(date.getDate() - 1); const value = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(date); setFrom(value); setTo(value); } else { const date = new Date(`${today}T12:00:00+07:00`); date.setDate(date.getDate() - 6); setFrom(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(date)); setTo(today); } }} className="h-9 rounded-full border border-neutral-200 px-3 text-xs text-neutral-500">{preset}</button>)}
+              {([{ key: "Today", label: "Hari ini" }, { key: "Yesterday", label: "Kemarin" }, { key: "Last 7 days", label: "7 hari" }] as const).map(({ key, label }) => <button key={key} type="button" onClick={() => { const today = jakartaToday(); if (key === "Today") { setFrom(today); setTo(today); } else if (key === "Yesterday") { const date = new Date(`${today}T12:00:00+07:00`); date.setDate(date.getDate() - 1); const value = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(date); setFrom(value); setTo(value); } else { const date = new Date(`${today}T12:00:00+07:00`); date.setDate(date.getDate() - 6); setFrom(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(date)); setTo(today); } }} className="h-9 rounded-full border border-neutral-200 px-3 text-xs text-neutral-500">{label}</button>)}
               <input
                 type="date"
                 value={from}

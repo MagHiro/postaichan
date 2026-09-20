@@ -14,7 +14,7 @@ async function paymentStatus(request: Request, { params }: Context, synchronizeP
   const auth = await authorizeStaff();
   if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   const { id } = await params;
-  if (!uuidParamSchema.safeParse(id).success) return NextResponse.json({ error: "Order not found." }, { status: 400, headers: noStoreHeaders() });
+  if (!uuidParamSchema.safeParse(id).success) return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
   try {
     const orderResult = await query<{ id: string; order_number: string; order_status: string; payment_id: string; method: string; provider: string; payment_status: string; amount_idr: number; qr_string: string | null; expires_at: string | null; provider_order_id: string; settled_at: string | null; payment_created_at: string }>(
       `select o.id, o.order_number, o.status as order_status, p.id as payment_id, p.method, p.provider, p.status as payment_status, p.amount_idr, p.qr_string, p.expires_at, p.provider_order_id, p.settled_at, p.created_at as payment_created_at
@@ -23,9 +23,9 @@ async function paymentStatus(request: Request, { params }: Context, synchronizeP
       [id],
     );
     const order = orderResult.rows[0];
-    if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404, headers: noStoreHeaders() });
+    if (!order) return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 404, headers: noStoreHeaders() });
     const payment = orderResult.rows.find((row) => row.payment_id);
-    if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404, headers: noStoreHeaders() });
+    if (!payment) return NextResponse.json({ error: "Pembayaran tidak ditemukan." }, { status: 404, headers: noStoreHeaders() });
     let status = payment.payment_status as string;
     if (synchronizeProvider && status === "pending" && payment.provider === "midtrans" && payment.provider_order_id) {
       try {
@@ -41,7 +41,7 @@ async function paymentStatus(request: Request, { params }: Context, synchronizeP
     return NextResponse.json({ orderNumber: order.order_number, orderStatus: status === "settled" ? "paid" : order.order_status, paymentStatus: status, expiresAt: payment.expires_at, amountIdr: payment.amount_idr, ...presentQrMaterial(status === "pending" ? payment.qr_string : null) }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("pos_payment_status_failed", error instanceof Error ? error.message : "unknown");
-    return NextResponse.json({ error: "Payment status could not be checked." }, { status: 503, headers: noStoreHeaders() });
+    return NextResponse.json({ error: "Status pembayaran belum dapat dicek." }, { status: 503, headers: noStoreHeaders() });
   }
 }
 

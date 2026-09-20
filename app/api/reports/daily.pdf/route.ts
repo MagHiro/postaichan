@@ -55,6 +55,6 @@ export async function GET(request: Request) {
   } catch (error) {
     if (error instanceof Error && ["INVALID_REPORT_DATE", "REPORT_RANGE_LIMIT"].includes(error.message)) return NextResponse.json({ error: error.message === "REPORT_RANGE_LIMIT" ? "Rentang laporan maksimal 31 hari." : "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });
     console.error("daily_pdf_failed", error);
-    return NextResponse.json({ error: "Daily PDF could not be generated." }, { status: 503, headers: noStoreHeaders() });
+    return NextResponse.json({ error: "PDF laporan belum dapat dibuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }

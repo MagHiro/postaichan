@@ -16,15 +16,18 @@ export function GeneralQrManager() {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   async function load() {
     setLoading(true);
+    setLoadError(false);
     try {
       const response = await fetch("/api/admin/qr/general", { cache: "no-store" });
       const payload = await response.json().catch(() => null);
       if (response.ok) setCodes(payload.codes ?? []);
-      else setNotice(payload?.error ?? "QR umum belum dapat dimuat.");
+      else { setLoadError(true); setNotice(payload?.error ?? "QR umum belum dapat dimuat."); }
     } catch {
+      setLoadError(true);
       setNotice("Koneksi terputus. Coba muat QR umum lagi.");
     } finally {
       setLoading(false);
@@ -102,15 +105,15 @@ export function GeneralQrManager() {
         <p className="text-xs text-neutral-400">Administrator · <a href="/admin" className="text-neutral-500">Pengaturan</a></p>
         <h1 className="mt-1 text-[22px] font-medium tracking-tight">QR umum</h1>
         <p className="mt-1 text-[13px] text-neutral-500">QR ini tidak terkait meja. Customer memilih Dine in tanpa meja atau Takeaway saat memesan.</p>
-        {notice && <p className="mt-5 rounded-xl bg-neutral-50 px-4 py-3 text-[13px] text-neutral-600">{notice}</p>}
+        {notice && <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3 text-[13px] text-neutral-600"><span>{notice}</span>{loadError && <button type="button" onClick={() => { setNotice(null); void load(); }} className="h-9 rounded-full bg-neutral-900 px-4 text-xs font-medium text-white">Coba lagi</button>}</div>}
         {preview && <QrPreview label={preview.label} orderingUrl={preview.orderingUrl} qrDataUrl={preview.qrDataUrl} onClose={() => setPreview(null)} onCopy={() => { void navigator.clipboard?.writeText(preview.orderingUrl); setNotice("URL QR disalin."); }} />}
 
         <section className="mt-8 rounded-2xl border border-neutral-100 p-5">
           <div className="flex items-center gap-2"><Plus size={16} /><h2 className="text-sm font-medium">Buat QR umum</h2></div>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row"><label className="flex-1 text-[13px] text-neutral-500">Label<input value={label} onChange={(event) => setLabel(event.target.value)} className="input mt-1" placeholder="QR kasir" /></label><button type="button" onClick={() => void createCode()} disabled={working === "create"} className="h-11 self-end rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium disabled:opacity-50">{working === "create" ? "Membuat…" : "Buat & tampilkan QR"}</button></div>
+          <form onSubmit={(event) => { event.preventDefault(); void createCode(); }} className="mt-4 flex flex-col gap-3 sm:flex-row"><label htmlFor="new-general-qr-label" className="flex-1 text-[13px] text-neutral-500">Label<input id="new-general-qr-label" required value={label} onChange={(event) => setLabel(event.target.value)} className="input mt-1" placeholder="QR kasir" /></label><button type="submit" disabled={working === "create"} className="h-11 self-end rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium disabled:opacity-50">{working === "create" ? "Membuat…" : "Buat & tampilkan QR"}</button></form>
         </section>
 
-        {loading ? <p className="py-14 text-center text-[13px] text-neutral-500">Memuat QR…</p> : codes.length ? <div className="mt-8 divide-y divide-neutral-100">{codes.map((code) => <div key={code.id} className="py-4">{editing?.id === code.id ? <div className="flex gap-3"><input value={editing.label} onChange={(event) => setEditing({ ...editing, label: event.target.value })} className="input flex-1" /><button type="button" onClick={() => void saveLabel()} disabled={working === code.id} className="h-11 rounded-full bg-[#FDBD2C] px-4 text-[13px] font-medium">Simpan</button><button type="button" onClick={() => setEditing(null)} className="h-11 rounded-full border border-neutral-200 px-4 text-[13px]">Batal</button></div> : <div className="flex flex-wrap items-center gap-3"><div className="min-w-0 flex-1"><p className="text-[13px] font-medium">{code.label}</p><p className="mt-1 text-xs text-neutral-400">QR v{code.token_version} · {code.active ? "Aktif" : "Nonaktif"}</p></div><button type="button" onClick={() => setEditing({ id: code.id, label: code.label })} aria-label={`Edit ${code.label}`} className="flex h-10 items-center gap-2 rounded-full border border-neutral-200 px-4 text-[13px] font-medium"><Pencil size={14} />Edit</button><button type="button" onClick={() => void toggle(code)} disabled={working === code.id} className="h-10 rounded-full border border-neutral-200 px-4 text-[13px] font-medium disabled:opacity-50">{code.active ? "Nonaktifkan" : "Aktifkan"}</button><button type="button" onClick={() => void rotate(code)} disabled={working === code.id} className="flex h-10 items-center gap-2 rounded-full bg-neutral-900 px-4 text-[13px] font-medium text-white disabled:opacity-40"><RotateCcw size={14} />Rotasi QR</button></div>}</div>)}</div> : <p className="py-14 text-center text-[13px] text-neutral-500">Belum ada QR umum.</p>}
+        {loading ? <p className="py-14 text-center text-[13px] text-neutral-500">Memuat QR…</p> : codes.length ? <div className="mt-8 divide-y divide-neutral-100">{codes.map((code) => <div key={code.id} className="py-4">{editing?.id === code.id ? <form onSubmit={(event) => { event.preventDefault(); void saveLabel(); }} className="flex flex-col gap-3 sm:flex-row"><label htmlFor={`edit-general-qr-${code.id}`} className="sr-only">Label QR</label><input id={`edit-general-qr-${code.id}`} required value={editing.label} onChange={(event) => setEditing({ ...editing, label: event.target.value })} className="input flex-1" /><button type="submit" disabled={working === code.id} className="h-11 rounded-full bg-[#FDBD2C] px-4 text-[13px] font-medium">Simpan</button><button type="button" onClick={() => setEditing(null)} className="h-11 rounded-full border border-neutral-200 px-4 text-[13px]">Batal</button></form> : <div className="flex flex-wrap items-center gap-3"><div className="min-w-0 flex-1"><p className="text-[13px] font-medium">{code.label}</p><p className="mt-1 text-xs text-neutral-400">QR v{code.token_version} · {code.active ? "Aktif" : "Nonaktif"}</p></div><button type="button" onClick={() => setEditing({ id: code.id, label: code.label })} aria-label={`Edit ${code.label}`} className="flex h-10 items-center gap-2 rounded-full border border-neutral-200 px-4 text-[13px] font-medium"><Pencil size={14} />Edit</button><button type="button" onClick={() => void toggle(code)} disabled={working === code.id} className="h-10 rounded-full border border-neutral-200 px-4 text-[13px] font-medium disabled:opacity-50">{code.active ? "Nonaktifkan" : "Aktifkan"}</button><button type="button" onClick={() => void rotate(code)} disabled={working === code.id} className="flex h-10 items-center gap-2 rounded-full bg-neutral-900 px-4 text-[13px] font-medium text-white disabled:opacity-40"><RotateCcw size={14} />Rotasi QR</button></div>}</div>)}</div> : <p className="py-14 text-center text-[13px] text-neutral-500">Belum ada QR umum. Buat QR pertama di atas.</p>}
       </div>
     </main>
   );

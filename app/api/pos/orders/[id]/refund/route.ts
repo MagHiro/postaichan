@@ -19,17 +19,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const paymentResult = await query<{ id: string; method: string; provider: string; status: string; provider_order_id: string }>("select id, method, provider, status, provider_order_id from public.payments where order_id = $1 and status in ('settled', 'partially_refunded') order by created_at desc limit 1", [id]);
     const payment = paymentResult.rows[0];
-    if (!payment) return NextResponse.json({ error: "No refundable settled payment exists." }, { status: 409, headers: noStoreHeaders() });
-    if (payment.method !== "qris" || payment.provider !== "midtrans") return NextResponse.json({ error: "Cash refunds require the restaurant's manual cash-control process." }, { status: 409, headers: noStoreHeaders() });
+    if (!payment) return NextResponse.json({ error: "Tidak ada pembayaran lunas yang bisa direfund." }, { status: 409, headers: noStoreHeaders() });
+    if (payment.method !== "qris" || payment.provider !== "midtrans") return NextResponse.json({ error: "Refund tunai mengikuti proses kontrol kas manual restoran." }, { status: 409, headers: noStoreHeaders() });
     let claimResult;
     try {
       claimResult = await query<{ amount_idr: number; provider_order_id: string; refund_key: string }>("select * from public.claim_payment_refund($1::uuid, $2)", [payment.id, parsed.data.amountIdr]);
     } catch (error) {
       const message = (error instanceof Error ? error.message : "").split(":")[0];
-      return NextResponse.json({ error: message === "REFUND_IN_PROGRESS" ? "Refund sedang diproses." : "Payment is not refundable for that amount." }, { status: 409, headers: noStoreHeaders() });
+      return NextResponse.json({ error: message === "REFUND_IN_PROGRESS" ? "Refund sedang diproses." : "Pembayaran tidak bisa direfund untuk jumlah tersebut." }, { status: 409, headers: noStoreHeaders() });
     }
     const refund = claimResult.rows[0];
-    if (!refund) return NextResponse.json({ error: "Payment is not refundable for that amount." }, { status: 409, headers: noStoreHeaders() });
+    if (!refund) return NextResponse.json({ error: "Pembayaran tidak bisa direfund untuk jumlah tersebut." }, { status: 409, headers: noStoreHeaders() });
     try {
       await new MidtransProvider().refundPayment(refund.provider_order_id, refund.amount_idr, refund.refund_key);
     } catch (providerError) {
@@ -41,6 +41,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ refunded: true, payment: result.rows[0], reason: parsed.data.reason }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("refund_failed", error instanceof Error ? error.message : "unknown");
-    return NextResponse.json({ error: "Refund was submitted to the provider but could not be finalized locally. Reconcile before retrying." }, { status: 503, headers: noStoreHeaders() });
+    return NextResponse.json({ error: "Refund sudah dikirim ke provider, tetapi belum tercatat di aplikasi. Rekonsiliasi sebelum mencoba lagi." }, { status: 503, headers: noStoreHeaders() });
   }
 }

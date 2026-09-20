@@ -13,18 +13,21 @@ export function TableManager() {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [editing, setEditing] = useState<{ id: string; label: string; code: string } | null>(null);
   const [newTable, setNewTable] = useState({ label: "", code: "TBL-" });
 
   async function load() {
     setLoading(true);
+    setLoadError(false);
     try {
       const response = await fetch("/api/admin/tables", { cache: "no-store" });
       const payload = await response.json().catch(() => null);
       if (response.ok) setTables(payload.tables ?? []);
-      else setNotice(payload?.error ?? "Meja belum dapat dimuat.");
+      else { setLoadError(true); setNotice(payload?.error ?? "Meja belum dapat dimuat."); }
     } catch {
+      setLoadError(true);
       setNotice("Koneksi terputus. Coba muat meja lagi.");
     } finally {
       setLoading(false);
@@ -102,20 +105,20 @@ export function TableManager() {
         <p className="text-xs text-neutral-400">Administrator · <a href="/admin" className="text-neutral-500">Pengaturan</a></p>
         <h1 className="mt-1 text-[22px] font-medium tracking-tight">Meja &amp; QR</h1>
         <p className="mt-1 text-[13px] text-neutral-500">QR lama langsung tidak berlaku setelah rotasi. Token mentah hanya ditampilkan sekali.</p>
-        {notice && <p className="mt-5 rounded-xl bg-neutral-50 px-4 py-3 text-[13px] text-neutral-600">{notice}</p>}
+        {notice && <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3 text-[13px] text-neutral-600"><span>{notice}</span>{loadError && <button type="button" onClick={() => { setNotice(null); void load(); }} className="h-9 rounded-full bg-neutral-900 px-4 text-xs font-medium text-white">Coba lagi</button>}</div>}
         {preview && <QrPreview label={preview.label} orderingUrl={preview.orderingUrl} qrDataUrl={preview.qrDataUrl} onClose={() => setPreview(null)} onCopy={() => { void navigator.clipboard?.writeText(preview.orderingUrl); setNotice("URL QR disalin."); }} />}
 
         <section className="mt-8 rounded-2xl border border-neutral-100 p-5">
           <div className="flex items-center gap-2"><Plus size={16} /><h2 className="text-sm font-medium">Buat meja baru</h2></div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_180px_auto]">
-            <label className="text-[13px] text-neutral-500">Label<input value={newTable.label} onChange={(event) => setNewTable({ ...newTable, label: event.target.value })} className="input mt-1" placeholder="Meja 01" /></label>
-            <label className="text-[13px] text-neutral-500">Kode unik<input value={newTable.code} onChange={(event) => setNewTable({ ...newTable, code: event.target.value.toUpperCase() })} className="input mt-1" placeholder="TBL-01" /></label>
-            <button type="button" onClick={() => void createTable()} disabled={working === "create"} className="h-11 self-end rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium disabled:opacity-50">{working === "create" ? "Membuat…" : "Buat & tampilkan QR"}</button>
-          </div>
+          <form onSubmit={(event) => { event.preventDefault(); void createTable(); }} className="mt-4 grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+            <label htmlFor="new-table-label" className="text-[13px] text-neutral-500">Label<input id="new-table-label" required value={newTable.label} onChange={(event) => setNewTable({ ...newTable, label: event.target.value })} className="input mt-1" placeholder="Meja 01" /></label>
+            <label htmlFor="new-table-code" className="text-[13px] text-neutral-500">Kode unik<input id="new-table-code" required value={newTable.code} onChange={(event) => setNewTable({ ...newTable, code: event.target.value.toUpperCase() })} className="input mt-1" placeholder="TBL-01" /></label>
+            <button type="submit" disabled={working === "create"} className="h-11 self-end rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium disabled:opacity-50">{working === "create" ? "Membuat…" : "Buat & tampilkan QR"}</button>
+          </form>
           <p className="mt-3 text-xs text-neutral-400">Gunakan URL/QR ini untuk membuka pemesanan dine-in meja tersebut.</p>
         </section>
 
-        {loading ? <p className="py-14 text-center text-[13px] text-neutral-500">Memuat meja…</p> : tables.length ? <div className="mt-8 divide-y divide-neutral-100">{tables.map((table) => <div key={table.id} className="py-4">{editing?.id === table.id ? <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto]"><label className="text-[13px] text-neutral-500">Label<input value={editing.label} onChange={(event) => setEditing({ ...editing, label: event.target.value })} className="input mt-1" /></label><label className="text-[13px] text-neutral-500">Kode<input value={editing.code} onChange={(event) => setEditing({ ...editing, code: event.target.value.toUpperCase() })} className="input mt-1" /></label><button type="button" onClick={() => void saveEdit()} disabled={working === table.id} className="h-11 self-end rounded-full bg-[#FDBD2C] px-4 text-[13px] font-medium disabled:opacity-50">Simpan</button><button type="button" onClick={() => setEditing(null)} className="h-11 self-end rounded-full border border-neutral-200 px-4 text-[13px] font-medium">Batal</button></div> : <div className="flex flex-wrap items-center gap-3"><div className="min-w-0 flex-1"><p className="text-[13px] font-medium">{table.label} · {table.code}</p><p className="mt-1 text-xs text-neutral-400">QR v{table.qr_token_version} · {table.active ? "Aktif" : "Nonaktif"}</p></div><button type="button" onClick={() => setEditing({ id: table.id, label: table.label, code: table.code })} aria-label={`Edit ${table.label}`} className="flex h-10 items-center gap-2 rounded-full border border-neutral-200 px-4 text-[13px] font-medium"><Pencil size={14} />Edit</button><button type="button" onClick={() => void toggle(table)} disabled={working === table.id} className="h-10 rounded-full border border-neutral-200 px-4 text-[13px] font-medium disabled:opacity-50">{table.active ? "Nonaktifkan" : "Aktifkan"}</button><button type="button" onClick={() => void rotate(table)} disabled={working === table.id} className="flex h-10 items-center gap-2 rounded-full bg-neutral-900 px-4 text-[13px] font-medium text-white disabled:opacity-40"><RotateCcw size={14} />Rotasi QR</button></div>}</div>)}</div> : <p className="py-14 text-center text-[13px] text-neutral-500">Belum ada meja.</p>}
+        {loading ? <p className="py-14 text-center text-[13px] text-neutral-500">Memuat meja…</p> : tables.length ? <div className="mt-8 divide-y divide-neutral-100">{tables.map((table) => <div key={table.id} className="py-4">{editing?.id === table.id ? <form onSubmit={(event) => { event.preventDefault(); void saveEdit(); }} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto]"><label htmlFor={`edit-table-label-${table.id}`} className="text-[13px] text-neutral-500">Label<input id={`edit-table-label-${table.id}`} required value={editing.label} onChange={(event) => setEditing({ ...editing, label: event.target.value })} className="input mt-1" /></label><label htmlFor={`edit-table-code-${table.id}`} className="text-[13px] text-neutral-500">Kode<input id={`edit-table-code-${table.id}`} required value={editing.code} onChange={(event) => setEditing({ ...editing, code: event.target.value.toUpperCase() })} className="input mt-1" /></label><button type="submit" disabled={working === table.id} className="h-11 self-end rounded-full bg-[#FDBD2C] px-4 text-[13px] font-medium disabled:opacity-50">Simpan</button><button type="button" onClick={() => setEditing(null)} className="h-11 self-end rounded-full border border-neutral-200 px-4 text-[13px] font-medium">Batal</button></form> : <div className="flex flex-wrap items-center gap-3"><div className="min-w-0 flex-1"><p className="text-[13px] font-medium">{table.label} · {table.code}</p><p className="mt-1 text-xs text-neutral-400">QR v{table.qr_token_version} · {table.active ? "Aktif" : "Nonaktif"}</p></div><button type="button" onClick={() => setEditing({ id: table.id, label: table.label, code: table.code })} aria-label={`Edit ${table.label}`} className="flex h-10 items-center gap-2 rounded-full border border-neutral-200 px-4 text-[13px] font-medium"><Pencil size={14} />Edit</button><button type="button" onClick={() => void toggle(table)} disabled={working === table.id} className="h-10 rounded-full border border-neutral-200 px-4 text-[13px] font-medium disabled:opacity-50">{table.active ? "Nonaktifkan" : "Aktifkan"}</button><button type="button" onClick={() => void rotate(table)} disabled={working === table.id} className="flex h-10 items-center gap-2 rounded-full bg-neutral-900 px-4 text-[13px] font-medium text-white disabled:opacity-40"><RotateCcw size={14} />Rotasi QR</button></div>}</div>)}</div> : <p className="py-14 text-center text-[13px] text-neutral-500">Belum ada meja. Buat meja pertama di atas.</p>}
       </div>
     </main>
   );
