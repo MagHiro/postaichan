@@ -19,7 +19,7 @@ surface. Routes (`app/order/page.tsx`, `app/order/[accessToken]/page.tsx`,
 - `font-medium` is the ceiling — no bold/extrabold/black in order UI.
 - One accent (`#FDBD2C`), used sparingly: solid on primary CTAs only,
   soft tint for selections, nothing else.
-- Icons: Home, ReceiptText, Search, X, Plus, Minus, ArrowLeft only.
+- Icons: Home, ReceiptText, X, Plus, Minus, ArrowLeft only.
 - Motion: small fades/rises only (`ord-*`), press shrink on tap, no hovers
   that lift, no emoji ornament.
 
@@ -42,12 +42,12 @@ surface. Routes (`app/order/page.tsx`, `app/order/[accessToken]/page.tsx`,
 | Text      | `neutral-900` | Titles, names, active states, values              |
 | Secondary | `neutral-500` | Sub copy, prices on cards, inactive segments      |
 | Meta      | `neutral-400` | Counts, hints, footnotes, inactive tab icons      |
-| Surface   | `neutral-100` | Toggle track, search field, inactive pills, notes |
+| Surface   | `neutral-100` | Toggle track, category field, inactive pills, notes |
 | Divider   | `neutral-100` | `divide-neutral-100`, hairline borders            |
 | Accent    | `#FDBD2C`   | Primary CTA bg (with `neutral-900` text)           |
 | Accent +  | `#ECA90F`   | CTA hover                                          |
 | Accent ~  | `#FDBD2C/15–20` | Selected pill bg (with `neutral-900` text)     |
-| Ring      | `#FDBD2C/50` | Search/note focus ring (with `bg-white`)          |
+| Ring      | `#FDBD2C/50` | Category/note focus ring (with `bg-white`)       |
 
 Dark surfaces (`bg-neutral-900`): qty-plus buttons, cart count badge,
 toast, "Pesan lagi" button. Selection:
@@ -95,20 +95,11 @@ toast, "Pesan lagi" button. Selection:
 - Active: `bg-white font-medium shadow-xs`. Inactive: `text-neutral-500`.
 - Labels: "Dine in" / "Takeaway".
 
-## Search
+## Category Dropdown
 
-- Field: `mt-6 w-full rounded-full bg-neutral-100 py-2.5 pl-10 pr-10
-  text-sm outline-none placeholder:text-neutral-400`,
-  `focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50`.
-- Left icon `Search` 16 `text-neutral-400`; clear `X` 14 appears only
-  while typing. No filter/ornament buttons.
-
-## Category Pills
-
-- Rail: `-mx-5 mt-5 flex gap-2 overflow-x-auto px-5 no-scrollbar`.
-- Pills: `shrink-0 rounded-full px-3.5 py-1.5 text-[13px] transition`.
-- Active: `bg-[#FDBD2C]/15 font-medium text-neutral-900`.
-- Inactive: `text-neutral-500` (transparent bg).
+- Field: `mt-6 h-12 w-full rounded-2xl bg-neutral-100 px-4 text-[13px]` with a
+  visually hidden label, a right-aligned CSS chevron, themed option menu, and
+  the standard accent focus ring.
 - Categories: "Semua Menu", "Sate Taichan", "Rice Bowl",
   "Gorengan & Kulit", "Minuman Segar", "Paket Hemat" (= `popular` flag).
 

@@ -33,6 +33,7 @@ export function ProductImage({
   children?: React.ReactNode;
 }) {
   const [failed, setFailed] = useState(false);
+  const fallbackTone = getFallbackTone(product);
   if (product.imageUrl && !failed) {
     return (
       <div className={cn("relative overflow-hidden bg-neutral-100", className)}>
@@ -52,12 +53,57 @@ export function ProductImage({
       className={cn(
         "relative flex items-center justify-center overflow-hidden bg-neutral-100 text-neutral-400",
         className,
+        fallbackTone.surface,
+        fallbackTone.ink,
       )}
     >
-      <span className="text-lg font-medium">{product.name.charAt(0)}</span>
+      <span aria-hidden="true" className="relative z-10 text-2xl font-medium tracking-tight">
+        {product.name.charAt(0)}
+      </span>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/45",
+          fallbackTone.orb,
+        )}
+      />
+      <span
+        aria-hidden="true"
+        className="absolute -bottom-12 -left-8 h-28 w-28 rounded-full border-[14px] border-white/30"
+      />
       {children}
     </div>
   );
+}
+
+function getFallbackTone(product: Product) {
+  const source = `${product.category} ${product.name}`.toLowerCase();
+  if (source.includes("sate") || source.includes("kulit")) {
+    return {
+      surface: "bg-[#f6e5d4]",
+      ink: "text-[#a55a2b]",
+      orb: "bg-[#FDBD2C]/30",
+    };
+  }
+  if (source.includes("rice") || source.includes("nasi")) {
+    return {
+      surface: "bg-[#e9efe7]",
+      ink: "text-[#2f8062]",
+      orb: "bg-[#2f8062]/15",
+    };
+  }
+  if (source.includes("minum") || source.includes("es") || source.includes("tea")) {
+    return {
+      surface: "bg-[#e8eef2]",
+      ink: "text-[#4c6d7d]",
+      orb: "bg-white/60",
+    };
+  }
+  return {
+    surface: "bg-[#efefeb]",
+    ink: "text-neutral-500",
+    orb: "bg-[#FDBD2C]/20",
+  };
 }
 
 export function QtyStepper({

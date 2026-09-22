@@ -69,6 +69,23 @@ test("cart keys keep modifier variants separate", () => {
   assert.equal(mild.unitPrice, 22_000);
 });
 
+test("add-on quantities affect cart price and authoritative validation", () => {
+  const addonProduct = {
+    ...product,
+    modifierGroups: [
+      ...product.modifierGroups,
+      { id: "addon-group-1", type: "addon" as const, selection: "multiple" as const, required: false, minSelection: 0, maxSelection: 3, active: true, options: [{ id: "addon-1", groupId: "addon-group-1", type: "addon" as const, name: "Extra sambal", priceAdjustmentIdr: 5_000, costAdjustmentIdr: 1_500, available: true }] },
+    ],
+  };
+  const cartProduct = { id: product.id, name: product.name, description: "", category: "Sate", price: product.priceIdr, cost: product.estimatedCostIdr, available: true, accent: "#fff", imageTone: "", modifierGroups: [{ id: "group-1", name: "Level", type: "variant" as const, selection: "single" as const, required: true, minSelection: 1, maxSelection: 1, options: [{ id: "option-1", name: "Spicy", priceAdjustmentIdr: 2_000, costAdjustmentIdr: 500, available: true }] }, { id: "addon-group-1", name: "Tambahan", type: "addon" as const, selection: "multiple" as const, required: false, minSelection: 0, maxSelection: 3, options: [{ id: "addon-1", name: "Extra sambal", priceAdjustmentIdr: 5_000, costAdjustmentIdr: 1_500, available: true }] }] };
+  const cartItem = buildCartItem(cartProduct, ["option-1"], ["addon-1", "addon-1"], 1);
+  assert.equal(cartItem.unitPrice, 32_000);
+  assert.deepEqual(cartItem.addonLabels, ["Extra sambal × 2"]);
+  const line = validateCheckoutLine({ productId: product.id, quantity: 1, variantOptionIds: ["option-1"], addonOptionIds: ["addon-1", "addon-1"] }, addonProduct);
+  assert.equal(line.unitPriceIdr, 32_000);
+  assert.equal(line.modifiers.filter((modifier) => modifier.id === "addon-1").length, 2);
+});
+
 test("Jakarta report ranges are bounded and inclusive by calendar date", () => {
   const range = jakartaRange("2026-09-01", "2026-09-07");
   assert.equal(range.days, 7);

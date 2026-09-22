@@ -101,9 +101,9 @@ export function validateCheckoutLine(
 
   const selected = [
     ...line.variantOptionIds.map((id) => ({ id, type: "variant" as const })),
-    ...line.addonOptionIds.map((id) => ({ id, type: "addon" as const })),
+    ...Array.from(new Set(line.addonOptionIds)).map((id) => ({ id, type: "addon" as const })),
   ];
-  uniqueIds(selected.map((item) => item.id), "Selected modifiers");
+  uniqueIds(line.variantOptionIds, "Selected variants");
 
   const configuredTypes = new Map(
     product.modifierGroups
@@ -122,12 +122,17 @@ export function validateCheckoutLine(
     if (groupOptions.some((option) => !option.available)) {
       throw new CheckoutDomainError("MENU_CONFLICT", "A selected option is no longer available.");
     }
-    const count = groupOptions.length;
+    const count = group.type === "addon"
+      ? ids.filter((id) => group.options.some((option) => option.id === id)).length
+      : groupOptions.length;
     const minimum = group.required ? Math.max(1, group.minSelection) : group.minSelection;
     if (count < minimum || count > group.maxSelection || (group.selection === "single" && count > 1)) {
       throw new CheckoutDomainError("INVALID_MODIFIERS", `Modifier group ${group.id} has an invalid selection.`);
     }
-    modifiers.push(...groupOptions);
+    for (const option of groupOptions) {
+      const optionQuantity = group.type === "addon" ? ids.filter((id) => id === option.id).length : 1;
+      modifiers.push(...Array.from({ length: optionQuantity }, () => option));
+    }
   }
 
   const modifierPrice = modifiers.reduce((sum, option) => sum + option.priceAdjustmentIdr, 0);

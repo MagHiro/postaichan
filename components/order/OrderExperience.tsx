@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Home, ReceiptText, Search, X } from "lucide-react";
+import { Home, ReceiptText } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import type { CartItem, Product } from "@/lib/types";
 import { buildCartItem } from "@/lib/domain/cart";
@@ -28,7 +28,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const [menuRetry, setMenuRetry] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [category, setCategory] = useState<OrderCategory>("Semua Menu");
-  const [search, setSearch] = useState("");
+  const [categoryOpen, setCategoryOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [placedOrders, setPlacedOrders] = useState<PlacedOrder[]>([]);
   const [activeTab, setActiveTab] = useState<"home" | "orders">("home");
@@ -56,6 +56,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const tableLabel = session?.tableLabel ?? "Dine in";
   const toastTimer = useRef<number | null>(null);
   const checkoutIntentKey = useRef<string | null>(null);
+  const categoryMenuRef = useRef<HTMLDivElement>(null);
 
   function resetCheckoutIntent() { checkoutIntentKey.current = null; }
 
@@ -63,6 +64,13 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
     let active = true;
     setMenuLoading(true);
     setMenuError(null);
+    const loadingTimeout = window.setTimeout(() => {
+      if (active) {
+        setMenuLoading(false);
+        setMenuError("Menu belum dapat dimuat. Coba lagi.");
+      }
+    }, 8000);
+
     fetch("/api/menu", { cache: "no-store" })
       .then(async (response) => {
         const payload = await response.json().catch(() => null);
@@ -83,14 +91,11 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         if (active) setMenuError(error instanceof Error ? error.message : "Menu belum dapat dimuat. Coba lagi.");
       })
       .finally(() => {
-        if (active) setMenuLoading(false);
+        if (active) {
+          window.clearTimeout(loadingTimeout);
+          setMenuLoading(false);
+        }
       });
-    const loadingTimeout = window.setTimeout(() => {
-      if (active) {
-        setMenuLoading(false);
-        setMenuError("Menu belum dapat dimuat. Coba lagi.");
-      }
-    }, 8000);
     return () => {
       active = false;
       window.clearTimeout(loadingTimeout);
@@ -171,18 +176,27 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
     };
   }, [toast]);
 
+  useEffect(() => {
+    if (!categoryOpen) return;
+    function closeOnOutsidePress(event: PointerEvent) {
+      if (!categoryMenuRef.current?.contains(event.target as Node)) {
+        setCategoryOpen(false);
+      }
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setCategoryOpen(false);
+    }
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePress);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [categoryOpen]);
+
   const filteredProducts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return menuProducts.filter((product) => {
-      if (!matchesOrderCategory(product, category)) return false;
-      if (
-        q &&
-        !`${product.name} ${product.description}`.toLowerCase().includes(q)
-      )
-        return false;
-      return true;
-    });
-  }, [menuProducts, category, search]);
+    return menuProducts.filter((product) => matchesOrderCategory(product, category));
+  }, [menuProducts, category]);
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce(
@@ -313,11 +327,30 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
       window.sessionStorage.setItem("tt-active-payment", JSON.stringify({ orderId: payload.orderId, idempotencyKey: checkoutIntentKey.current }));
     } catch (error) {
       setCheckoutError(
-        error instanceof Error ? error.message : "Pembayaran belum dapat dibuat. Coba lagi.",
+        error instanceof Error ? error.message : "Checkout gagal tanpa detail. Coba lagi; jika berulang, muat ulang menu.",
       );
     } finally {
       setCheckoutLoading(false);
     }
+  }
+
+  async function cancelCustomerOrder() {
+    if (!payment || !session) return;
+    if (!window.confirm(`Batalkan pesanan ${payment.orderNumber}? QR pembayaran akan dinonaktifkan.`)) return;
+    const response = await fetch(`/api/customer/orders/${payment.orderId}/cancel`, {
+      method: "POST",
+      headers: { "x-order-access-token": session.token },
+      cache: "no-store",
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(payload?.error ?? "Pesanan belum dapat dibatalkan.");
+    window.sessionStorage.removeItem("tt-active-payment");
+    setCart([]);
+    setPayment(null);
+    resetCheckoutIntent();
+    setStep("menu");
+    setActiveTab("orders");
+    showToast(`${payment.orderNumber} dibatalkan.`);
   }
 
   if (step === "payment" && payment && session) {
@@ -361,6 +394,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
           // before beginCheckout kicks off the fresh charge.
           window.setTimeout(() => void beginCheckout(), 0);
         }}
+        onCancel={cancelCustomerOrder}
       />
     );
   }
@@ -396,7 +430,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
     <main className="flex min-h-screen justify-center bg-white text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
       <div className="relative flex min-h-screen w-full max-w-[440px] flex-col bg-white pb-36">
         <header className="sticky top-0 z-30 border-b border-neutral-100 bg-white/90 backdrop-blur-md">
-          <div className="px-5 pb-3 pt-4">
+          <div className="px-5 pb-3 pt-[calc(1rem+env(safe-area-inset-top))]">
             <div className="relative flex items-center justify-center">
               {logoFailed ? (
                 <p className="text-[15px] font-medium tracking-tight">
@@ -407,7 +441,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                   src="/logo.png"
                   alt="Baraburn"
                   onError={() => setLogoFailed(true)}
-                  className="h-11 w-auto max-w-[240px] object-contain"
+                  className="h-10 w-auto max-w-[220px] object-contain"
                 />
               )}
               {dineIn && session?.tableLabel && (
@@ -450,58 +484,104 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
         {activeTab === "home" ? (
           <div key="home" className="ord-rise flex-1 px-5 pt-7" aria-busy={menuLoading}>
-            <h1 className="text-[22px] font-medium leading-snug tracking-tight">
-              Mau makan apa?
-            </h1>
-            <p className="mt-1 text-[13px] text-neutral-500">
-              {dineIn
-                ? "Pesan dari meja, bayar via QRIS."
-                : "Pesan cepat, ambil di kasir."}
-            </p>
-
-            <div className="relative mt-6">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-neutral-400">
-                <Search size={16} />
+            <div className="flex items-end justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400">
+                  Menu hari ini
+                </p>
+                <h1 className="mt-2 text-[22px] font-medium leading-snug tracking-tight">
+                  Mau makan apa?
+                </h1>
+                <p className="mt-1 text-[13px] text-neutral-500">
+                  {dineIn
+                    ? "Pesan dari meja, bayar via QRIS."
+                    : "Pesan cepat, ambil di kasir."}
+                </p>
               </div>
-              <label htmlFor="menu-search" className="sr-only">Cari menu</label>
-              <input
-                id="menu-search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari menu"
-                className="w-full rounded-full bg-neutral-100 py-2.5 pl-10 pr-10 text-sm outline-none transition placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
-              />
-              {search && (
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                  <button
-                    type="button"
-                    aria-label="Hapus pencarian"
-                    onClick={() => setSearch("")}
-                    className="rounded-full p-1 text-neutral-400"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              )}
+              <span className="mb-1 shrink-0 rounded-full bg-[#FDBD2C]/15 px-3 py-1.5 text-[11px] font-medium text-neutral-900">
+                Fresh dibakar
+              </span>
             </div>
 
-            <div className="no-scrollbar -mx-5 mt-5 flex gap-2 overflow-x-auto px-5">
-              {categories.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setCategory(item)}
-                  aria-pressed={category === item}
+            <div className="relative mt-6 overflow-hidden rounded-[24px] bg-neutral-900">
+              <img
+                src="/landing/sate-taichan-hero.png"
+                alt="Sate taichan panggang dengan sambal dan jeruk limau"
+                className="aspect-[2/1] w-full object-cover opacity-90"
+              />
+              <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-neutral-900/85 via-neutral-900/10 to-transparent" />
+              <div className="absolute inset-x-4 bottom-4">
+                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">
+                  Bara &amp; Burn kitchen
+                </p>
+                <p className="mt-1 text-lg font-medium leading-snug tracking-tight text-white">
+                  Hangat dari grill.
+                </p>
+              </div>
+            </div>
+
+            <div ref={categoryMenuRef} className="relative mt-6">
+              <label htmlFor="menu-category" className="sr-only">
+                Filter kategori menu
+              </label>
+              <button
+                type="button"
+                id="menu-category"
+                aria-haspopup="listbox"
+                aria-expanded={categoryOpen}
+                aria-controls="menu-category-options"
+                onClick={() => setCategoryOpen((open) => !open)}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    setCategoryOpen(true);
+                  }
+                }}
+                className="flex h-12 w-full items-center justify-between rounded-2xl bg-neutral-100 px-4 text-left text-[13px] text-neutral-900 outline-none transition hover:bg-neutral-50 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
+              >
+                <span className="truncate">{category}</span>
+                <span
+                  aria-hidden="true"
                   className={cn(
-                    "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] transition",
-                    category === item
-                      ? "bg-[#FDBD2C]/15 font-medium text-neutral-900"
-                      : "text-neutral-500",
+                    "pointer-events-none ml-3 h-2.5 w-2.5 shrink-0 rotate-45 border-b-2 border-r-2 border-neutral-500 transition-transform",
+                    categoryOpen && "-translate-y-0.5 rotate-[225deg]",
                   )}
+                />
+              </button>
+              {categoryOpen && (
+                <div
+                  id="menu-category-options"
+                  role="listbox"
+                  aria-label="Kategori menu"
+                  className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-2xl border border-neutral-100 bg-white/95 p-1 shadow-[0_14px_30px_rgba(24,24,27,0.12)] backdrop-blur-md"
                 >
-                  {item}
-                </button>
-              ))}
+                  <div className="max-h-64 overflow-y-auto">
+                    {categories.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        role="option"
+                        aria-selected={category === item}
+                        onClick={() => {
+                          setCategory(item);
+                          setCategoryOpen(false);
+                        }}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors",
+                          category === item
+                            ? "bg-[#FDBD2C]/15 font-medium text-neutral-900"
+                            : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900",
+                        )}
+                      >
+                        <span>{item}</span>
+                        {category === item && (
+                          <span aria-hidden="true" className="ml-3 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FDBD2C]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-8 flex items-baseline justify-between">
@@ -612,7 +692,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         )}
 
         <nav aria-label="Navigasi pemesanan" className="fixed inset-x-0 bottom-0 z-40">
-          <div className="shadow-sheet mx-auto flex max-w-[440px] border-t border-neutral-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
+          <div className="mx-auto flex max-w-[440px] border-t border-neutral-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
             <button
               type="button"
               onClick={() => setActiveTab("home")}

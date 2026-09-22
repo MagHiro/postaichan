@@ -123,6 +123,66 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* ---- POS workspace: dark operations surface ---- */
+  .pos-theme {
+    color-scheme: dark;
+    --pos-bg: #141820;
+    --pos-surface: #1b2029;
+    --pos-surface-raised: #232a35;
+    --pos-line: rgba(255, 255, 255, 0.08);
+    --pos-text: #f4f4f5;
+    --pos-muted: #a1a1aa;
+    min-width: 0;
+    max-width: 100vw;
+    background-color: var(--pos-bg) !important;
+    color: var(--pos-text);
+  }
+  .pos-theme.text-neutral-900 { color: var(--pos-text) !important; }
+  .pos-theme [class~="bg-white"] { background-color: var(--pos-surface) !important; }
+  .pos-theme [class*="bg-white/"] { background-color: rgba(27, 32, 41, 0.94) !important; }
+  .pos-theme [class~="bg-white/10"] { background-color: rgba(255, 255, 255, 0.1) !important; }
+  .pos-theme [class~="bg-white/5"] { background-color: rgba(255, 255, 255, 0.05) !important; }
+  .pos-theme [class*="bg-white/[0."] { background-color: rgba(255, 255, 255, 0.04) !important; }
+  .pos-theme [class~="bg-neutral-50"] { background-color: #1f252f !important; }
+  .pos-theme [class*="bg-neutral-50/"] { background-color: rgba(31, 37, 47, 0.9) !important; }
+  .pos-theme [class~="bg-neutral-100"] { background-color: #232a35 !important; }
+  .pos-theme [class*="bg-neutral-100/"] { background-color: rgba(35, 42, 53, 0.86) !important; }
+  .pos-theme [class~="bg-neutral-900"] { background-color: #2b323e !important; }
+  .pos-theme [class*="bg-neutral-900/"] { background-color: rgba(0, 0, 0, 0.46) !important; }
+  .pos-theme [class*="text-neutral-900"] { color: var(--pos-text) !important; }
+  .pos-theme [class*="text-neutral-600"] { color: #d4d4d8 !important; }
+  .pos-theme [class*="text-neutral-500"] { color: var(--pos-muted) !important; }
+  .pos-theme [class*="text-neutral-400"] { color: #8f96a3 !important; }
+  .pos-theme [class*="text-neutral-300"] { color: #c5cad2 !important; }
+  .pos-theme [class~="text-black"],
+  .pos-theme [class*="text-[#18181B]"] { color: var(--pos-text) !important; }
+  .pos-theme [class~="border-neutral-100"] { border-color: var(--pos-line) !important; }
+  .pos-theme [class*="border-neutral-200"] { border-color: rgba(255, 255, 255, 0.14) !important; }
+  .pos-theme [class*="border-neutral-900"] { border-color: rgba(255, 255, 255, 0.22) !important; }
+  .pos-theme [class*="divide-neutral-100"] > :not([hidden]) ~ :not([hidden]) { border-color: var(--pos-line) !important; }
+  .pos-theme [class~="bg-[#FDBD2C]"][class*="text-neutral-900"] { color: #18181b !important; }
+  .pos-theme .input { background: #232a35; color: var(--pos-text); }
+  .pos-theme .input:focus { background: #2b323e; }
+  .pos-theme .shadow-soft { box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28); }
+  .pos-theme .shadow-sheet { box-shadow: 0 -14px 32px rgba(0, 0, 0, 0.3); }
+
+  @media (max-width: 1023px) {
+    .pos-theme {
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+    .pos-theme main {
+      min-height: 0;
+      max-width: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .ord-rise,
     .ord-sheet,

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
-import { BookOpen, LayoutDashboard, Minus, Plus, ReceiptText, Search, Settings, ShoppingBag, TrendingUp, X } from "lucide-react";
+import { ArrowRight, BarChart3, BookOpen, CalendarDays, Check, ChefHat, ChevronRight, CircleDollarSign, Clock3, Coins, CreditCard, Download, Info, LayoutDashboard, Minus, MoreVertical, PackageOpen, Percent, Plus, ReceiptText, RefreshCw, Search, Settings, ShoppingBag, ShoppingCart, Store, Trash2, TrendingUp, UserRound, UsersRound, X } from "lucide-react";
 import { formatCompactIDR, formatCountdown, formatIDR } from "@/lib/format";
 import type { CartItem, Order, Product } from "@/lib/types";
 import { buildCartItem } from "@/lib/domain/cart";
@@ -31,6 +31,7 @@ type Detail = {
   items: Array<{
     id: string;
     product_name_snapshot: string;
+    image_url?: string | null;
     quantity: number;
     unit_price_idr: number;
     line_total_idr: number;
@@ -194,11 +195,16 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   const navItems = (Object.keys(NAV_LABEL) as NavItem[]).filter((item) => role === "admin" || (item !== "Menu" && item !== "Reports"));
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 antialiased lg:flex">
+    <div className="pos-theme flex h-[100dvh] max-h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden antialiased lg:h-auto lg:max-h-none lg:min-h-screen lg:overflow-visible lg:bg-[radial-gradient(circle_at_100%_0%,rgba(253,189,44,0.08),transparent_24rem)] lg:pl-[266px]">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-[216px] shrink-0 flex-col bg-white px-5 py-6 lg:flex">
-        <p className="text-[15px] font-medium tracking-tight">Tempat Taichan</p>
-        <p className="mt-1 text-xs text-neutral-400">{role === "admin" ? "Administrator" : "Staff"}</p>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden h-screen w-[266px] flex-col overflow-y-auto border-r border-neutral-100 bg-white px-5 py-8 lg:flex">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[15px] font-medium tracking-tight">Tempat Taichan</p>
+            <p className="mt-1 text-xs text-neutral-400">{role === "admin" ? "Administrator" : "Staff"}</p>
+          </div>
+          <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#FDBD2C] shadow-[0_0_0_4px_rgba(253,189,44,0.14)]" />
+        </div>
         <nav aria-label="Navigasi workspace" className="mt-10 space-y-1">
           {navItems.map((item) => {
             const Icon = NAV_ICON[item];
@@ -210,10 +216,10 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 onClick={() => setNav(item)}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-full px-3.5 py-2 text-[13px] transition active:scale-[0.98]",
-                  active ? "bg-[#FDBD2C]/15 font-medium text-neutral-900" : "font-normal text-neutral-500",
+                  active ? "bg-white/10 font-medium text-neutral-900" : "font-normal text-neutral-500",
                 )}
               >
-                <Icon size={17} strokeWidth={active ? 2 : 1.6} className={active ? "text-neutral-900" : "text-neutral-400"} />
+                <Icon size={17} strokeWidth={active ? 2 : 1.6} className={active ? "text-[#FDBD2C]" : "text-neutral-400"} />
                 <span className="flex-1 text-left">{NAV_LABEL[item]}</span>
                 {item === "Orders" && activeCount > 0 && (
                   <span className="text-xs font-medium tabular-nums text-neutral-400">{activeCount}</span>
@@ -230,12 +236,12 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
         </p>
       </aside>
 
-      <div className="min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:block lg:min-h-screen">
         {/* Mobile top bar */}
-        <header className="sticky top-0 z-30 border-b border-neutral-100 bg-white/90 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md lg:hidden">
+        <header className="shrink-0 border-b border-neutral-100 bg-white/90 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md lg:hidden">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate text-[15px] font-medium tracking-tight">{pageTitle(nav)}</p>
+              <p className="truncate text-[15px] font-medium tracking-tight"><span aria-hidden="true" className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#FDBD2C] align-middle" />{pageTitle(nav)}</p>
               <p className="mt-0.5 text-xs tabular-nums text-neutral-400">
                 {activeCount} aktif · {date}
               </p>
@@ -244,8 +250,9 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
               <button
                 type="button"
                 onClick={() => setNav("POS")}
-                className="flex h-10 shrink-0 items-center rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+                className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
               >
+                <Plus size={16} strokeWidth={2} />
                 Pesanan baru
               </button>
             )}
@@ -253,22 +260,28 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
         </header>
 
         {/* Desktop top bar */}
-        <header className="sticky top-0 z-30 hidden border-b border-neutral-100 bg-white/90 px-8 py-5 backdrop-blur-md lg:block">
-          <div className="mx-auto flex max-w-[1120px] items-end justify-between">
+        <header className="sticky top-0 z-30 hidden border-b border-neutral-100 bg-white/90 px-0 py-5 backdrop-blur-md lg:block">
+          <div className="mx-auto flex max-w-[1540px] items-end justify-between px-8 xl:px-12 2xl:px-[74px]">
             <div>
               <p className="text-xs text-neutral-400">{formatLongDate(date)}</p>
               <h1 className="mt-1 text-[22px] font-medium leading-snug tracking-tight">{pageTitle(nav)}</h1>
             </div>
             <div className="flex items-center gap-5">
-              <button type="button" onClick={() => void loadOperations()} disabled={loading} className="text-[13px] font-normal text-neutral-500 active:scale-[0.98] disabled:opacity-50">
+              <span className="hidden items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-xs text-neutral-400 xl:flex"><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#FDBD2C] shadow-[0_0_0_3px_rgba(253,189,44,0.18)]" />Operasional</span>
+              <button type="button" onClick={() => void loadOperations()} disabled={loading} className="flex items-center gap-2 text-[13px] font-normal text-neutral-400 active:scale-[0.98] disabled:opacity-50">
+                <RefreshCw size={15} strokeWidth={1.8} />
                 {loading ? "Memuat…" : "Muat ulang"}
               </button>
               <button
                 onClick={() => setNav("POS")}
-                className="h-10 rounded-full bg-[#FDBD2C] px-5 text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+                className="flex h-10 items-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
               >
+                <Plus size={17} strokeWidth={2} />
                 Pesanan baru
               </button>
+              <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-neutral-300">
+                <UserRound size={18} strokeWidth={1.7} />
+              </span>
             </div>
           </div>
         </header>
@@ -276,11 +289,12 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
         {/* Content */}
         <main
           className={cn(
-            "mx-auto max-w-[1120px] px-5 pt-6 lg:px-8 lg:pb-20 lg:pt-10",
-            nav === "POS" ? "pb-[calc(208px+env(safe-area-inset-bottom))]" : "pb-[calc(128px+env(safe-area-inset-bottom))]",
+            "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain mx-auto w-full max-w-[1540px] px-5 pb-[calc(128px+env(safe-area-inset-bottom))] pt-6 lg:min-h-0 lg:flex-none lg:overflow-visible lg:px-8 xl:px-12 2xl:px-[74px] lg:pb-20",
+            nav === "Orders" || nav === "Menu" ? "lg:pt-3" : "lg:pt-10",
+            nav === "POS" ? "pb-[calc(208px+env(safe-area-inset-bottom))]" : "",
           )}
         >
-          <div key={nav} className="ord-rise">
+          <div key={nav} className="pos-fade">
             {workspaceError && <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-[13px] text-neutral-600"><span>{workspaceError}</span><button type="button" onClick={() => void loadOperations()} className="h-9 rounded-full bg-neutral-900 px-4 text-xs font-medium text-white">Muat ulang</button></div>}
             {nav === "Overview" && (
               <LiveOverview
@@ -293,7 +307,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 onOpenOrders={() => setNav("Orders")}
               />
             )}
-            {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} onAdvance={advanceOrderGuarded} advancingId={advancingId} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} />}
+            {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} onAdvance={advanceOrderGuarded} advancingId={advancingId} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} onNewOrder={() => setNav("POS")} />}
             {nav === "POS" && <LiveCashier onShowNotice={showNotice} onOrderCreated={() => loadOperations(true)} />}
             {nav === "Menu" && role === "admin" && <MenuManager onShowNotice={showNotice} />}
             {nav === "Reports" && role === "admin" && <LiveReports initialReport={summary} onShowNotice={showNotice} />}
@@ -303,7 +317,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
 
       {/* Mobile bottom tabs */}
       <nav aria-label="Navigasi workspace" className="shadow-sheet fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-white/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
-        <div className="mx-auto grid max-w-[440px] grid-cols-5 gap-1">
+        <div className={cn("mx-auto grid w-full gap-1", navItems.length === 3 ? "max-w-[360px] grid-cols-3 sm:max-w-[520px]" : "max-w-[440px] grid-cols-5 sm:max-w-[720px]")}>
           {navItems.map((item) => {
             const Icon = NAV_ICON[item];
             const active = nav === item;
@@ -315,7 +329,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-2xl py-2",
-                  active ? "bg-neutral-100" : "active:bg-neutral-50",
+                  active ? "bg-[#FDBD2C]/15 ring-1 ring-[#FDBD2C]/30" : "active:bg-neutral-50",
                 )}
               >
                 <Icon size={21} strokeWidth={active ? 2.2 : 1.6} className={active ? "text-neutral-900" : "text-neutral-400"} />
@@ -335,7 +349,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
 
       {notice && (
         <div className="pointer-events-none fixed inset-x-0 top-[max(4.5rem,env(safe-area-inset-top))] z-[60] flex justify-center px-5 lg:top-20">
-          <p role="status" aria-live="polite" className="ord-toast shadow-soft pointer-events-auto max-w-[440px] truncate rounded-full bg-neutral-900 px-4 py-2.5 text-[13px] text-white">{notice}</p>
+          <p role="status" aria-live="polite" className="ord-toast shadow-soft pointer-events-auto max-w-[min(92vw,680px)] rounded-2xl bg-neutral-900 px-4 py-2.5 text-left text-[13px] leading-relaxed text-white">{notice}</p>
         </div>
       )}
     </div>
@@ -361,12 +375,50 @@ function PageHead({ title, sub, action }: { title: string; sub?: string; action?
   );
 }
 
-function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
+function Metric({ label, value, detail, icon, tone = "neutral" }: { label: string; value: string; detail: string; icon?: React.ReactNode; tone?: "gold" | "green" | "orange" | "blue" | "purple" | "neutral" }) {
+  const iconTone = {
+    gold: "bg-[#FDBD2C]/20 text-[#FDBD2C]",
+    green: "bg-[#2F8062]/60 text-emerald-100",
+    orange: "bg-[#FDBD2C]/20 text-[#FDBD2C]",
+    blue: "bg-blue-500/20 text-blue-200",
+    purple: "bg-violet-500/20 text-violet-200",
+    neutral: "bg-white/10 text-neutral-200",
+  }[tone];
   return (
-    <div className="min-w-0">
-      <p className="truncate text-xs text-neutral-400">{label}</p>
-      <p className="mt-1 break-words text-lg font-medium tabular-nums leading-snug tracking-tight sm:text-[22px]">{value}</p>
-      <p className="mt-0.5 truncate text-xs text-neutral-500 sm:text-[13px]">{detail}</p>
+    <div className={cn("min-w-0", Boolean(icon) && "flex items-center gap-3 sm:gap-4 max-[400px]:flex-col max-[400px]:items-start max-[400px]:gap-2")}>
+      {icon && <span className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-full sm:h-16 sm:w-16 max-[400px]:h-10 max-[400px]:w-10", iconTone)}>{icon}</span>}
+      <div className="min-w-0">
+        <p className="truncate text-[11px] leading-tight text-neutral-400 sm:text-xs">{label}</p>
+        <p className="mt-1 break-words text-xl font-medium tabular-nums leading-snug tracking-tight text-white sm:text-[22px]">{value}</p>
+        <p className="mt-0.5 truncate text-[11px] leading-tight text-neutral-400 sm:text-[13px]">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function ReportMetric({ label, value, detail, icon, tone }: { label: string; value: string; detail: string; icon: React.ReactNode; tone: "green" | "blue" | "orange" | "purple" }) {
+  const toneClasses = {
+    green: "border-emerald-400/15 bg-[#16211f] text-emerald-300",
+    blue: "border-blue-400/15 bg-[#171f2b] text-blue-300",
+    orange: "border-orange-400/15 bg-[#241e1a] text-orange-300",
+    purple: "border-violet-400/15 bg-[#211c2c] text-violet-300",
+  }[tone];
+  const iconClasses = {
+    green: "bg-emerald-500 text-white",
+    blue: "bg-blue-500 text-white",
+    orange: "bg-orange-500 text-white",
+    purple: "bg-violet-500 text-white",
+  }[tone];
+  return (
+    <div className={cn("min-w-0 rounded-2xl border p-5", toneClasses)}>
+      <div className="flex items-start gap-4">
+        <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", iconClasses)}>{icon}</span>
+        <div className="min-w-0">
+          <p className="truncate text-[13px] text-neutral-300">{label}</p>
+          <p className="mt-1 text-[22px] font-medium leading-tight tabular-nums tracking-tight text-white">{value}</p>
+          <p className="mt-1 truncate text-[13px] text-neutral-400">{detail}</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -461,46 +513,49 @@ function LiveOverview({
     <div>
       <PageHead title="Hari ini" />
 
-      {isAdmin ? <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-100 lg:mt-6 xl:grid-cols-4">
-        <div className="bg-white p-4 sm:p-5"><Metric label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail="Settlement Jakarta" /></div>
-        <div className="bg-white p-4 sm:p-5"><Metric label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" /></div>
-        <div className="bg-white p-4 sm:p-5"><Metric label="Est. laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah COGS + fee" /></div>
-        <div className="bg-white p-4 sm:p-5"><Metric label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" /></div>
-      </div> : <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-100 lg:mt-6"><div className="bg-white p-4 sm:p-5"><Metric label="Pesanan aktif" value={String(active.length)} detail="Perlu tindakan" /></div><div className="bg-white p-4 sm:p-5"><Metric label="Menunggu bayar" value={String(orders.filter((order) => order.status === "Pending").length)} detail="Belum masuk dapur" /></div></div>}
+      {isAdmin ? <div className="mt-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/25 bg-[#282321] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<BarChart3 size={26} strokeWidth={1.8} />} tone="gold" label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail="Settlement Jakarta" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-[#2F8062]/40 bg-[#1d2925] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<ShoppingCart size={26} strokeWidth={1.8} />} tone="green" label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/30 bg-[#29271d] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<Coins size={26} strokeWidth={1.8} />} tone="orange" label="Est. laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah COGS + fee" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-white/[0.08] bg-[#1b2029] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<BarChart3 size={26} strokeWidth={1.8} />} tone="neutral" label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" /></div>
+      </div> : <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-2"><div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/25 bg-[#282321] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<ShoppingBag size={26} strokeWidth={1.8} />} tone="gold" label="Pesanan aktif" value={String(active.length)} detail="Perlu tindakan" /></div><div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/25 bg-[#29271d] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<Coins size={26} strokeWidth={1.8} />} tone="orange" label="Menunggu bayar" value={String(orders.filter((order) => order.status === "Pending").length)} detail="Belum masuk dapur" /></div></div>}
 
-      <section className="mt-8 border-t border-neutral-100 pt-6">
-        <div className="flex items-baseline justify-between">
-          <h3 className="text-sm font-medium">
-            Perlu tindakan
-            {active.length > 0 && <span className="ml-2 font-normal tabular-nums text-neutral-400">{active.length}</span>}
-          </h3>
+      <section className="mt-6 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#1b2029] p-5 sm:p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#FDBD2C]" />
+            <h3 className="text-sm font-medium">
+              Perlu tindakan
+              {active.length > 0 && <span className="ml-2 rounded-lg bg-white/10 px-2 py-1 text-xs font-normal tabular-nums text-neutral-300">{active.length}</span>}
+            </h3>
+          </div>
           {active.length > 5 && (
-            <button type="button" onClick={onOpenOrders} className="text-[13px] font-normal text-neutral-500">
+            <button type="button" onClick={onOpenOrders} className="text-[13px] font-normal text-neutral-400">
               Semua
             </button>
           )}
         </div>
-        <div className="mt-1">
+        <div className="mt-4">
           {loading ? (
             <LoadingBlock label="Memuat pesanan…" />
           ) : active.length ? (
-            <div className="divide-y divide-neutral-100">
+            <div className="divide-y divide-white/[0.08]">
               {active.slice(0, 5).map((order) => (
-                <div key={order.id} className="flex items-center gap-3 py-2">
+                <div key={order.id} className="flex items-center gap-3 py-4">
                   <button
                     type="button"
                     onClick={onOpenOrders}
-                    className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left active:bg-neutral-50"
+                    className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left active:bg-white/5"
                     aria-label={`Lihat ${order.number}`}
                   >
-                    <p className="truncate text-[14px] font-medium">
+                    <p className="truncate text-[14px] font-medium text-white">
                       {order.number} <span className="font-normal text-neutral-400">· {STATUS_LABEL[order.status]}</span>
                     </p>
                     <p className="mt-0.5 truncate text-xs text-neutral-400">
                       {order.table ?? order.type} · {order.items} item · {order.time}
                       {order.paymentStatus !== "Paid" ? " · Belum bayar" : ""}
                     </p>
-                    <p className="mt-1 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(order.total)}</p>
+                    <p className="mt-1 text-[13px] tabular-nums text-neutral-300">{formatCompactIDR(order.total)}</p>
                   </button>
                   <button
                     type="button"
@@ -508,7 +563,10 @@ function LiveOverview({
                     disabled={order.status === "Pending" || advancingId === order.id}
                     aria-busy={advancingId === order.id}
                     aria-label={`Lanjut ${order.number}`}
-                    className="flex h-11 shrink-0 items-center rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98] disabled:bg-neutral-100 disabled:text-neutral-400"
+                    className={cn(
+                      "flex h-11 shrink-0 items-center rounded-full px-5 text-[13px] font-medium active:scale-[0.98]",
+                      order.status === "Pending" ? "bg-white/10 text-neutral-400" : "bg-[#FDBD2C] text-neutral-900",
+                    )}
                   >
                     {order.status === "Pending" ? "Menunggu" : order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
                   </button>
@@ -568,6 +626,7 @@ function LiveOrders({
   loading,
   onShowNotice,
   onRefresh,
+  onNewOrder,
 }: {
   orders: Order[];
   isAdmin: boolean;
@@ -576,6 +635,7 @@ function LiveOrders({
   loading: boolean;
   onShowNotice: (message: string) => void;
   onRefresh: () => Promise<void>;
+  onNewOrder: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
@@ -616,26 +676,62 @@ function LiveOrders({
     if (response.ok && payload) setDetail(payload);
   }
 
+  async function cancelOrder(orderId: string, orderNumber: string) {
+    if (!window.confirm(`Batalkan pesanan ${orderNumber}? QR pending akan dinonaktifkan.`)) return;
+    try {
+      const response = await fetch(`/api/pos/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "cancelled" }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        onShowNotice(payload?.error ?? "Pesanan belum dapat dibatalkan.");
+        return;
+      }
+      setDetail(null);
+      setDetailId(null);
+      await onRefresh();
+      onShowNotice(`${orderNumber} dibatalkan.`);
+    } catch {
+      onShowNotice("Koneksi terputus. Pesanan belum dibatalkan.");
+    }
+  }
+
+  const processingCount = orders.filter((order) => ["Accepted", "Preparing"].includes(order.status)).length;
+  const completedCount = orders.filter((order) => order.status === "Completed").length;
+  const pendingCount = orders.filter((order) => order.status === "Pending").length;
+
   return (
     <div>
-      <PageHead
-        title="Pesanan"
-        sub={`${filtered.length} pesanan · hari bisnis Jakarta`}
-        action={isAdmin ? (
-          <a href={`/api/reports/daily.pdf?date=${jakartaToday()}`} className="hidden text-[13px] font-normal text-neutral-500 sm:block">
-            Unduh PDF
-          </a>
-        ) : undefined}
-      />
-
-      <div className="mt-6">
-        <SearchField value={query} onChange={setQuery} placeholder="Cari nomor atau meja…" />
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <div className="min-h-[132px] rounded-2xl border border-[#2F8062]/40 bg-[#1d2925] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<ShoppingBag size={26} strokeWidth={1.8} />} tone="green" label="Total pesanan" value={String(orders.length)} detail="Hari ini" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/30 bg-[#29271d] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<Clock3 size={26} strokeWidth={1.8} />} tone="orange" label="Menunggu bayar" value={String(pendingCount)} detail="Perlu tindakan" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-blue-400/25 bg-[#1d2430] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<ChefHat size={26} strokeWidth={1.8} />} tone="blue" label="Sedang diproses" value={String(processingCount)} detail="Di dapur" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-violet-400/25 bg-[#25202e] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<Check size={26} strokeWidth={1.8} />} tone="purple" label="Selesai" value={String(completedCount)} detail="Hari ini" /></div>
       </div>
 
-      <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1">
+      <div className="mt-6 flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <SearchField value={query} onChange={setQuery} placeholder="Cari nomor pesanan atau meja…" />
+        </div>
+        {isAdmin && <a href={`/api/reports/daily.pdf?date=${jakartaToday()}`} className="hidden h-11 shrink-0 items-center gap-2 rounded-full border border-white/[0.12] px-5 text-[13px] font-normal text-neutral-300 transition hover:bg-white/5 sm:flex"><Download size={15} strokeWidth={1.8} />Unduh PDF</a>}
+      </div>
+
+      <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1 xl:mx-0 xl:px-0">
         {FILTERS.map(({ key, label }) => {
           const n = counts.find((c) => c.key === key)?.n ?? 0;
           const isActive = filter === key;
+          const dotTone = {
+            Pending: "bg-[#FDBD2C]",
+            New: "bg-blue-500",
+            Accepted: "bg-violet-500",
+            Preparing: "bg-[#FDBD2C]",
+            Ready: "bg-emerald-400",
+            Completed: "bg-neutral-400",
+            Cancelled: "bg-red-400",
+            Refunded: "bg-neutral-500",
+          }[key];
           return (
             <button
               type="button"
@@ -644,58 +740,78 @@ function LiveOrders({
               aria-pressed={isActive}
               className={cn(
                 "flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-[13px] transition active:scale-[0.98]",
-                isActive ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-200 font-normal text-neutral-500",
+                isActive ? "border-[#FDBD2C] bg-[#FDBD2C]/15 font-medium text-white" : "border-white/[0.14] font-normal text-neutral-300 hover:bg-white/5",
               )}
             >
-              {label} <span className={cn("tabular-nums", isActive ? "text-neutral-300" : "text-neutral-400")}>{n}</span>
+              {key !== "All" && <span aria-hidden="true" className={cn("h-2 w-2 rounded-full", dotTone)} />}
+              {label} <span className={cn("tabular-nums", isActive ? "text-neutral-500" : "text-neutral-400")}>{n}</span>
             </button>
           );
         })}
       </div>
 
-      <div className="mt-4">
+      <div className="mt-6">
         {loading ? (
           <LoadingBlock label="Memuat pesanan…" />
         ) : filtered.length ? (
-          <div className="divide-y divide-neutral-100">
-            {filtered.map((order) => (
-              <div key={order.id} className="flex items-center gap-3 py-2">
-                <button
-                  type="button"
-                  onClick={() => void openDetail(order)}
-                  disabled={openingId === order.id}
-                  aria-busy={openingId === order.id}
-                  className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left active:bg-neutral-50"
-                  aria-label={`Detail ${order.number}`}
-                >
-                  <p className="truncate text-[14px] font-medium">{order.number}</p>
-                  <p className="mt-0.5 truncate text-xs text-neutral-400">
-                    {order.table ?? order.type} · {order.items} item · {order.time}
-                  </p>
-                  <p className="mt-1 text-[13px] tabular-nums text-neutral-500">
-                    {formatCompactIDR(order.total)}
-                    <span className="ml-2 text-xs font-normal text-neutral-400">
-                      {STATUS_LABEL[order.status]}
-                      {order.paymentStatus !== "Paid" && isActiveOrder(order) ? " · Belum bayar" : ""}
-                    </span>
-                  </p>
-                </button>
-                {isActiveOrder(order) ? (
-                  <button
-                    type="button"
-                    onClick={() => onAdvance(order)}
-                    disabled={order.status === "Pending" || advancingId === order.id}
-                    aria-busy={advancingId === order.id}
-                    aria-label={`Lanjut ${order.number}`}
-                    className="flex h-11 shrink-0 items-center rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98] disabled:bg-neutral-100 disabled:text-neutral-400"
-                  >
-                    {order.status === "Pending" ? "Menunggu" : order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
-                  </button>
-                ) : (
-                  <span className="shrink-0 px-2 text-xs text-neutral-300">Selesai</span>
-                )}
-              </div>
-            ))}
+          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#1b2029]">
+            <div className="hidden grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_auto] gap-4 bg-white/[0.04] px-6 py-3 text-xs text-neutral-400 lg:grid">
+              <span>Pesanan</span>
+              <span>Detail</span>
+              <span>Total</span>
+              <span>Status</span>
+              <span className="text-right">Aksi</span>
+            </div>
+            <div className="divide-y divide-white/[0.08]">
+              {filtered.map((order) => {
+                const statusTone = order.status === "Pending"
+                  ? "bg-[#FDBD2C]/15 text-[#FDBD2C]"
+                  : order.status === "Completed"
+                    ? "bg-[#2F8062]/35 text-emerald-200"
+                    : order.status === "Cancelled" || order.status === "Refunded"
+                      ? "bg-red-500/15 text-red-300"
+                      : order.status === "New"
+                        ? "bg-blue-500/15 text-blue-200"
+                        : order.status === "Accepted"
+                          ? "bg-violet-500/15 text-violet-200"
+                          : order.status === "Preparing"
+                            ? "bg-[#FDBD2C]/15 text-[#FDBD2C]"
+                            : "bg-emerald-500/15 text-emerald-200";
+                return (
+                  <div key={order.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 px-4 py-4 sm:px-5 lg:grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_auto] lg:items-center lg:gap-4 lg:px-6">
+                    <button
+                      type="button"
+                      onClick={() => void openDetail(order)}
+                      disabled={openingId === order.id}
+                      aria-busy={openingId === order.id}
+                      className="min-w-0 rounded-xl text-left transition active:bg-white/5 lg:rounded-none"
+                      aria-label={`Detail ${order.number}`}
+                    >
+                      <p className="truncate text-[14px] font-medium text-white">{order.number}</p>
+                      <p className="mt-1 truncate text-xs text-neutral-400">{formatShortDate(jakartaToday())} · {order.time}</p>
+                    </button>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-neutral-300"><ShoppingBag size={16} strokeWidth={1.7} /></span>
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-medium text-white">{order.type}</p>
+                        <p className="mt-0.5 truncate text-xs text-neutral-400">{order.table ? `${order.table} · ` : ""}{order.items} item</p>
+                      </div>
+                    </div>
+                    <p className="self-center text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(order.total)}</p>
+                    <span className={cn("inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-medium", statusTone)}><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />{STATUS_LABEL[order.status]}</span>
+                    <div className="flex justify-end">
+                      {order.status === "Pending" ? (
+                        <button type="button" onClick={() => void openDetail(order)} className="h-10 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 active:scale-[0.98]">Lihat</button>
+                      ) : isActiveOrder(order) ? (
+                        <button type="button" onClick={() => onAdvance(order)} disabled={advancingId === order.id} aria-busy={advancingId === order.id} aria-label={`Lanjut ${order.number}`} className="h-10 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 active:scale-[0.98] disabled:opacity-40">{order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}</button>
+                      ) : (
+                        <button type="button" onClick={() => void openDetail(order)} aria-label={`Buka detail ${order.number}`} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-neutral-300 active:scale-95">•••</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <EmptyBlock title="Tidak ada pesanan cocok." sub="Pesanan yang lunas akan muncul di sini." />
@@ -716,7 +832,13 @@ function LiveOrders({
             setDetail(null);
             setDetailId(null);
           }}
+          onCancel={() => void cancelOrder(detailId, detail.order.order_number)}
           onShowNotice={onShowNotice}
+          onNewOrder={() => {
+            setDetail(null);
+            setDetailId(null);
+            onNewOrder();
+          }}
           onSettled={async (orderId) => {
             await onRefresh();
             await refreshDetail(orderId);
@@ -771,11 +893,17 @@ function nextActionLabel(status: string) {
 function formatCreatedAt(iso: string) {
   const date = new Date(iso);
   const time = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(date);
-  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
-  return day === jakartaToday() ? `Hari ini · ${time}` : `${day} · ${time}`;
+  const day = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(date);
+  return `${day} · ${time}`;
 }
 
-function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNotice }: { detail: Detail; detailId: string; onClose: () => void; onAdvance: () => void; onSettled?: (orderId: string) => void; onShowNotice: (message: string) => void }) {
+function formatShortDate(date: string) {
+  const parsed = new Date(`${date}T12:00:00+07:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(parsed);
+}
+
+function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled, onShowNotice, onNewOrder }: { detail: Detail; detailId: string; onClose: () => void; onAdvance: () => void; onCancel: () => void; onSettled?: (orderId: string) => void; onShowNotice: (message: string) => void; onNewOrder: () => void }) {
   const table = Array.isArray(detail.order.restaurant_tables) ? detail.order.restaurant_tables[0]?.label : detail.order.restaurant_tables?.label;
   const payment = Array.isArray(detail.order.payments) ? detail.order.payments[0] : detail.order.payments;
   const totalItems = detail.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -783,6 +911,23 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
   const [nowMs, setNowMs] = useState(() => Date.now());
   const payExpiresMs = payment?.expires_at ? new Date(payment.expires_at).getTime() : null;
   const payRemainingMs = payExpiresMs !== null ? payExpiresMs - nowMs : null;
+  const isStale = detail.order.status === "cancelled" || detail.order.status === "refunded" || payment?.status === "expired";
+  const statusTone = detail.order.status === "cancelled" || detail.order.status === "refunded"
+    ? "bg-red-500/15 text-red-300"
+    : detail.order.status === "awaiting_payment"
+      ? "bg-[#FDBD2C]/15 text-[#FDBD2C]"
+      : detail.order.status === "completed"
+        ? "bg-emerald-500/15 text-emerald-300"
+        : "bg-blue-500/15 text-blue-200";
+  const paymentTone = payment?.status === "settled"
+    ? "bg-emerald-500/15 text-emerald-300"
+    : payment?.status === "expired" || payment?.status === "failed"
+      ? "bg-red-500/15 text-red-300"
+      : "bg-[#FDBD2C]/15 text-[#FDBD2C]";
+  const noticeTitle = payment?.status === "expired" ? "QR kedaluwarsa" : detail.order.status === "cancelled" ? "Pesanan dibatalkan" : "Pembayaran belum selesai";
+  const noticeDescription = payment?.status === "expired" || detail.order.status === "cancelled"
+    ? "Buat pesanan baru untuk melanjutkan."
+    : "Selesaikan pembayaran untuk melanjutkan pesanan.";
   const [checkingPay, setCheckingPay] = useState(false);
   const [resumeQr, setResumeQr] = useState<{ qrString?: string; qrImageUrl?: string; expiresAt: string } | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -809,6 +954,8 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
       } else {
         onShowNotice("Belum ada pembayaran terdeteksi.");
       }
+    } catch {
+      onShowNotice("Koneksi ke server pembayaran terputus. Status pesanan belum berubah.");
     } finally {
       setCheckingPay(false);
     }
@@ -833,6 +980,8 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
         return;
       }
       setResumeQr({ qrString: payload.qrString ?? undefined, qrImageUrl: payload.qrImageUrl ?? undefined, expiresAt: payload.expiresAt });
+    } catch {
+      onShowNotice("Koneksi ke server pembayaran terputus. QR belum dapat ditampilkan.");
     } finally {
       setCheckingPay(false);
     }
@@ -846,132 +995,189 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onSettled, onShowNo
   }, []);
 
   return createPortal(
-    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30" onClick={onClose}>
+    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#070a0f]/80 p-0 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose}>
       <aside
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet flex max-h-[92vh] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[28px] bg-white"
+        className="ord-sheet relative flex max-h-[94dvh] w-full max-w-[1100px] flex-col overflow-hidden rounded-t-[30px] border border-white/[0.12] bg-[#151a22] text-[#f4f4f5] shadow-[0_24px_80px_rgba(0,0,0,0.5)] sm:max-h-[90dvh] sm:rounded-[32px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="order-detail-title"
       >
-        <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-neutral-200" />
-        <div className="flex items-start justify-between gap-3 px-5 pb-4 pt-3">
+        <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-white/25 sm:mt-5" />
+        <div className="flex shrink-0 items-start justify-between gap-4 px-5 pb-5 pt-4 sm:px-12 sm:pb-7 sm:pt-6">
           <div className="min-w-0">
-            <p className="text-xs text-neutral-400">
-              Detail · {rawStatusLabel(detail.order.status)}
-            </p>
-            <h2 id="order-detail-title" className="mt-1 text-lg font-medium tabular-nums tracking-tight">{detail.order.order_number}</h2>
-            <p className="mt-0.5 text-[13px] text-neutral-500">
-              {formatCreatedAt(detail.order.created_at)} · {totalItems} porsi
-            </p>
-            <p className="mt-1 text-[13px] text-neutral-500">
-              {detail.order.order_type === "dine_in" ? (table ?? "Dine in") : "Takeaway"}
-            </p>
+            <div className={cn("inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium", statusTone)}>
+              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-current" />
+              {rawStatusLabel(detail.order.status)}
+            </div>
+            <h2 id="order-detail-title" className="mt-5 truncate text-3xl font-medium leading-tight tracking-tight text-white sm:text-4xl">{detail.order.order_number}</h2>
+            <p className="mt-1.5 text-sm text-neutral-400 sm:text-base">{formatCreatedAt(detail.order.created_at)}</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-[#202631] px-4 py-2 text-sm text-neutral-300">
+                <ShoppingBag size={18} strokeWidth={1.7} />
+                {detail.order.order_type === "dine_in" ? (table ?? "Dine in") : "Takeaway"}
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-[#202631] px-4 py-2 text-sm text-neutral-300">
+                <UsersRound size={18} strokeWidth={1.7} />
+                {totalItems} porsi
+              </span>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Tutup detail"
             autoFocus
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#232a35] text-neutral-300 transition hover:bg-[#2b323e] active:scale-95"
           >
-            <X size={15} />
+            <X size={22} strokeWidth={1.8} />
           </button>
         </div>
 
-        <div className="flex-1 space-y-7 overflow-y-auto px-5 pb-5">
+        <div className="flex-1 overflow-y-auto px-5 pb-6 sm:px-12 sm:pb-8">
           <section>
-            <p className="text-xs text-neutral-400">Item · {detail.items.length} baris</p>
-            <div className="mt-1 divide-y divide-neutral-100">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-lg font-medium text-white sm:text-xl">Item Pesanan</h3>
+              <span className="shrink-0 text-sm text-neutral-400">{detail.items.length} item · {totalItems} baris</span>
+            </div>
+            <div className="mt-4 space-y-3">
               {detail.items.map((item) => {
-                const modifiers = item.order_item_modifiers?.map((m) => m.modifier_name_snapshot).filter(Boolean) ?? [];
+                const modifierCounts = new Map<string, number>();
+                for (const modifier of item.order_item_modifiers ?? []) {
+                  if (modifier.modifier_name_snapshot) modifierCounts.set(modifier.modifier_name_snapshot, (modifierCounts.get(modifier.modifier_name_snapshot) ?? 0) + 1);
+                }
+                const modifiers = Array.from(modifierCounts, ([name, count]) => count > 1 ? `${name} × ${count}` : name);
                 return (
-                  <div key={item.id} className="flex gap-3 py-3.5">
+                  <div key={item.id} className="flex gap-3 rounded-2xl border border-white/[0.08] bg-[#1b2029] p-3.5 sm:gap-5 sm:p-5">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/[0.1] bg-[#232a35] text-neutral-400 sm:h-24 sm:w-24">
+                      {item.image_url ? <img src={item.image_url} alt="" className="h-full w-full object-cover" /> : <ShoppingBag size={28} strokeWidth={1.4} />}
+                    </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium">
-                        {item.quantity}× {item.product_name_snapshot}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-neutral-400">
+                      <p className="truncate text-base font-medium text-white sm:text-lg">{item.product_name_snapshot}</p>
+                      <p className="mt-1 text-sm tabular-nums text-neutral-300">{item.quantity} × {formatCompactIDR(item.unit_price_idr)}</p>
+                      <p className="mt-2 truncate text-sm text-neutral-400">
                         {modifiers.length > 0 ? modifiers.join(" · ") : "Original"}
                         {item.note ? ` · “${item.note}”` : ""}
                       </p>
                     </div>
-                    <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.line_total_idr)}</span>
+                    <span className="shrink-0 self-start text-base font-medium tabular-nums text-white sm:text-xl">{formatCompactIDR(item.line_total_idr)}</span>
                   </div>
                 );
               })}
             </div>
-            <div className="flex items-baseline justify-between border-t border-neutral-100 pt-3">
-              <span className="text-[13px] text-neutral-500">Total</span>
-              <span className="text-[15px] font-medium tabular-nums">{formatCompactIDR(detail.order.total_idr)}</span>
+          </section>
+
+          <section className="mt-7 border-t border-white/[0.08] pt-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <ReceiptText size={28} strokeWidth={1.6} className="text-neutral-300" />
+                <span className="text-lg font-medium text-white">Total</span>
+              </div>
+              <span className="text-2xl font-medium tabular-nums text-white sm:text-3xl">{formatCompactIDR(detail.order.total_idr)}</span>
             </div>
           </section>
 
-          <section>
-            <p className="text-xs text-neutral-400">Pembayaran</p>
-            <div className="mt-1 divide-y divide-neutral-100">
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-[13px] text-neutral-400">Metode</span>
-                <span className="text-[13px] font-medium">
+          <section className="mt-6 border-t border-white/[0.08] pt-6">
+            <div className="flex items-center gap-4">
+              <CreditCard size={28} strokeWidth={1.6} className="text-neutral-300" />
+              <h3 className="text-lg font-medium text-white">Pembayaran</h3>
+            </div>
+            <div className="mt-5 space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-base text-neutral-400">Metode</span>
+                <span className="text-right text-base text-white">
                   {payMethodLabel(payment?.method)}
                   {payment?.provider ? ` · ${payment.provider}` : ""}
                 </span>
               </div>
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-[13px] text-neutral-400">Status</span>
-                <span className="text-[13px] font-medium">{payStateLabel(payment?.status)}</span>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-base text-neutral-400">Status</span>
+                <span className={cn("inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium", paymentTone)}>
+                  <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-current" />
+                  {payStateLabel(payment?.status)}
+                </span>
               </div>
               {payment?.status === "pending" && payRemainingMs !== null && payRemainingMs > 0 && (
-                <div className="flex items-center justify-between py-2.5">
-                  <span className="text-[13px] text-neutral-400">QR berlaku</span>
-                  <span className="text-[13px] tabular-nums text-neutral-500">{formatCountdown(payRemainingMs)}</span>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-base text-neutral-400">QR berlaku</span>
+                  <span className="text-base tabular-nums text-neutral-300">{formatCountdown(payRemainingMs)}</span>
                 </div>
               )}
             </div>
-            <p className="mt-2 text-[13px] leading-relaxed text-neutral-500">
-              {payment?.status === "settled"
-                ? "Lunas · siap masuk dapur."
-                : payment?.status === "pending"
-                  ? "Menunggu pembayaran customer."
-                  : payment?.status === "expired"
-                    ? "QR kedaluwarsa · buat pesanan baru."
-                    : payment?.status === "failed"
-                      ? "Ditolak provider · minta coba lagi."
-                      : payStateLabel(payment?.status)}
-            </p>
           </section>
+
+          {isStale && (
+            <div className="mt-6 flex gap-4 rounded-2xl border border-[#FDBD2C]/40 bg-[#FDBD2C]/10 p-4 sm:p-5">
+              <Info size={28} strokeWidth={1.8} className="mt-0.5 shrink-0 text-[#FDBD2C]" />
+              <div className="min-w-0">
+                <p className="text-base font-medium text-white">{noticeTitle}</p>
+                <p className="mt-1 text-sm leading-relaxed text-neutral-300">{noticeDescription}</p>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="border-t border-neutral-100 bg-white/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-          <button
-            type="button"
-            onClick={onAdvance}
-            disabled={done}
-            className="h-[52px] w-full rounded-2xl bg-[#FDBD2C] text-[15px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
-          >
-            {nextActionLabel(detail.order.status)}
-          </button>
-          {payment?.status === "pending" && (
-            <div className="mt-1 grid grid-cols-2 gap-2">
+        <div className="shrink-0 border-t border-white/[0.08] bg-[#151a22]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur sm:px-12 sm:pt-5">
+          {isStale ? (
+            <>
               <button
                 type="button"
-                onClick={() => void checkPaymentNow()}
-                disabled={checkingPay}
-                className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500 active:bg-neutral-50 disabled:opacity-60"
+                onClick={onNewOrder}
+                className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#FDBD2C] text-base font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
               >
-                {checkingPay ? "Mengecek…" : "Cek pembayaran"}
+                <RefreshCw size={21} strokeWidth={1.9} />
+                Buat pesanan baru
               </button>
               <button
                 type="button"
-                onClick={() => void resumeQrCode()}
-                disabled={checkingPay}
-                className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500 active:bg-neutral-50 disabled:opacity-60"
+                onClick={onClose}
+                className="mt-3 h-14 w-full rounded-2xl border border-white/[0.28] text-base text-neutral-300 transition hover:bg-white/5 active:scale-[0.98]"
               >
-                Tampilkan QR
+                Tutup
               </button>
-            </div>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onAdvance}
+                disabled={done}
+                className="h-14 w-full rounded-2xl bg-[#FDBD2C] text-base font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+              >
+                {nextActionLabel(detail.order.status)}
+              </button>
+              {payment?.status === "pending" && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void checkPaymentNow()}
+                    disabled={checkingPay}
+                    className="h-11 w-full rounded-full text-[13px] text-neutral-400 transition hover:bg-white/5 disabled:opacity-60"
+                  >
+                    {checkingPay ? "Mengecek…" : "Cek pembayaran"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void resumeQrCode()}
+                    disabled={checkingPay}
+                    className="h-11 w-full rounded-full text-[13px] text-neutral-400 transition hover:bg-white/5 disabled:opacity-60"
+                  >
+                    Tampilkan QR
+                  </button>
+                </div>
+              )}
+              {["draft", "awaiting_payment"].includes(detail.order.status) && (
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="mt-1 h-11 w-full rounded-full text-[13px] text-red-300 transition hover:bg-red-500/10"
+                >
+                  Batalkan pesanan
+                </button>
+              )}
+            </>
           )}
         </div>
         {resumeQr && (
@@ -1012,11 +1218,11 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
   }, []);
   const remainingMs = new Date(expiresAt).getTime() - now;
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-900/30 p-4" onClick={onClose}>
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#070a0f]/80 p-4 backdrop-blur-sm" onClick={onClose}>
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="shadow-soft w-full max-w-[300px] rounded-3xl bg-white p-5 text-center"
+        className="shadow-soft w-full max-w-[300px] rounded-3xl border border-white/[0.12] bg-[#151a22] p-5 text-center text-white"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -1024,9 +1230,9 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
       >
         <p id="resume-qr-title" className="text-xs text-neutral-400">QRIS · {orderNumber}</p>
         {qrImageUrl ? (
-          <img src={qrImageUrl} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-neutral-100 p-2" />
+          <img src={qrImageUrl} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-white/[0.12] bg-white p-2" />
         ) : qr ? (
-          <img src={qr} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-neutral-100 p-2" />
+          <img src={qr} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-white/[0.12] bg-white p-2" />
         ) : (
           <div className="ord-skeleton mx-auto mt-4 h-48 w-48 rounded-2xl" />
         )}
@@ -1034,7 +1240,7 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
         <p className="mt-1 text-[13px] text-neutral-400">
           {remainingMs > 0 ? <span>Berlaku {formatCountdown(remainingMs)}</span> : <span>Kedaluwarsa</span>}
         </p>
-        <button type="button" onClick={onClose} className="mt-4 h-12 w-full rounded-full bg-neutral-900 text-sm font-medium text-white active:scale-[0.98]">
+        <button type="button" onClick={onClose} className="mt-4 h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 active:scale-[0.98]">
           Tutup
         </button>
       </section>
@@ -1172,7 +1378,7 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
       setCartOpen(false);
       await onOrderCreated?.();
     } catch {
-      onShowNotice("Pesanan gagal dibuat.");
+      onShowNotice("Koneksi ke server checkout terputus. Tidak diketahui apakah pesanan dibuat; cek daftar pesanan sebelum mencoba lagi.");
     } finally {
       setSaving(false);
     }
@@ -1184,45 +1390,48 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
         <PageHead title="Kasir" sub={`${orderType === "dine_in" ? "Dine in" : "Takeaway"} · ${paymentMethod === "cash" ? "Tunai" : "QRIS"}`} />
       </div>
 
-      <div className="mt-3 flex max-w-md gap-2">
-        {([{ key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }, { key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-10 flex-1 rounded-full border text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-200 text-neutral-500")}>{method.label}</button>)}
-      </div>
-
-      <div className="flex max-w-md rounded-2xl bg-neutral-100 p-1 lg:mt-6 lg:rounded-full">
-        {(
-          [
-            { key: "dine_in", label: "Dine in" },
-            { key: "takeaway", label: "Takeaway" },
-          ] as const
-        ).map(({ key, label }) => (
-          <button
-            type="button"
-            key={key}
-            onClick={() => { setOrderType(key); if (key === "takeaway") setTableId(null); }}
-            aria-pressed={orderType === key}
-            className={cn(
-              "h-11 flex-1 rounded-xl text-center text-sm transition active:scale-[0.98] lg:rounded-full lg:text-[13px]",
-              orderType === key ? "bg-white font-medium shadow-xs" : "font-normal text-neutral-500",
+      <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="min-w-0 rounded-2xl border border-white/[0.06] bg-[#171c24] p-5 sm:p-6">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.08fr]">
+            <div className="flex rounded-full border border-white/[0.12] bg-white/[0.03] p-1">
+              {(
+                [
+                  { key: "dine_in", label: "Dine in" },
+                  { key: "takeaway", label: "Takeaway" },
+                ] as const
+              ).map(({ key, label }) => (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => { setOrderType(key); if (key === "takeaway") setTableId(null); }}
+                  aria-pressed={orderType === key}
+                  className={cn(
+                    "h-11 flex-1 rounded-full text-center text-[13px] transition active:scale-[0.98]",
+                    orderType === key ? "bg-[#FDBD2C]/15 font-medium text-white ring-1 ring-[#FDBD2C]" : "font-normal text-neutral-400",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="flex rounded-full border border-white/[0.12] bg-white/[0.03] p-1">
+              {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-11 flex-1 rounded-full text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "bg-white/10 font-medium text-white ring-1 ring-[#FDBD2C]" : "text-neutral-400")}>{method.label}</button>)}
+            </div>
+            {orderType === "dine_in" && (
+              <label htmlFor="cashier-table" className="block text-[13px] text-neutral-400 sm:col-span-2 xl:col-span-1">
+                Meja <span className="text-neutral-500">· opsional</span>
+                <select id="cashier-table" value={tableId ?? ""} onChange={(event) => setTableId(event.target.value || null)} className="input mt-2 h-11 rounded-xl">
+                  <option value="">Tanpa meja / walk-in</option>
+                  {tables.map((table) => <option key={table.id} value={table.id}>{table.label}</option>)}
+                </select>
+              </label>
             )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      {orderType === "dine_in" && (
-          <label htmlFor="cashier-table" className="mt-3 block max-w-md text-[13px] text-neutral-500">
-          Meja <span className="text-neutral-400">· opsional</span>
-          <select id="cashier-table" value={tableId ?? ""} onChange={(event) => setTableId(event.target.value || null)} className="input mt-1">
-            <option value="">Tanpa meja / walk-in</option>
-            {tables.map((table) => <option key={table.id} value={table.id}>{table.label}</option>)}
-          </select>
-        </label>
-      )}
+          </div>
 
-      <div className="mt-8 grid items-start gap-10 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section>
-          <SearchField value={query} onChange={setQuery} placeholder="Cari menu…" />
-          <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1">
+          <div className="mt-6">
+            <SearchField value={query} onChange={setQuery} placeholder="Cari menu… (contoh: sate taichan)" />
+          </div>
+          <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto pb-1">
             {categories.map((item) => (
               <button
                 type="button"
@@ -1231,7 +1440,7 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
                 aria-pressed={category === item}
                 className={cn(
                   "flex h-10 shrink-0 items-center rounded-full border px-4 text-[13px] transition active:scale-[0.98]",
-                  category === item ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-200 font-normal text-neutral-500",
+                  category === item ? "border-[#FDBD2C] bg-[#FDBD2C]/15 font-medium text-white" : "border-white/[0.14] font-normal text-neutral-400 hover:bg-white/5",
                 )}
               >
                 {item}
@@ -1241,11 +1450,11 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
 
           {filtered.length ? (
             <div className="mt-6">
-              <div className="flex items-baseline justify-between">
-              <h3 className="text-sm font-medium">{category}</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium tracking-tight text-white">Menu</h3>
                 <span className="text-xs tabular-nums text-neutral-400">{filtered.length} item</span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
                 {filtered.map((product) => {
                   const qty = cart.filter((item) => item.product.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
                   return (
@@ -1256,11 +1465,11 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
                       disabled={!product.available}
                       aria-label={product.available ? `Tambah ${product.name}` : `${product.name} habis`}
                       className={cn(
-                        "min-w-0 rounded-2xl border p-2 text-left transition active:scale-[0.98] disabled:opacity-60",
-                        qty > 0 ? "border-neutral-900" : "border-neutral-100",
+                        "relative min-w-0 rounded-2xl border border-white/[0.08] bg-[#1b2029] p-2.5 text-left transition hover:border-[#FDBD2C]/60 active:scale-[0.98] disabled:opacity-60",
+                        qty > 0 ? "border-[#FDBD2C] bg-[#282321]" : "",
                       )}
                     >
-                      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-neutral-100">
+                      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-[#232a35]">
                         {product.imageUrl ? (
                           <img src={product.imageUrl} alt={product.name} loading="lazy" className="h-full w-full object-cover" />
                         ) : (
@@ -1279,9 +1488,11 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
                           </span>
                         )}
                       </div>
-                      <p className="mt-2 truncate px-1 text-[13px] font-medium leading-snug">{product.name}</p>
-                      <p className="mt-0.5 px-1 pb-1 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(product.price)}</p>
+                      <p className="mt-2 truncate px-1 text-[13px] font-medium leading-snug text-white">{product.name}</p>
+                      <p className="mt-0.5 truncate px-1 text-xs text-neutral-400">{product.description || "Menu pilihan"}</p>
+                      <p className="mt-1 px-1 pb-1 text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(product.price)}</p>
                       {product.stockTracked && product.available && <p className="px-1 pb-1 text-xs tabular-nums text-neutral-400">{product.stockQuantity ?? 0} tersisa</p>}
+                      <span aria-hidden="true" className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-[#FDBD2C] text-neutral-900 shadow-[0_6px_14px_rgba(253,189,44,0.2)]"><Plus size={18} strokeWidth={2.2} /></span>
                     </button>
                   );
                 })}
@@ -1293,25 +1504,31 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
         </section>
 
         {/* Cart — desktop */}
-        <aside className="sticky top-24 hidden xl:block">
-          <h3 className="text-sm font-medium">Pesanan berjalan</h3>
-          <p className="mt-1 text-[13px] text-neutral-500">
+        <aside className="sticky top-6 hidden max-h-[calc(100dvh-7.5rem)] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#171c24] p-6 lg:block">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-lg font-medium tracking-tight text-white">Pesanan saat ini</h3>
+            {cart.length > 0 && <button type="button" onClick={clearCart} className="flex items-center gap-2 text-[13px] text-neutral-400 transition hover:text-white"><Trash2 size={15} strokeWidth={1.8} />Hapus Semua</button>}
+          </div>
+          <p className="mt-1 text-[13px] text-neutral-400">
             {orderType === "dine_in" ? "Dine in" : "Takeaway"} · {paymentMethod === "cash" ? "Tunai" : "QRIS"}
           </p>
-          <div className="mt-2">
+          <div className="mt-4">
             {cart.length ? (
-              <div className="divide-y divide-neutral-100">
+              <div className="divide-y divide-white/[0.08]">
                 {cart.map((item) => (
-                  <div key={item.key} className="flex gap-3 py-3.5">
+                  <div key={item.key} className="flex gap-3 py-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[0.08] bg-[#232a35] text-lg font-medium text-neutral-400">
+                      {item.product.imageUrl ? <img src={item.product.imageUrl} alt="" className="h-full w-full object-cover" /> : item.product.name.slice(0, 1)}
+                    </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium">{item.product.name}</p>
+                      <p className="truncate text-[13px] font-medium text-white">{item.product.name}</p>
                       <p className="mt-0.5 text-xs text-neutral-400">{[...item.variantLabels, ...item.addonLabels].join(" · ") || "Original"}</p>
-                      <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{formatCompactIDR(item.unitPrice)} / porsi</p>
+                      <p className="mt-1 text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(item.unitPrice * item.quantity)}</p>
                       <div className="mt-2">
                         <QtyStepper itemName={item.product.name} count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
                       </div>
                     </div>
-                    <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.unitPrice * item.quantity)}</span>
+                    <button type="button" onClick={() => setQty(item.key, -item.quantity)} aria-label={`Hapus ${item.product.name}`} className="flex h-8 w-8 shrink-0 items-center justify-center text-neutral-400 active:text-white"><MoreVertical size={18} /></button>
                   </div>
                 ))}
               </div>
@@ -1319,29 +1536,25 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
               <p className="py-10 text-[13px] text-neutral-500">Ketuk menu untuk mulai.</p>
             )}
           </div>
-          <div className="mt-2 flex items-baseline justify-between border-t border-neutral-100 pt-4">
-            <span className="text-[13px] text-neutral-500">Total · {count} item</span>
-            <span className="text-[15px] font-medium tabular-nums">{formatIDR(total)}</span>
+          <div className="mt-3 flex items-baseline justify-between border-t border-white/[0.08] pt-5">
+            <span className="text-[13px] text-neutral-400">Total <span className="text-neutral-500">({count} item)</span></span>
+            <span className="text-lg font-medium tabular-nums text-white">{formatIDR(total)}</span>
           </div>
           <button
             type="button"
             disabled={!cart.length || saving}
             onClick={() => void createOrder()}
-            className="mt-4 h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
           >
+            <ReceiptText size={17} strokeWidth={1.9} />
             {saving ? "Membuat…" : "Buat pembayaran"}
           </button>
-          {cart.length > 0 && (
-            <button type="button" onClick={clearCart} className="mt-1 h-12 w-full rounded-full text-sm font-normal text-neutral-500">
-              Kosongkan
-            </button>
-          )}
         </aside>
       </div>
 
       {/* Cart — mobile bar */}
       {cart.length > 0 && !cartOpen && (
-        <div className="fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-30 mx-auto max-w-[440px] px-4 xl:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-30 mx-auto max-w-[440px] px-4 lg:hidden">
                 <button
                   type="button"
                   onClick={() => setCartOpen(true)}
@@ -1361,7 +1574,7 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
 
       {/* Cart — mobile sheet */}
       {cartOpen && (
-        <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 xl:hidden" onClick={() => setCartOpen(false)}>
+        <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 lg:hidden" onClick={() => setCartOpen(false)}>
             <section
             ref={cartDialogRef}
             tabIndex={-1}
@@ -1476,6 +1689,7 @@ function CashierPayment({
 }) {
   const [qr, setQr] = useState("");
   const [phase, setPhase] = useState<"pending" | "settled" | "expired" | "failed">("pending");
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const settledRef = useRef(false);
   const dialogRef = useRef<HTMLElement>(null);
@@ -1506,7 +1720,12 @@ function CashierPayment({
       try {
         const response = await fetch(`/api/pos/orders/${payment.orderId}/payment`, { method: "POST", cache: "no-store" });
         const payload = await response.json().catch(() => null);
-        if (cancelled || !response.ok || !payload) return;
+        if (cancelled) return;
+        if (!response.ok || !payload) {
+          setStatusMessage(payload?.error ?? "Status pembayaran belum dapat disinkronkan. Coba lagi.");
+          return;
+        }
+        setStatusMessage(null);
         if (payload.paymentStatus === "settled") {
           settledRef.current = true;
           setPhase("settled");
@@ -1515,7 +1734,7 @@ function CashierPayment({
           setPhase(payload.paymentStatus);
         }
       } catch {
-        // Keep QR on screen; next tick retries.
+        if (!cancelled) setStatusMessage("Koneksi ke server pembayaran terputus. QR tetap aktif; sistem akan mencoba lagi.");
       }
     }
     void poll();
@@ -1529,11 +1748,11 @@ function CashierPayment({
   const state = timedOut && phase === "pending" ? "expired" : phase;
 
   return createPortal(
-    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 p-0 sm:items-center sm:p-4" onClick={onClose}>
+    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#070a0f]/80 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet w-full max-w-[380px] rounded-t-[28px] bg-white p-5 text-center sm:rounded-[28px]"
+        className="ord-sheet w-full max-w-[380px] rounded-t-[28px] border border-white/[0.12] bg-[#151a22] p-5 text-center text-white sm:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -1548,13 +1767,13 @@ function CashierPayment({
             type="button"
             onClick={onClose}
             aria-label="Tutup pembayaran"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#232a35] text-neutral-300 active:scale-95"
           >
             <X size={15} />
           </button>
         </div>
 
-        <div className="shadow-soft mx-auto mt-8 w-fit rounded-3xl border border-neutral-100 bg-white p-4">
+        <div className="shadow-soft mx-auto mt-8 w-fit rounded-3xl border border-white/[0.12] bg-white p-4">
           {state === "settled" ? (
             <p className="flex h-56 w-56 items-center justify-center px-6 text-center text-sm font-medium">Pembayaran lunas.</p>
           ) : state === "expired" ? (
@@ -1584,6 +1803,7 @@ function CashierPayment({
             "Ditolak provider"
           )}
         </p>
+        {statusMessage && <p role="status" aria-live="polite" className="mt-2 text-[12px] leading-relaxed text-red-300">{statusMessage}</p>}
         <button
           type="button"
           onClick={onClose}
@@ -1624,36 +1844,65 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
     }
   }
 
+  function applyPreset(key: "Today" | "Yesterday" | "Last 7 days") {
+    const today = jakartaToday();
+    if (key === "Today") {
+      setFrom(today);
+      setTo(today);
+      return;
+    }
+    const date = new Date(`${today}T12:00:00+07:00`);
+    date.setDate(date.getDate() - (key === "Yesterday" ? 1 : 6));
+    const value = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(date);
+    setFrom(value);
+    setTo(key === "Yesterday" ? value : today);
+  }
+
+  const today = jakartaToday();
+  const todaySelected = from === today && to === today;
+
   return (
     <div>
       <PageHead
         title="Laporan"
         sub="Hari bisnis Jakarta · pembayaran lunas"
         action={
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              {([{ key: "Today", label: "Hari ini" }, { key: "Yesterday", label: "Kemarin" }, { key: "Last 7 days", label: "7 hari" }] as const).map(({ key, label }) => <button key={key} type="button" onClick={() => { const today = jakartaToday(); if (key === "Today") { setFrom(today); setTo(today); } else if (key === "Yesterday") { const date = new Date(`${today}T12:00:00+07:00`); date.setDate(date.getDate() - 1); const value = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(date); setFrom(value); setTo(value); } else { const date = new Date(`${today}T12:00:00+07:00`); date.setDate(date.getDate() - 6); setFrom(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(date)); setTo(today); } }} className="h-9 rounded-full border border-neutral-200 px-3 text-xs text-neutral-500">{label}</button>)}
-              <input
-                type="date"
-                value={from}
-                onChange={(event) => setFrom(event.target.value)}
-                aria-label="Tanggal mulai laporan"
-                className="h-11 flex-1 rounded-2xl bg-neutral-100 px-4 text-sm font-normal outline-none focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50 sm:h-10 sm:flex-none sm:rounded-full sm:text-[13px]"
-              />
-              <span className="text-xs text-neutral-400">s/d</span>
-              <input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label="Tanggal akhir laporan" className="h-11 flex-1 rounded-2xl bg-neutral-100 px-4 text-sm font-normal outline-none focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50 sm:h-10 sm:flex-none sm:rounded-full sm:text-[13px]" />
+              {([{ key: "Today", label: "Hari ini" }, { key: "Yesterday", label: "Kemarin" }, { key: "Last 7 days", label: "7 hari" }] as const).map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyPreset(key)}
+                  className={cn(
+                    "h-11 rounded-full border px-4 text-[13px] transition active:scale-[0.98]",
+                    key === "Today" && todaySelected ? "border-[#FDBD2C] bg-[#FDBD2C]/10 font-medium text-[#FDBD2C]" : "border-white/[0.1] bg-[#1b2029] text-neutral-300 hover:bg-white/5",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+              <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-full border border-white/[0.08] bg-[#232a35] px-3 sm:flex-none">
+                <CalendarDays size={15} strokeWidth={1.7} className="shrink-0 text-neutral-300" />
+                <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label="Tanggal mulai laporan" className="min-w-0 flex-1 bg-transparent px-1 text-[12px] text-white outline-none [color-scheme:dark] sm:w-[104px] sm:flex-none" />
+                <ArrowRight size={14} strokeWidth={1.7} className="shrink-0 text-neutral-400" />
+                <input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label="Tanggal akhir laporan" className="min-w-0 flex-1 bg-transparent px-1 text-[12px] text-white outline-none [color-scheme:dark] sm:w-[104px] sm:flex-none" />
+                <CalendarDays size={15} strokeWidth={1.7} className="shrink-0 text-neutral-300" />
+              </div>
               <button
+                type="button"
                 onClick={() => void load()}
                 disabled={loading}
-                className="flex h-11 items-center rounded-2xl bg-neutral-900 px-5 text-sm font-medium text-white active:scale-[0.98] sm:h-10 sm:rounded-full sm:text-[13px]"
+                className="flex h-11 items-center justify-center rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-50"
               >
                 {loading ? "Memuat…" : "Muat"}
               </button>
             </div>
             <a
               href={`/api/reports/daily.pdf?from=${from}&to=${to}`}
-              className="flex h-11 items-center justify-center rounded-2xl border border-neutral-200 text-sm font-medium text-neutral-900 active:bg-neutral-50 sm:h-10 sm:rounded-full sm:border-0 sm:text-[13px]"
+              className="flex h-11 items-center justify-center gap-2 rounded-full border border-white/[0.12] px-4 text-[13px] text-neutral-300 transition hover:bg-white/5 active:scale-[0.98]"
             >
+              <Download size={15} strokeWidth={1.8} />
               Unduh PDF
             </a>
           </div>
@@ -1662,75 +1911,92 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
 
       {report ? (
         <>
-          <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-100 xl:grid-cols-4">
-            <div className="bg-white p-4 sm:p-5">
-              <Metric label="Penjualan bersih" value={formatCompactIDR(report.netRevenueIdr)} detail={`${report.orderCount} pesanan lunas`} />
-            </div>
-            <div className="bg-white p-4 sm:p-5">
-              <Metric label="Penjualan kotor" value={formatCompactIDR(report.grossRevenueIdr)} detail="Settlement periode ini" />
-            </div>
-            <div className="bg-white p-4 sm:p-5">
-              <Metric label="Refund" value={formatCompactIDR(report.refundsIdr)} detail="Diproses periode ini" />
-            </div>
-            <div className="bg-white p-4 sm:p-5">
-              <Metric label="Est. laba" value={formatCompactIDR(report.estimatedGrossProfitIdr)} detail="Bukan laba bersih" />
-            </div>
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <ReportMetric icon={<TrendingUp size={22} strokeWidth={1.8} />} tone="green" label="Penjualan bersih" value={formatCompactIDR(report.netRevenueIdr)} detail={`${report.orderCount} pesanan lunas`} />
+            <ReportMetric icon={<CircleDollarSign size={22} strokeWidth={1.8} />} tone="blue" label="Penjualan kotor" value={formatCompactIDR(report.grossRevenueIdr)} detail="Settlement periode ini" />
+            <ReportMetric icon={<RefreshCw size={22} strokeWidth={1.8} />} tone="orange" label="Refund" value={formatCompactIDR(report.refundsIdr)} detail="Diproses periode ini" />
+            <ReportMetric icon={<BarChart3 size={22} strokeWidth={1.8} />} tone="purple" label="Est. laba" value={formatCompactIDR(report.estimatedGrossProfitIdr)} detail="Bukan laba bersih" />
           </div>
 
-          <section className="mt-8 border-t border-neutral-100 pt-6">
-            <h3 className="text-sm font-medium">Komposisi</h3>
-            <div className="mt-1 divide-y divide-neutral-100">
-              <div className="flex items-center justify-between py-3">
-                <span className="text-[13px] font-medium">Dine in</span>
-                <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.dineInRevenueIdr)}</span>
+          <section className="mt-6 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#1b2029]">
+            <div className="px-5 pb-4 pt-5 sm:px-6">
+              <h3 className="text-base font-medium text-white">Rincian Laporan</h3>
+              <p className="mt-1 text-[13px] text-neutral-400">Berdasarkan sumber penjualan</p>
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_24px] gap-4 bg-white/[0.04] px-5 py-3 text-[13px] text-neutral-300 sm:px-6">
+              <span>Komposisi</span>
+              <span>Total</span>
+              <span aria-hidden="true" />
+            </div>
+            <div className="divide-y divide-white/[0.08]">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_24px] items-center gap-4 px-5 py-3.5 sm:px-6">
+                <div className="flex min-w-0 items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500 text-white"><ShoppingBag size={15} strokeWidth={1.8} /></span><span className="truncate text-[14px] font-medium text-white">Dine in</span></div>
+                <span className="text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(report.dineInRevenueIdr)}</span>
+                <ChevronRight size={17} strokeWidth={1.7} className="text-neutral-300" />
               </div>
-              <div className="flex items-center justify-between py-3">
-                <span className="text-[13px] font-medium">Takeaway</span>
-                <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.takeawayRevenueIdr)}</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_24px] items-center gap-4 px-5 py-3.5 sm:px-6">
+                <div className="flex min-w-0 items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white"><Store size={15} strokeWidth={1.8} /></span><span className="truncate text-[14px] font-medium text-white">Takeaway</span></div>
+                <span className="text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(report.takeawayRevenueIdr)}</span>
+                <ChevronRight size={17} strokeWidth={1.7} className="text-neutral-300" />
               </div>
-              <div className="flex items-center justify-between py-3">
-                <span className="text-[13px] text-neutral-400">Rata-rata</span>
-                <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.averageOrderValueIdr)}</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_24px] items-center gap-4 px-5 py-3.5 sm:px-6">
+                <div className="flex min-w-0 items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500 text-white"><BarChart3 size={15} strokeWidth={1.8} /></span><span className="truncate text-[14px] font-medium text-white">Rata-rata</span></div>
+                <span className="text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(report.averageOrderValueIdr)}</span>
+                <ChevronRight size={17} strokeWidth={1.7} className="text-neutral-300" />
               </div>
-              <div className="flex items-center justify-between py-3"><span className="text-[13px] text-neutral-400">Est. COGS · fee</span><span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.estimatedCogsIdr)} · {formatCompactIDR(report.paymentFeesIdr)}</span></div>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_24px] items-center gap-4 px-5 py-3.5 sm:px-6">
+                <div className="flex min-w-0 items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-500 text-white"><Percent size={15} strokeWidth={1.8} /></span><span className="truncate text-[14px] font-medium text-white">Est. COGS · fee</span></div>
+                <span className="text-right text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(report.estimatedCogsIdr)} · {formatCompactIDR(report.paymentFeesIdr)}</span>
+                <ChevronRight size={17} strokeWidth={1.7} className="text-neutral-300" />
+              </div>
             </div>
           </section>
 
-          {report.dailyBreakdown.length > 1 && <section className="mt-8 border-t border-neutral-100 pt-6"><h3 className="text-sm font-medium">Per hari</h3><div className="mt-2 divide-y divide-neutral-100">{report.dailyBreakdown.map((day) => <div key={day.date} className="flex items-center justify-between gap-3 py-3"><div><p className="text-[13px] font-medium">{day.date}</p><p className="mt-0.5 text-xs text-neutral-400">{day.paidOrderCount} pesanan · refund {formatCompactIDR(day.refundsIdr)}</p></div><span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(day.netRevenueIdr)}</span></div>)}</div></section>}
+          {report.dailyBreakdown.length > 1 && <section className="mt-6 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#1b2029]"><div className="px-5 pb-4 pt-5 sm:px-6"><h3 className="text-base font-medium text-white">Per hari</h3><p className="mt-1 text-[13px] text-neutral-400">Ringkasan settlement per tanggal</p></div><div className="divide-y divide-white/[0.08]">{report.dailyBreakdown.map((day) => <div key={day.date} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6"><div><p className="text-[13px] font-medium text-white">{day.date}</p><p className="mt-0.5 text-xs text-neutral-400">{day.paidOrderCount} pesanan · refund {formatCompactIDR(day.refundsIdr)}</p></div><span className="text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(day.netRevenueIdr)}</span></div>)}</div></section>}
 
-          <section className="mt-8 border-t border-neutral-100 pt-6">
-            <h3 className="text-sm font-medium">Terlaris</h3>
+          <section className="mt-6 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#1b2029]">
+            <div className="px-5 pb-4 pt-5 sm:px-6">
+              <h3 className="text-base font-medium text-white">Transaksi Terlaris</h3>
+              <p className="mt-1 text-[13px] text-neutral-400">Produk dengan penjualan terbanyak pada periode ini</p>
+            </div>
             {report.bestSellers.length ? (
-              <div className="mt-1 divide-y divide-neutral-100">
+              <div className="divide-y divide-white/[0.08]">
                 {report.bestSellers.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between gap-3 py-3.5">
+                  <div key={item.name} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
                     <div className="min-w-0">
-                      <p className="truncate text-[13px] font-medium">{item.name}</p>
+                      <p className="truncate text-[13px] font-medium text-white">{item.name}</p>
                       <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{item.quantity} porsi</p>
                     </div>
-                    <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.revenueIdr)}</span>
+                    <span className="shrink-0 text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(item.revenueIdr)}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="py-10 text-center text-[13px] text-neutral-500">Belum ada penjualan lunas.</p>
+              <div className="flex min-h-[180px] flex-col items-center justify-center px-5 pb-8 text-center">
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-neutral-300"><PackageOpen size={27} strokeWidth={1.6} /></span>
+                <p className="mt-4 text-[15px] font-medium text-white">Belum ada penjualan lunas.</p>
+                <p className="mt-1 text-[13px] text-neutral-400">Data akan muncul setelah ada transaksi yang selesai.</p>
+              </div>
             )}
           </section>
 
-          <section className="mt-8 border-t border-neutral-100 pt-6">
-            <div className="flex items-baseline justify-between">
-              <h3 className="text-sm font-medium">Pesanan lunas</h3>
-              <span className="text-xs text-neutral-400">{report.orders.length} baris</span>
+          <section className="mt-6 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#1b2029]">
+            <div className="px-5 pb-4 pt-5 sm:px-6">
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-base font-medium text-white">Pesanan lunas</h3>
+                <span className="text-xs text-neutral-400">{report.orders.length} baris</span>
+              </div>
+              <p className="text-[13px] text-neutral-400">Transaksi yang masuk ke settlement periode ini</p>
             </div>
             {report.orders.length ? (
-              <div className="mt-2 divide-y divide-neutral-100">
+              <div className="divide-y divide-white/[0.08]">
                 {report.orders
                   .slice(-12)
                   .reverse()
                   .map((item) => (
-                    <div key={item.orderNumber} className="flex items-center justify-between gap-3 py-3">
+                    <div key={item.orderNumber} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-medium">{item.orderNumber}</p>
+                        <p className="truncate text-[13px] font-medium text-white">{item.orderNumber}</p>
                         <p className="mt-0.5 text-xs text-neutral-400">
                           {item.type === "dine_in" ? "Dine in" : "Takeaway"} ·{" "}
                           {new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(
@@ -1738,23 +2004,23 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
                           )}
                         </p>
                       </div>
-                      <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.totalIdr)}</span>
+                      <span className="shrink-0 text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(item.totalIdr)}</span>
                     </div>
                   ))}
               </div>
             ) : (
-              <p className="py-10 text-center text-[13px] text-neutral-500">Belum ada pesanan lunas.</p>
+              <p className="px-5 pb-8 text-[13px] text-neutral-400 sm:px-6">Belum ada pesanan lunas pada periode ini.</p>
             )}
           </section>
         </>
       ) : (
-        <div className="px-5 py-14 text-center">
+        <div className="mt-6 rounded-2xl border border-white/[0.08] bg-[#1b2029] px-5 py-14 text-center">
           {loading ? (
-            <p className="text-[13px] text-neutral-500">Memuat laporan…</p>
+            <p className="text-[13px] text-neutral-400">Memuat laporan…</p>
           ) : (
             <>
-              <p className="text-sm font-medium">Tidak ada data tanggal ini.</p>
-              <p className="mt-1 text-[13px] text-neutral-500">Pilih tanggal lain lalu tekan Muat.</p>
+              <p className="text-sm font-medium text-white">Tidak ada data tanggal ini.</p>
+              <p className="mt-1 text-[13px] text-neutral-400">Pilih tanggal lain lalu tekan Muat.</p>
             </>
           )}
         </div>

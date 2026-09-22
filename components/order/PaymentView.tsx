@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { formatCountdown, formatIDR } from "@/lib/format";
 import type { PaymentAttempt } from "./constants";
 
@@ -14,6 +14,7 @@ export function PaymentView({
   onBack,
   onPaid,
   onRetry,
+  onCancel,
 }: {
   payment: PaymentAttempt;
   sessionToken: string;
@@ -22,9 +23,11 @@ export function PaymentView({
   onBack: () => void;
   onPaid: () => void;
   onRetry?: () => void;
+  onCancel?: () => Promise<void> | void;
 }) {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [checking, setChecking] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [expired, setExpired] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [statusMessage, setStatusMessage] = useState(
@@ -51,6 +54,18 @@ export function PaymentView({
   const expiresAtMs = new Date(payment.expiresAt).getTime();
   const remainingMs = expiresAtMs - now;
   const isExpired = expired || remainingMs <= 0;
+
+  async function cancelOrder() {
+    if (!onCancel || cancelling) return;
+    setCancelling(true);
+    try {
+      await onCancel();
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Pesanan belum dapat dibatalkan.");
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   const checkPayment = useCallback(async () => {
     if (paidRef.current || checkingRef.current) return;
@@ -171,6 +186,26 @@ export function PaymentView({
               </button>
             )}
             <p role="status" aria-live="polite" className="text-xs text-neutral-400">{statusMessage}</p>
+            {!isExpired && (qrDataUrl || payment.qrImageUrl) && (
+              <a
+                href={qrDataUrl || payment.qrImageUrl}
+                download={`qris-${payment.orderNumber}.png`}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-neutral-200 text-[13px] font-normal text-neutral-600 transition hover:bg-neutral-50 active:scale-[0.98]"
+              >
+                <Download size={15} strokeWidth={1.8} />
+                Unduh QR
+              </a>
+            )}
+            {!isExpired && onCancel && (
+              <button
+                type="button"
+                onClick={() => void cancelOrder()}
+                disabled={cancelling || checking}
+                className="h-11 w-full rounded-full text-[13px] font-normal text-red-600 transition active:bg-red-50 disabled:opacity-60"
+              >
+                {cancelling ? "Membatalkan…" : "Batalkan pesanan"}
+              </button>
+            )}
           </div>
         </div>
       </div>
