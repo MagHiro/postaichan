@@ -208,9 +208,9 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   const isOrders = nav === "Orders";
 
   return (
-    <div className="flex h-[100dvh] max-h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden bg-white text-neutral-900 antialiased lg:h-auto lg:max-h-none lg:min-h-screen lg:overflow-visible lg:pl-[266px]">
+    <div className="flex h-[100dvh] max-h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden bg-[#FAFAFA] text-neutral-900 antialiased lg:h-auto lg:max-h-none lg:min-h-screen lg:overflow-visible lg:pl-[266px]">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden h-screen w-[266px] flex-col overflow-y-auto border-r border-neutral-100 bg-white px-5 py-8 lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden h-screen w-[266px] flex-col overflow-y-auto border-r border-neutral-100 bg-[#FAFAFA] px-5 py-8 lg:flex">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[15px] font-medium tracking-tight">Tempat Taichan</p>
@@ -252,7 +252,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:block lg:min-h-screen">
         {/* Mobile top bar */}
         <header className={cn(
-          "shrink-0 border-b border-neutral-100 bg-white/90 backdrop-blur-md lg:hidden",
+          "shrink-0 border-b border-neutral-100 bg-[#FAFAFA]/90 backdrop-blur-md lg:hidden",
           isOverview
             ? "px-5 pb-2 pt-[max(1.25rem,env(safe-area-inset-top))]"
             : isOrders
@@ -316,7 +316,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
         </header>
 
         {/* Desktop top bar */}
-        <header className="sticky top-0 z-30 hidden border-b border-neutral-100 bg-white/90 px-0 py-5 backdrop-blur-md lg:block">
+        <header className="sticky top-0 z-30 hidden border-b border-neutral-100 bg-[#FAFAFA]/90 px-0 py-5 backdrop-blur-md lg:block">
           <div className="mx-auto flex max-w-[1540px] items-end justify-between px-8 xl:px-12 2xl:px-[74px]">
             <div>
               <p className="text-xs text-neutral-400">{formatLongDate(date)}</p>
@@ -356,7 +356,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
           )}
         >
           <div key={nav} className="ord-rise">
-            {workspaceError && <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-100 bg-white px-4 py-3 text-[13px] text-neutral-500"><span>{workspaceError}</span><button type="button" onClick={() => void loadOperations()} className="h-9 rounded-full bg-neutral-900 px-4 text-xs font-medium text-white">Muat ulang</button></div>}
+            {workspaceError && <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-100 bg-white shadow-soft px-4 py-3 text-[13px] text-neutral-500"><span>{workspaceError}</span><button type="button" onClick={() => void loadOperations()} className="h-9 rounded-full bg-neutral-900 px-4 text-xs font-medium text-white">Muat ulang</button></div>}
             {nav === "Overview" && (
               <LiveOverview
                 orders={orders}
@@ -378,7 +378,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
       </div>
 
       {/* Mobile bottom tabs */}
-      <nav aria-label="Navigasi workspace" className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-white/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
+      <nav aria-label="Navigasi workspace" className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-[#FAFAFA]/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
         <div className={cn("mx-auto grid w-full max-w-[440px] gap-1", navItems.length === 3 ? "grid-cols-3" : "grid-cols-5")}>
           {navItems.map((item) => {
             const Icon = item === "Overview" ? Home : NAV_ICON[item];
@@ -448,7 +448,7 @@ function Metric({ label, value, detail }: { label: string; value: string; detail
 
 function MobileMetricCard({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <article className="flex min-h-[116px] min-w-0 flex-col justify-between rounded-2xl border border-neutral-100 bg-white p-4">
+    <article className="flex min-h-[116px] min-w-0 flex-col justify-between rounded-2xl border border-neutral-100 bg-white shadow-soft p-4">
       <div className="min-w-0">
         <p className="min-w-0 truncate text-xs font-normal leading-tight text-neutral-400">{label}</p>
         <p className="mt-1 text-[22px] font-medium leading-none tabular-nums tracking-tight text-neutral-900">{value}</p>
@@ -460,7 +460,7 @@ function MobileMetricCard({ label, value, detail }: { label: string; value: stri
 
 function MobileNoPendingCard() {
   return (
-    <section className="mt-3 rounded-2xl border border-neutral-100 bg-white px-4 py-4 lg:hidden">
+    <section className="mt-3 rounded-2xl border border-neutral-100 bg-white shadow-soft px-4 py-4 lg:hidden">
       <p className="text-sm font-medium text-neutral-900">Tidak ada pesanan tertunda</p>
       <p className="mt-1 text-[13px] leading-tight text-neutral-500">Bagus! Semua pesanan sudah diproses.</p>
     </section>
@@ -469,7 +469,7 @@ function MobileNoPendingCard() {
 
 function ReportMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-neutral-100 bg-white p-5">
+    <div className="min-w-0 rounded-2xl border border-neutral-100 bg-white shadow-soft p-5">
       <div className="min-w-0">
         <p className="truncate text-[13px] text-neutral-500">{label}</p>
         <p className="mt-1 text-[22px] font-medium leading-tight tabular-nums tracking-tight text-neutral-900">{value}</p>
@@ -572,7 +572,7 @@ function LiveOverview({
       <div className="hidden lg:block"><PageHead title="Hari ini" /></div>
 
       {isAdmin && (
-        <section className="flex min-h-[65px] items-center justify-between gap-3 rounded-2xl border border-neutral-100 bg-white px-4 py-3.5 lg:hidden">
+        <section className="flex min-h-[65px] items-center justify-between gap-3 rounded-2xl border border-neutral-100 bg-white shadow-soft px-4 py-3.5 lg:hidden">
           <div className="min-w-0">
             <h2 className="truncate text-sm font-medium text-neutral-900">Ringkasan hari ini</h2>
             <p className="mt-1 truncate text-[13px] leading-tight text-neutral-500">Pantau performa tokomu</p>
@@ -586,10 +586,10 @@ function LiveOverview({
       {isAdmin ? (
         <>
           <div className="mt-6 hidden grid-cols-2 gap-4 lg:grid xl:grid-cols-4">
-            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white p-5"><Metric label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail="Settlement Jakarta" /></div>
-            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white p-5"><Metric label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" /></div>
-            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white p-5"><Metric label="Est. laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah COGS + fee" /></div>
-            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white p-5"><Metric label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" /></div>
+            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail="Settlement Jakarta" /></div>
+            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" /></div>
+            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Est. laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah COGS + fee" /></div>
+            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" /></div>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3 lg:hidden">
             <MobileMetricCard label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail={`dari ${summary?.orderCount ?? 0} pesanan hari ini`} />
@@ -599,12 +599,12 @@ function LiveOverview({
           </div>
         </>
       ) : (
-        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-2"><div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white p-5"><Metric label="Pesanan aktif" value={String(active.length)} detail="Perlu tindakan" /></div><div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white p-5"><Metric label="Menunggu bayar" value={String(orders.filter((order) => order.status === "Pending").length)} detail="Belum masuk dapur" /></div></div>
+        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-2"><div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Pesanan aktif" value={String(active.length)} detail="Perlu tindakan" /></div><div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Menunggu bayar" value={String(orders.filter((order) => order.status === "Pending").length)} detail="Belum masuk dapur" /></div></div>
       )}
 
       {isAdmin && <MobileNoPendingCard />}
 
-      <section className="mt-3 overflow-hidden rounded-2xl border border-neutral-100 bg-white p-5 lg:mt-6">
+      <section className="mt-3 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft p-5 lg:mt-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#FDBD2C]" />
@@ -724,7 +724,7 @@ function LiveOverview({
 
 function MobileOrdersSummary({ completedCount }: { completedCount: number }) {
   return (
-    <section className="rounded-2xl border border-neutral-100 bg-white px-5 py-4 lg:hidden">
+    <section className="rounded-2xl border border-neutral-100 bg-white shadow-soft px-5 py-4 lg:hidden">
       <p className="text-xs text-neutral-400">Selesai hari ini</p>
       <p className="mt-1 text-[22px] font-medium leading-none tabular-nums tracking-tight text-neutral-900">{completedCount}</p>
     </section>
@@ -762,7 +762,7 @@ function orderStatusTone(status: Order["status"]) {
 
 function MobileOrderCard({ order, opening, onOpen }: { order: Order; opening: boolean; onOpen: () => void }) {
   return (
-    <article className="rounded-2xl border border-neutral-100 bg-white p-4">
+    <article className="rounded-2xl border border-neutral-100 bg-white shadow-soft p-4">
       <button
         type="button"
         onClick={onOpen}
@@ -871,10 +871,10 @@ function LiveOrders({
   return (
     <div>
       <div className="hidden grid-cols-1 gap-4 xl:grid-cols-4 lg:grid">
-        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white p-5"><Metric label="Total pesanan" value={String(orders.length)} detail="Hari ini" /></div>
-        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white p-5"><Metric label="Menunggu bayar" value={String(pendingCount)} detail="Perlu tindakan" /></div>
-        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white p-5"><Metric label="Sedang diproses" value={String(processingCount)} detail="Di dapur" /></div>
-        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white p-5"><Metric label="Selesai" value={String(completedCount)} detail="Hari ini" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Total pesanan" value={String(orders.length)} detail="Hari ini" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Menunggu bayar" value={String(pendingCount)} detail="Perlu tindakan" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Sedang diproses" value={String(processingCount)} detail="Di dapur" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Selesai" value={String(completedCount)} detail="Hari ini" /></div>
       </div>
 
       <MobileOrdersSummary completedCount={completedCount} />
@@ -936,7 +936,7 @@ function LiveOrders({
             <div className="space-y-3 lg:hidden">
               {filtered.map((order) => <MobileOrderCard key={order.id} order={order} opening={openingId === order.id} onOpen={() => void openDetail(order)} />)}
             </div>
-            <div className="hidden overflow-hidden rounded-2xl border border-neutral-100 bg-white lg:block">
+            <div className="hidden overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft lg:block">
               <div className="hidden grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_auto] gap-4 bg-white px-6 py-3 text-xs text-neutral-400 lg:grid">
                 <span>Pesanan</span>
                 <span>Detail</span>
@@ -1372,7 +1372,7 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="w-full max-w-[300px] rounded-3xl border border-neutral-100 bg-white p-5 text-center text-neutral-900"
+        className="w-full max-w-[300px] rounded-3xl border border-neutral-100 bg-white shadow-soft p-5 text-center text-neutral-900"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -1380,9 +1380,9 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
       >
         <p id="resume-qr-title" className="text-xs text-neutral-400">QRIS · {orderNumber}</p>
         {qrImageUrl ? (
-          <img src={qrImageUrl} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-neutral-100 bg-white p-2" />
+          <img src={qrImageUrl} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-neutral-100 bg-white shadow-soft p-2" />
         ) : qr ? (
-          <img src={qr} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-neutral-100 bg-white p-2" />
+          <img src={qr} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-neutral-100 bg-white shadow-soft p-2" />
         ) : (
           <div className="ord-skeleton mx-auto mt-4 h-48 w-48 rounded-2xl" />
         )}
@@ -1541,7 +1541,7 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
       </div>
 
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="min-w-0 rounded-2xl border border-neutral-100 bg-white p-5 sm:p-6">
+        <section className="min-w-0 rounded-2xl border border-neutral-100 bg-white shadow-soft p-5 sm:p-6">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.08fr]">
             <div className="flex rounded-full bg-neutral-100 p-1" role="group" aria-label="Jenis pesanan">
               {(
@@ -1614,7 +1614,7 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
                       onClick={() => add(product)}
                       disabled={!product.available}
                       aria-label={product.available ? `Tambah ${product.name}` : `${product.name} habis`}
-                      className="relative min-w-0 rounded-2xl bg-white p-2.5 text-left transition active:scale-[0.98] disabled:opacity-60"
+                      className="relative min-w-0 rounded-2xl bg-white p-2.5 text-left shadow-soft transition active:scale-[0.98] disabled:opacity-60"
                     >
                       <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-neutral-100">
                         {product.imageUrl ? (
@@ -1651,7 +1651,7 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
         </section>
 
         {/* Cart — desktop */}
-        <aside className="sticky top-6 hidden max-h-[calc(100dvh-7.5rem)] overflow-y-auto rounded-2xl border border-neutral-100 bg-white p-6 lg:block">
+        <aside className="sticky top-6 hidden max-h-[calc(100dvh-7.5rem)] overflow-y-auto rounded-2xl border border-neutral-100 bg-white shadow-soft p-6 lg:block">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-medium tracking-tight text-neutral-900">Pesanan saat ini</h3>
             {cart.length > 0 && <button type="button" onClick={clearCart} className="text-[13px] text-neutral-500">Hapus Semua</button>}
@@ -1916,7 +1916,7 @@ function CashierPayment({
           </button>
         </div>
 
-        <div className="mx-auto mt-8 w-fit rounded-3xl border border-neutral-100 bg-white p-4">
+        <div className="mx-auto mt-8 w-fit rounded-3xl border border-neutral-100 bg-white shadow-soft p-4">
           {state === "settled" ? (
             <p className="flex h-56 w-56 items-center justify-center px-6 text-center text-sm font-medium">Pembayaran lunas.</p>
           ) : state === "expired" ? (
@@ -2058,7 +2058,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
             <ReportMetric label="Est. laba" value={formatCompactIDR(report.estimatedGrossProfitIdr)} detail="Bukan laba bersih" />
           </div>
 
-          <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white">
+          <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
             <div className="px-5 pb-4 pt-5 sm:px-6">
               <h3 className="text-sm font-medium text-neutral-900">Rincian Laporan</h3>
               <p className="mt-1 text-[13px] text-neutral-500">Berdasarkan sumber penjualan</p>
@@ -2087,9 +2087,9 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
             </div>
           </section>
 
-          {report.dailyBreakdown.length > 1 && <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white"><div className="px-5 pb-4 pt-5 sm:px-6"><h3 className="text-sm font-medium text-neutral-900">Per hari</h3><p className="mt-1 text-[13px] text-neutral-500">Ringkasan settlement per tanggal</p></div><div className="divide-y divide-neutral-100">{report.dailyBreakdown.map((day) => <div key={day.date} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6"><div><p className="text-[13px] font-medium text-neutral-900">{day.date}</p><p className="mt-0.5 text-xs text-neutral-400">{day.paidOrderCount} pesanan · refund {formatCompactIDR(day.refundsIdr)}</p></div><span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(day.netRevenueIdr)}</span></div>)}</div></section>}
+          {report.dailyBreakdown.length > 1 && <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft"><div className="px-5 pb-4 pt-5 sm:px-6"><h3 className="text-sm font-medium text-neutral-900">Per hari</h3><p className="mt-1 text-[13px] text-neutral-500">Ringkasan settlement per tanggal</p></div><div className="divide-y divide-neutral-100">{report.dailyBreakdown.map((day) => <div key={day.date} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6"><div><p className="text-[13px] font-medium text-neutral-900">{day.date}</p><p className="mt-0.5 text-xs text-neutral-400">{day.paidOrderCount} pesanan · refund {formatCompactIDR(day.refundsIdr)}</p></div><span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(day.netRevenueIdr)}</span></div>)}</div></section>}
 
-          <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white">
+          <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
             <div className="px-5 pb-4 pt-5 sm:px-6">
               <h3 className="text-sm font-medium text-neutral-900">Transaksi Terlaris</h3>
               <p className="mt-1 text-[13px] text-neutral-500">Produk dengan penjualan terbanyak pada periode ini</p>
@@ -2114,7 +2114,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
             )}
           </section>
 
-          <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white">
+          <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
             <div className="px-5 pb-4 pt-5 sm:px-6">
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-sm font-medium text-neutral-900">Pesanan lunas</h3>
@@ -2148,7 +2148,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
           </section>
         </>
       ) : (
-        <div className="mt-6 rounded-2xl border border-neutral-100 bg-white px-5 py-14 text-center">
+        <div className="mt-6 rounded-2xl border border-neutral-100 bg-white shadow-soft px-5 py-14 text-center">
           {loading ? (
             <p className="text-[13px] text-neutral-500">Memuat laporan…</p>
           ) : (

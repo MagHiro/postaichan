@@ -4,8 +4,8 @@ import { ArrowRight, BadgeCheck, Gift } from "lucide-react";
 
 export function LandingPage() {
   return (
-    <main className="flex h-[100dvh] w-full justify-center overflow-hidden bg-white text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
-      <div className="flex h-full min-h-0 w-full max-w-[440px] flex-col overflow-hidden bg-white">
+    <main className="flex h-[100dvh] w-full justify-center overflow-hidden bg-[#FAFAFA] text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
+      <div className="flex h-full min-h-0 w-full max-w-[440px] flex-col overflow-hidden bg-[#FAFAFA]">
         <section className="relative min-h-0 flex-1 overflow-hidden bg-neutral-900 text-white">
           <Image
             src="/landing/sate-taichan-hero.png"

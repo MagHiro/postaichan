@@ -18,7 +18,7 @@ export function SuccessView({
   onViewOrders: () => void;
 }) {
   return (
-    <main className="flex min-h-screen justify-center bg-white text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
+    <main className="flex min-h-screen justify-center bg-[#FAFAFA] text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
       <div className="flex w-full max-w-[440px] flex-col justify-center px-5 py-10">
         <div className="ord-rise text-center">
           <p className="text-[13px] text-neutral-400">Pembayaran berhasil</p>

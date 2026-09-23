@@ -100,12 +100,12 @@ export function TableManager() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-5 py-8 text-neutral-900 lg:px-10">
+    <main className="min-h-screen bg-[#FAFAFA] px-5 py-8 text-neutral-900 lg:px-10">
       <div className="mx-auto max-w-[820px]">
         <p className="text-xs text-neutral-400">Administrator · <a href="/admin" className="text-neutral-500">Pengaturan</a></p>
         <h1 className="mt-1 text-[22px] font-medium tracking-tight">Meja &amp; QR</h1>
         <p className="mt-1 text-[13px] text-neutral-500">QR lama langsung tidak berlaku setelah rotasi. Token mentah hanya ditampilkan sekali.</p>
-        {notice && <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3 text-[13px] text-neutral-500"><span>{notice}</span>{loadError && <button type="button" onClick={() => { setNotice(null); void load(); }} className="h-9 rounded-full bg-neutral-900 px-4 text-xs font-medium text-white">Coba lagi</button>}</div>}
+        {notice && <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 shadow-soft text-[13px] text-neutral-500"><span>{notice}</span>{loadError && <button type="button" onClick={() => { setNotice(null); void load(); }} className="h-9 rounded-full bg-neutral-900 px-4 text-xs font-medium text-white">Coba lagi</button>}</div>}
         {preview && <QrPreview label={preview.label} orderingUrl={preview.orderingUrl} qrDataUrl={preview.qrDataUrl} onClose={() => setPreview(null)} onCopy={() => { void navigator.clipboard?.writeText(preview.orderingUrl); setNotice("URL QR disalin."); }} />}
 
         <section className="mt-8 rounded-2xl border border-neutral-100 p-5">

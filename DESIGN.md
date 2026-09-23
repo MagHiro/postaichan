@@ -14,8 +14,10 @@ surface. Routes (`app/order/page.tsx`, `app/order/[accessToken]/page.tsx`,
 
 ## Principles
 
-- White canvas, lots of whitespace (`px-5`, section gaps `mt-6`–`mt-10`).
-- Borderless cards; dividers (`divide-neutral-100`) instead of boxes.
+- Soft canvas (`#FAFAFA`), lots of whitespace (`px-5`, section gaps `mt-6`–`mt-10`).
+- Borderless order cards; dividers (`divide-neutral-100`) instead of boxes
+  on the customer surface. Raised surfaces (POS/admin panels, dialogs,
+  QR cards, notices) are white (`bg-white`) with `shadow-soft`.
 - `font-medium` is the ceiling — no bold/extrabold/black in order UI.
 - One accent (`#FDBD2C`), used sparingly: solid on primary CTAs only,
   soft tint for selections, nothing else.
@@ -39,6 +41,8 @@ surface. Routes (`app/order/page.tsx`, `app/order/[accessToken]/page.tsx`,
 
 | Token     | Value       | Usage                                              |
 | --------- | ----------- | -------------------------------------------------- |
+| Canvas    | `#FAFAFA`   | Page, container, header/nav chrome (`bg-[#FAFAFA]`, `/90`, `/95` with blur) |
+| Card      | `white`     | Raised surfaces: POS/admin panels, dialogs, sheets, QR cards, notice cards (`bg-white` + `shadow-soft`) |
 | Text      | `neutral-900` | Titles, names, active states, values              |
 | Secondary | `neutral-500` | Sub copy, prices on cards, inactive segments      |
 | Meta      | `neutral-400` | Counts, hints, footnotes, inactive tab icons      |
@@ -52,6 +56,16 @@ surface. Routes (`app/order/page.tsx`, `app/order/[accessToken]/page.tsx`,
 Dark surfaces (`bg-neutral-900`): qty-plus buttons, cart count badge,
 toast, "Pesan lagi" button. Selection:
 `selection:bg-[#FDBD2C] selection:text-neutral-900`.
+
+## Elevation
+
+- `.shadow-soft` (`app/globals.css`): `0 8px 24px rgba(24, 24, 27, 0.06)`
+  on white (`bg-white`) cards so they float above the `#FAFAFA` canvas.
+  Used for: POS metric/order/cashier/report panels, menu-manager list,
+  login + error/notice cards, sheets (`ord-sheet`), QR cards.
+- `.shadow-sheet`: `0 -12px 32px rgba(24, 24, 27, 0.1)` on bottom sheets.
+- Customer order cards stay borderless (no border, no shadow) — dividers
+  only. The accent dot/shadow glow variants are not used.
 
 ## Type Scale
 
@@ -73,14 +87,17 @@ toast, "Pesan lagi" button. Selection:
 
 ## Canvas
 
-- Page: `bg-white`, centered, `text-neutral-900`, `antialiased`.
-- Container: `max-w-[440px]`, `bg-white`, `px-5`, `pb-36` (room for tabs).
+- Page: `bg-[#FAFAFA]`, centered, `text-neutral-900`, `antialiased`.
+- Container: `max-w-[440px]`, `bg-[#FAFAFA]`, `px-5`, `pb-36` (room for tabs).
+- POS/admin/login pages use the same `#FAFAFA` canvas
+  (`--paper: #fafafa`, `themeColor: "#fafafa"`); white (`bg-white`)
+  is reserved for raised cards, sheets, dialogs, and QR panels.
 - Scrollbars hidden globally (`scrollbar-width: none`,
   `*::-webkit-scrollbar { display: none; }`); scrolling still works.
 
 ## Header (sticky)
 
-- Wrapper: `sticky top-0 z-30`, `bg-white/90 backdrop-blur-md`,
+- Wrapper: `sticky top-0 z-30`, `bg-[#FAFAFA]/90 backdrop-blur-md`,
   `px-5 pb-3 pt-4`, `border-b border-neutral-100`.
 - Logo: `/logo.png` (transparent), centered (`justify-center`),
   `h-11 w-auto max-w-[240px] object-contain`; text fallback
@@ -131,7 +148,7 @@ toast, "Pesan lagi" button. Selection:
 ## Bottom Tabs (only nav)
 
 - Bar: `fixed inset-x-0 bottom-0 z-40`, inner
-  `mx-auto max-w-[440px] border-t border-neutral-100 bg-white/95
+  `mx-auto max-w-[440px] border-t border-neutral-100 bg-[#FAFAFA]/95
   backdrop-blur-md` + safe-area padding. No floating cart pill.
 - Tabs: `flex-1 flex-col items-center gap-1 py-2.5`; icons 20px
   (`strokeWidth` 2 active / 1.6 inactive); labels `text-[11px]`.
@@ -205,7 +222,7 @@ toast, "Pesan lagi" button. Selection:
   bg-neutral-100 px-4 py-3 text-sm placeholder:text-neutral-400`,
   `focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50`.
 - Footer: `sticky bottom-0 -mx-5 border-t border-neutral-100
-  bg-white/95 backdrop-blur` + safe-area; qty minus `h-10 w-10
+  bg-[#FAFAFA]/95 backdrop-blur` + safe-area; qty minus `h-10 w-10
   rounded-full border border-neutral-200`, count `w-5 text-sm
   font-medium tabular-nums`, plus `h-10 w-10 rounded-full
   bg-neutral-900 text-white`; CTA `h-12 flex-1 rounded-full` accent.
@@ -218,7 +235,7 @@ toast, "Pesan lagi" button. Selection:
   `mt-3 text-3xl font-medium tabular-nums tracking-tight`; timer
   `mt-1 text-[13px] text-neutral-400`.
 - QR card: `mx-auto mt-8 w-fit rounded-3xl border border-neutral-100
-  p-4`; code `220×220 rounded-2xl`; expired state is plain centered text.
+  bg-white shadow-soft p-4`; code `220×220 rounded-2xl`; expired state is plain centered text.
 - Hint `mt-6 text-[13px] text-neutral-400` ("Scan dengan e-wallet apa pun").
 - CTA block `mx-auto mt-8 max-w-[280px] space-y-3` (accent primary);
   status `text-xs text-neutral-400`. No step grid, no colored panels.

@@ -215,7 +215,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
 
         {error && <div role="alert" className="mt-5 text-center"><p className="text-[13px] text-neutral-500">{error}</p><button type="button" onClick={() => void loadMenu()} className="mx-auto mt-3 block h-11 rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white">Coba lagi</button></div>}
 
-        <div className="mt-5 overflow-hidden rounded-2xl border border-neutral-100 bg-white">
+        <div className="mt-5 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
           {loading ? (
             <p className="py-14 text-center text-[13px] text-neutral-400">Memuat menu…</p>
           ) : visibleProducts.length ? (

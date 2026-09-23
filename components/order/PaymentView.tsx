@@ -115,7 +115,7 @@ export function PaymentView({
   }, [checkPayment, isExpired]);
 
   return (
-    <main className="flex min-h-screen justify-center bg-white text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
+    <main className="flex min-h-screen justify-center bg-[#FAFAFA] text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
       <div className="w-full max-w-[440px] px-5 pb-10 pt-[calc(1.25rem+env(safe-area-inset-top))]">
         <button
           type="button"

@@ -32,12 +32,12 @@ export function QrPreview({ label, orderingUrl, qrDataUrl, onClose, onCopy }: { 
   }
 
   return (
-    <section className="mt-6 rounded-2xl border border-neutral-100 bg-neutral-50 p-5">
+    <section className="mt-6 rounded-2xl border border-neutral-100 bg-white p-5 shadow-soft">
       <div className="flex items-start justify-between gap-4">
         <div><p className="text-[13px] font-medium">QR baru siap</p><p className="mt-1 text-xs text-neutral-500">{label}</p></div>
-        {onClose && <button type="button" onClick={onClose} aria-label="Tutup pratinjau QR" className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-neutral-500"><X size={14} /></button>}
+        {onClose && <button type="button" onClick={onClose} aria-label="Tutup pratinjau QR" className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500"><X size={14} /></button>}
       </div>
-      <div className="mt-5 flex flex-col items-center gap-4 rounded-2xl bg-white p-4"><img src={qrDataUrl} alt={`QR pemesanan ${label}`} className="h-56 w-56 rounded-xl" /><p className="max-w-full break-all text-center text-xs text-neutral-500">{orderingUrl}</p></div>
+      <div className="mt-5 flex flex-col items-center gap-4 rounded-2xl bg-[#FAFAFA] p-4"><img src={qrDataUrl} alt={`QR pemesanan ${label}`} className="h-56 w-56 rounded-xl" /><p className="max-w-full break-all text-center text-xs text-neutral-500">{orderingUrl}</p></div>
       <p className="mt-4 text-xs leading-relaxed text-neutral-500">Simpan atau cetak sekarang. Token lama tidak dapat dibuat ulang; rotasi QR akan langsung membatalkan QR sebelumnya.</p>
       <div className="mt-4 grid grid-cols-3 gap-2">
         <button type="button" onClick={onCopy} className="flex h-10 items-center justify-center gap-1.5 rounded-full bg-[#FDBD2C] px-3 text-[13px] font-medium"><Copy size={14} /> Salin</button>

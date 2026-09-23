@@ -432,9 +432,9 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const menuTitle = category === "Semua Menu" ? "Menu" : category;
 
   return (
-    <main className="flex min-h-screen justify-center bg-white text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
-      <div className="relative flex min-h-screen w-full max-w-[440px] flex-col bg-white pb-36">
-        <header className="sticky top-0 z-30 border-b border-neutral-100 bg-white/90 backdrop-blur-md">
+    <main className="flex min-h-screen justify-center bg-[#FAFAFA] text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
+      <div className="relative flex min-h-screen w-full max-w-[440px] flex-col bg-[#FAFAFA] pb-36">
+        <header className="sticky top-0 z-30 border-b border-neutral-100 bg-[#FAFAFA]/90 backdrop-blur-md">
           <div className="px-5 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
             <div className="relative flex h-10 items-center justify-center">
               <button
@@ -482,7 +482,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                 Takeaway
               </button>
             </div>
-            {sessionError && <div role="alert" className="mt-3 rounded-2xl bg-neutral-50 px-4 py-3 text-[13px] leading-relaxed text-neutral-600">{sessionError}</div>}
+            {sessionError && <div role="alert" className="mt-3 text-center text-[13px] leading-relaxed text-neutral-500">{sessionError}</div>}
           </div>
         </header>
 
@@ -646,7 +646,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         )}
 
         <nav aria-label="Navigasi pemesanan" className="fixed inset-x-0 bottom-0 z-40">
-          <div className="mx-auto flex max-w-[440px] border-t border-neutral-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
+          <div className="mx-auto flex max-w-[440px] border-t border-neutral-100 bg-[#FAFAFA]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
             <button
               type="button"
               onClick={() => setActiveTab("home")}

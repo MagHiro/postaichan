@@ -34,7 +34,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main aria-labelledby="login-title" className="flex min-h-screen items-center justify-center bg-white px-5 text-neutral-900">
+    <main aria-labelledby="login-title" className="flex min-h-screen items-center justify-center bg-[#FAFAFA] px-5 text-neutral-900">
       <section className="w-full max-w-[420px] rounded-3xl border border-neutral-100 bg-white p-6 shadow-soft">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-[11px] bg-[#FDBD2C] text-xl font-medium text-neutral-900">T</div>
