@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
-import { ArrowRight, BarChart3, BookOpen, CalendarDays, Check, ChefHat, ChevronRight, CircleDollarSign, Clock3, Coins, CreditCard, Download, Info, LayoutDashboard, Minus, MoreVertical, PackageOpen, Percent, Plus, ReceiptText, RefreshCw, Search, Settings, ShoppingBag, ShoppingCart, Store, Trash2, TrendingUp, UserRound, UsersRound, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarDays, Check, ChefHat, ChevronRight, CircleDollarSign, Clock3, Coins, CreditCard, Download, House, Info, LayoutDashboard, Minus, MoreHorizontal, MoreVertical, PackageOpen, Percent, Plus, ReceiptText, RefreshCw, ScanLine, Search, Settings, ShoppingBag, ShoppingCart, Store, Table2, Trash2, TrendingUp, UserRound, UsersRound, X } from "lucide-react";
 import { formatCompactIDR, formatCountdown, formatIDR } from "@/lib/format";
 import type { CartItem, Order, Product } from "@/lib/types";
 import { buildCartItem } from "@/lib/domain/cart";
@@ -49,7 +49,7 @@ const NAV_LABEL: Record<NavItem, string> = {
 };
 
 const NAV_SHORT_LABEL: Record<NavItem, string> = {
-  Overview: "Ringkas",
+  Overview: "Beranda",
   Orders: "Pesanan",
   POS: "Kasir",
   Menu: "Menu",
@@ -87,6 +87,13 @@ const FILTERS: Array<{ key: string; label: string }> = [
   { key: "Refunded", label: "Refund" },
 ];
 
+const MOBILE_FILTERS: Array<{ key: string; label: string }> = [
+  { key: "All", label: "Semua" },
+  { key: "Pending", label: "Menunggu bayar" },
+  { key: "New", label: "Baru" },
+  { key: "Processing", label: "Diproses" },
+];
+
 function isActiveOrder(order: Order) {
   return !["Completed", "Cancelled", "Refunded"].includes(order.status);
 }
@@ -111,6 +118,10 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
 
   useEffect(() => () => {
     if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+  }, []);
+
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 1023px)").matches) setNav("Orders");
   }, []);
 
   async function loadOperations(silent = false) {
@@ -193,9 +204,11 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   }
 
   const navItems = (Object.keys(NAV_LABEL) as NavItem[]).filter((item) => role === "admin" || (item !== "Menu" && item !== "Reports"));
+  const isOverview = nav === "Overview";
+  const isOrders = nav === "Orders";
 
   return (
-    <div className="pos-theme flex h-[100dvh] max-h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden antialiased lg:h-auto lg:max-h-none lg:min-h-screen lg:overflow-visible lg:bg-[radial-gradient(circle_at_100%_0%,rgba(253,189,44,0.08),transparent_24rem)] lg:pl-[266px]">
+    <div className={cn("pos-theme flex h-[100dvh] max-h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden antialiased lg:h-auto lg:max-h-none lg:min-h-screen lg:overflow-visible lg:bg-[radial-gradient(circle_at_100%_0%,rgba(253,189,44,0.08),transparent_24rem)] lg:pl-[266px]", isOverview && "pos-overview-mobile", isOrders && "pos-orders-mobile")}>
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden h-screen w-[266px] flex-col overflow-y-auto border-r border-neutral-100 bg-white px-5 py-8 lg:flex">
         <div className="flex items-start justify-between gap-3">
@@ -238,25 +251,77 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:block lg:min-h-screen">
         {/* Mobile top bar */}
-        <header className="shrink-0 border-b border-neutral-100 bg-white/90 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md lg:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-[15px] font-medium tracking-tight"><span aria-hidden="true" className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#FDBD2C] align-middle" />{pageTitle(nav)}</p>
-              <p className="mt-0.5 text-xs tabular-nums text-neutral-400">
-                {activeCount} aktif · {date}
-              </p>
+        <header className={cn(
+          "shrink-0 backdrop-blur-md lg:hidden",
+          isOverview
+            ? "border-b-0 bg-transparent px-5 pb-2 pt-[max(1.25rem,env(safe-area-inset-top))]"
+            : isOrders
+              ? "border-b-0 bg-transparent px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] sm:pl-12 sm:pr-9 sm:pb-0 sm:pt-[max(2.25rem,env(safe-area-inset-top))]"
+              : "border-b border-neutral-100 bg-white/90 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))]",
+        )}>
+          {isOverview ? (
+            <div className="flex items-start justify-between gap-2.5">
+              <div className="min-w-0 flex-1 pt-1">
+                <p className="whitespace-nowrap text-[clamp(1.4rem,6.8vw,1.8rem)] font-semibold leading-none tracking-[-0.035em] text-white">
+                  {jakartaGreeting()} <span aria-hidden="true">👋</span>
+                </p>
+                <p className="mt-2 text-[14px] leading-tight tabular-nums text-[#9eabc0]">{formatMobileDate(date)}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => showNotice("Tidak ada notifikasi baru.")}
+                  aria-label="Notifikasi"
+                  className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.12] bg-[#1b2736] text-[#c4d0e2] shadow-[0_8px_18px_rgba(0,0,0,0.16)] active:scale-[0.98]"
+                >
+                  <Bell size={21} strokeWidth={1.7} />
+                  <span aria-hidden="true" className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff5360] ring-2 ring-[#101a26]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNav("POS")}
+                  className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#FDBD2C] px-3.5 text-[13px] font-semibold text-neutral-900 shadow-[0_8px_18px_rgba(253,189,44,0.14)] transition hover:bg-[#ECA90F] active:scale-[0.98] sm:px-4 sm:text-[14px]"
+                >
+                  <Plus size={19} strokeWidth={2} />
+                  Pesanan baru
+                </button>
+              </div>
             </div>
-            {nav !== "POS" && (
+          ) : isOrders ? (
+            <div className="flex items-center justify-between gap-3 sm:items-start sm:gap-4">
+              <div className="min-w-0 flex-1">
+                <h1 className="whitespace-nowrap text-[22px] font-medium leading-snug tracking-tight text-white sm:text-[clamp(2rem,5vw,2.65rem)] sm:font-semibold sm:leading-none sm:tracking-[-0.045em]">Pesanan</h1>
+                <p className="mt-1 text-[13px] leading-tight tabular-nums text-[#a8b5ca] sm:mt-3 sm:text-[clamp(1rem,3vw,1.35rem)]">{activeCount} aktif · {formatOrdersHeaderDate(date)}</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setNav("POS")}
-                className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+                className="flex h-12 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-4 text-sm font-medium leading-none text-neutral-900 shadow-[0_10px_24px_rgba(253,189,44,0.14)] transition hover:bg-[#ECA90F] active:scale-[0.98] sm:h-[78px] sm:min-w-[308px] sm:justify-center sm:gap-5 sm:px-8 sm:text-[clamp(1rem,3vw,1.625rem)] sm:font-semibold"
               >
-                <Plus size={16} strokeWidth={2} />
+                <Plus className="h-5 w-5 sm:h-8 sm:w-8" strokeWidth={2} />
                 Pesanan baru
               </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-medium tracking-tight"><span aria-hidden="true" className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#FDBD2C] align-middle" />{pageTitle(nav)}</p>
+                <p className="mt-0.5 text-xs tabular-nums text-neutral-400">
+                  {activeCount} aktif · {date}
+                </p>
+              </div>
+              {nav !== "POS" && (
+                <button
+                  type="button"
+                  onClick={() => setNav("POS")}
+                  className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+                >
+                  <Plus size={16} strokeWidth={2} />
+                  Pesanan baru
+                </button>
+              )}
+            </div>
+          )}
         </header>
 
         {/* Desktop top bar */}
@@ -289,7 +354,12 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
         {/* Content */}
         <main
           className={cn(
-            "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain mx-auto w-full max-w-[1540px] px-5 pb-[calc(128px+env(safe-area-inset-bottom))] pt-6 lg:min-h-0 lg:flex-none lg:overflow-visible lg:px-8 xl:px-12 2xl:px-[74px] lg:pb-20",
+            "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain mx-auto w-full max-w-[1540px] lg:min-h-0 lg:flex-none lg:overflow-visible lg:px-8 xl:px-12 2xl:px-[74px] lg:pb-20",
+            isOverview
+                ? "px-4 pb-[calc(96px+env(safe-area-inset-bottom))] pt-3"
+                : isOrders
+                ? "px-5 pb-[calc(160px+env(safe-area-inset-bottom))] pt-6 sm:px-8 sm:pb-[calc(208px+env(safe-area-inset-bottom))] sm:pt-[43px]"
+                : "px-5 pb-[calc(128px+env(safe-area-inset-bottom))] pt-6",
             nav === "Orders" || nav === "Menu" ? "lg:pt-3" : "lg:pt-10",
             nav === "POS" ? "pb-[calc(208px+env(safe-area-inset-bottom))]" : "",
           )}
@@ -305,6 +375,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 onAdvance={advanceOrderGuarded}
                 advancingId={advancingId}
                 onOpenOrders={() => setNav("Orders")}
+                onOpenReports={() => setNav("Reports")}
               />
             )}
             {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} onAdvance={advanceOrderGuarded} advancingId={advancingId} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} onNewOrder={() => setNav("POS")} />}
@@ -316,10 +387,10 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
       </div>
 
       {/* Mobile bottom tabs */}
-      <nav aria-label="Navigasi workspace" className="shadow-sheet fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-white/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
-        <div className={cn("mx-auto grid w-full gap-1", navItems.length === 3 ? "max-w-[360px] grid-cols-3 sm:max-w-[520px]" : "max-w-[440px] grid-cols-5 sm:max-w-[720px]")}>
+      <nav aria-label="Navigasi workspace" className={cn("shadow-sheet fixed inset-x-0 bottom-0 z-40 rounded-t-[20px] border-t border-white/[0.08] bg-[#111a26]/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden", isOrders && "sm:rounded-t-[56px] sm:px-3 sm:pb-[calc(2rem+env(safe-area-inset-bottom))] sm:pt-4")}>
+        <div className={cn("mx-auto grid w-full gap-1", isOrders ? "max-w-none grid-cols-5" : navItems.length === 3 ? "max-w-[360px] grid-cols-3 sm:max-w-[520px]" : "max-w-[440px] grid-cols-5 sm:max-w-[720px]")}>
           {navItems.map((item) => {
-            const Icon = NAV_ICON[item];
+            const Icon = item === "Overview" ? House : NAV_ICON[item];
             const active = nav === item;
             return (
               <button
@@ -328,12 +399,13 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 onClick={() => setNav(item)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-2xl py-2",
-                  active ? "bg-[#FDBD2C]/15 ring-1 ring-[#FDBD2C]/30" : "active:bg-neutral-50",
+                  "relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-2xl py-2 sm:gap-2",
+                  isOrders && "sm:min-h-[124px] sm:rounded-[24px] sm:py-4",
+                  active ? "bg-[#3b3523] ring-1 ring-[#FDBD2C]/35" : "active:bg-white/5",
                 )}
               >
-                <Icon size={21} strokeWidth={active ? 2.2 : 1.6} className={active ? "text-neutral-900" : "text-neutral-400"} />
-                <span className={cn("flex items-center gap-1 text-[11px] leading-none", active ? "font-medium text-neutral-900" : "font-normal text-neutral-400")}>
+                <Icon size={20} strokeWidth={active ? 2.2 : 1.6} className={cn(active ? "text-[#FDBD2C]" : "text-[#aebbd0]", isOrders && "sm:h-10 sm:w-10")} />
+                <span className={cn("flex items-center gap-1 text-[11px] leading-none sm:text-[14px]", isOrders && "sm:text-[20px]", active ? "font-medium text-[#FDBD2C]" : "font-normal text-[#aebbd0]")}>
                   {NAV_SHORT_LABEL[item]}
                   {item === "Orders" && activeCount > 0 && (
                     <span className="rounded-full bg-[#FDBD2C] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-neutral-900">
@@ -375,7 +447,9 @@ function PageHead({ title, sub, action }: { title: string; sub?: string; action?
   );
 }
 
-function Metric({ label, value, detail, icon, tone = "neutral" }: { label: string; value: string; detail: string; icon?: React.ReactNode; tone?: "gold" | "green" | "orange" | "blue" | "purple" | "neutral" }) {
+type MetricTone = "gold" | "green" | "orange" | "blue" | "purple" | "neutral";
+
+function Metric({ label, value, detail, icon, tone = "neutral" }: { label: string; value: string; detail: string; icon?: React.ReactNode; tone?: MetricTone }) {
   const iconTone = {
     gold: "bg-[#FDBD2C]/20 text-[#FDBD2C]",
     green: "bg-[#2F8062]/60 text-emerald-100",
@@ -393,6 +467,75 @@ function Metric({ label, value, detail, icon, tone = "neutral" }: { label: strin
         <p className="mt-0.5 truncate text-[11px] leading-tight text-neutral-400 sm:text-[13px]">{detail}</p>
       </div>
     </div>
+  );
+}
+
+function MobileMetricCard({ label, value, detail, icon, tone }: { label: string; value: string; detail: string; icon: React.ReactNode; tone: MetricTone }) {
+  const cardTone: Record<MetricTone, string> = {
+    gold: "border-[#FDBD2C]/40 bg-[#241f1a]",
+    green: "border-emerald-400/35 bg-[#12372e]",
+    orange: "border-[#FDBD2C]/40 bg-[#302c18]",
+    blue: "border-blue-200/20 bg-[#172333]",
+    purple: "border-violet-400/25 bg-[#25202e]",
+    neutral: "border-white/[0.16] bg-[#172130]",
+  };
+  const iconTone: Record<MetricTone, string> = {
+    gold: "bg-[#67501d] text-[#FDBD2C]",
+    green: "bg-[#248462] text-emerald-50",
+    orange: "bg-[#77611b] text-[#FDBD2C]",
+    blue: "bg-blue-500/25 text-blue-100",
+    purple: "bg-violet-500/25 text-violet-100",
+    neutral: "bg-[#3b4657] text-white",
+  };
+  const trendTone = tone === "neutral" ? "bg-white/10 text-white" : "bg-[#155643] text-[#17e3b5]";
+
+  return (
+    <article className={cn("flex min-h-[116px] min-w-0 flex-col justify-between rounded-[18px] border p-4 shadow-[0_12px_26px_rgba(0,0,0,0.12)]", cardTone[tone])}>
+      <div className="flex min-w-0 items-start gap-3">
+        <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", iconTone[tone])}>{icon}</span>
+        <div className="min-w-0 flex-1 pt-0.5">
+          <div className="flex min-w-0 items-center gap-1">
+            <p className="min-w-0 flex-1 truncate text-[12px] font-medium leading-tight text-[#b7c3d5]">{label}</p>
+            <ChevronRight size={15} strokeWidth={1.8} className="shrink-0 text-[#c2cede]" />
+          </div>
+          <p className="mt-1 text-[25px] font-semibold leading-none tracking-[-0.04em] text-white">{value}</p>
+          <p className="mt-1 truncate text-[12px] leading-tight text-[#b7c3d5]">{detail}</p>
+        </div>
+      </div>
+      <div className="mt-2 flex min-w-0 items-center gap-2">
+        <span className={cn("flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[12px] font-medium leading-none", trendTone)}>
+          <ArrowUpRight size={15} strokeWidth={2} />
+          0%
+        </span>
+        <span className="truncate text-[12px] text-[#b7c3d5]">vs. kemarin</span>
+      </div>
+    </article>
+  );
+}
+
+function MobileNoPendingCard() {
+  return (
+    <section className="relative mt-3 flex min-h-[80px] items-center overflow-hidden rounded-[18px] border border-emerald-400/20 bg-[linear-gradient(110deg,#12352f,#102d2d_62%,#123b38)] px-3.5 py-3 lg:hidden">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1c765e] text-white">
+          <CalendarDays size={25} strokeWidth={1.8} />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-[15px] font-semibold leading-tight text-white">Tidak ada pesanan tertunda</p>
+          <p className="mt-1 truncate text-[12px] leading-tight text-[#b7c9d0]">Bagus! Semua pesanan sudah diproses.</p>
+        </div>
+      </div>
+      <div aria-hidden="true" className="relative ml-auto h-14 w-[76px] shrink-0">
+        <span className="absolute right-12 top-0 h-3 w-1.5 rotate-[-25deg] rounded-full bg-[#FDBD2C]" />
+        <span className="absolute right-5 top-1 h-3 w-1.5 rotate-[20deg] rounded-full bg-[#FDBD2C]" />
+        <span className="absolute bottom-1 left-1 flex h-9 w-[60px] items-center justify-center rounded-[7px] border border-[#b8832a] bg-[#d9aa4d] text-[#ffe09a] shadow-[0_8px_12px_rgba(0,0,0,0.16)]">
+          <PackageOpen size={37} strokeWidth={1.35} />
+        </span>
+        <span className="absolute right-0 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-[#25bd83] text-white shadow-[0_5px_10px_rgba(0,0,0,0.15)]">
+          <Check size={19} strokeWidth={2.8} />
+        </span>
+      </div>
+    </section>
   );
 }
 
@@ -436,24 +579,39 @@ function EmptyBlock({ title, sub }: { title: string; sub: string }) {
   );
 }
 
-function SearchField({ value, onChange, placeholder, id = "workspace-search" }: { value: string; onChange: (v: string) => void; placeholder: string; id?: string }) {
+function SearchField({ value, onChange, placeholder, id = "workspace-search", ordersStyle = false, onScan }: { value: string; onChange: (v: string) => void; placeholder: string; id?: string; ordersStyle?: boolean; onScan?: () => void }) {
   return (
-    <div className="relative">
+    <div className={cn("relative", ordersStyle && "h-14 rounded-[18px] border border-white/[0.07] bg-[#1b2736] shadow-[0_12px_24px_rgba(0,0,0,0.1)] sm:h-[84px] sm:rounded-[28px] lg:h-auto lg:rounded-full lg:border-0 lg:bg-transparent lg:shadow-none")}>
       <label htmlFor={id} className="sr-only">{placeholder}</label>
-      <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
+      <Search size={ordersStyle ? 24 : 16} className={cn("absolute top-1/2 -translate-y-1/2", ordersStyle ? "left-5 h-6 w-6 text-[#aebbd0] sm:left-8 sm:h-[30px] sm:w-[30px] lg:left-4 lg:h-4 lg:w-4 lg:text-neutral-400" : "left-4 text-neutral-400")} />
       <input
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="h-11 w-full rounded-2xl bg-neutral-100 pl-10 pr-10 text-sm outline-none placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50 lg:rounded-full"
+        className={cn(
+          "w-full outline-none placeholder:text-neutral-400 focus:ring-2 focus:ring-[#FDBD2C]/50",
+          ordersStyle
+            ? "h-14 rounded-[18px] bg-transparent pl-14 pr-[68px] text-sm text-[#e1e7f0] placeholder:text-[#aebbd0] focus:bg-transparent sm:h-[84px] sm:rounded-[28px] sm:pl-[87px] sm:pr-[92px] sm:text-[clamp(1rem,2.7vw,1.45rem)] lg:h-11 lg:rounded-full lg:bg-neutral-100 lg:pl-10 lg:pr-10 lg:text-sm lg:text-inherit lg:placeholder:text-neutral-400 lg:focus:bg-white"
+            : "h-11 rounded-2xl bg-neutral-100 pl-10 pr-10 text-sm focus:bg-white lg:rounded-full",
+        )}
       />
+      {ordersStyle && (
+        <button
+          type="button"
+          onClick={onScan}
+          aria-label="Scan pesanan"
+          className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-[14px] border border-white/[0.1] bg-white/[0.015] text-[#d7e0ee] transition hover:bg-white/[0.06] active:scale-[0.97] sm:right-2.5 sm:top-2.5 sm:h-[68px] sm:w-[68px] sm:rounded-[22px] lg:hidden"
+        >
+          <ScanLine size={23} className="sm:h-[31px] sm:w-[31px]" strokeWidth={1.7} />
+        </button>
+      )}
       {value && (
         <button
           type="button"
           onClick={() => onChange("")}
           aria-label="Hapus pencarian"
-          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400 active:bg-neutral-200"
+          className={cn("absolute top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400 active:bg-neutral-200", ordersStyle ? "right-[58px] sm:right-[76px] lg:right-2" : "right-2")}
         >
           <X size={14} />
         </button>
@@ -497,6 +655,7 @@ function LiveOverview({
   onAdvance,
   advancingId,
   onOpenOrders,
+  onOpenReports,
 }: {
   orders: Order[];
   summary: DailyReport | null;
@@ -505,74 +664,134 @@ function LiveOverview({
   onAdvance: (order: Order) => void;
   advancingId: string | null;
   onOpenOrders: () => void;
+  onOpenReports: () => void;
 }) {
   const active = orders.filter(isActiveOrder);
   const dateLabel = summary?.date ?? jakartaToday();
 
   return (
     <div>
-      <PageHead title="Hari ini" />
+      <div className="hidden lg:block"><PageHead title="Hari ini" /></div>
 
-      {isAdmin ? <div className="mt-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/25 bg-[#282321] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<BarChart3 size={26} strokeWidth={1.8} />} tone="gold" label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail="Settlement Jakarta" /></div>
-        <div className="min-h-[132px] rounded-2xl border border-[#2F8062]/40 bg-[#1d2925] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<ShoppingCart size={26} strokeWidth={1.8} />} tone="green" label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" /></div>
-        <div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/30 bg-[#29271d] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<Coins size={26} strokeWidth={1.8} />} tone="orange" label="Est. laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah COGS + fee" /></div>
-        <div className="min-h-[132px] rounded-2xl border border-white/[0.08] bg-[#1b2029] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<BarChart3 size={26} strokeWidth={1.8} />} tone="neutral" label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" /></div>
-      </div> : <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-2"><div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/25 bg-[#282321] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<ShoppingBag size={26} strokeWidth={1.8} />} tone="gold" label="Pesanan aktif" value={String(active.length)} detail="Perlu tindakan" /></div><div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/25 bg-[#29271d] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<Coins size={26} strokeWidth={1.8} />} tone="orange" label="Menunggu bayar" value={String(orders.filter((order) => order.status === "Pending").length)} detail="Belum masuk dapur" /></div></div>}
+      {isAdmin && (
+        <section className="flex min-h-[65px] items-center justify-between gap-3 rounded-[18px] border border-white/[0.1] bg-[linear-gradient(110deg,#182432,#1b2533)] px-3.5 py-3.5 shadow-[0_12px_26px_rgba(0,0,0,0.12)] lg:hidden">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#70561d] text-[#FDBD2C]">
+              <TrendingUp size={25} strokeWidth={1.9} />
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-[16px] font-semibold leading-tight text-white">Ringkasan hari ini</h2>
+              <p className="mt-1 truncate text-[13px] leading-tight text-[#aebbd0]">Pantau performa tokomu</p>
+            </div>
+          </div>
+          <button type="button" onClick={onOpenReports} className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.06] px-3 text-[12px] font-medium text-white active:scale-[0.98]">
+            Lihat detail
+            <ArrowRight size={16} strokeWidth={1.8} />
+          </button>
+        </section>
+      )}
 
-      <section className="mt-6 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#1b2029] p-5 sm:p-6">
+      {isAdmin ? (
+        <>
+          <div className="mt-6 hidden grid-cols-2 gap-4 lg:grid xl:grid-cols-4">
+            <div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/25 bg-[#282321] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<BarChart3 size={26} strokeWidth={1.8} />} tone="gold" label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail="Settlement Jakarta" /></div>
+            <div className="min-h-[132px] rounded-2xl border border-[#2F8062]/40 bg-[#1d2925] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<ShoppingCart size={26} strokeWidth={1.8} />} tone="green" label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" /></div>
+            <div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/30 bg-[#29271d] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<Coins size={26} strokeWidth={1.8} />} tone="orange" label="Est. laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah COGS + fee" /></div>
+            <div className="min-h-[132px] rounded-2xl border border-white/[0.08] bg-[#1b2029] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<BarChart3 size={26} strokeWidth={1.8} />} tone="neutral" label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" /></div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 lg:hidden">
+            <MobileMetricCard icon={<BarChart3 size={27} strokeWidth={1.8} />} tone="gold" label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail={`dari ${summary?.orderCount ?? 0} pesanan hari ini`} />
+            <MobileMetricCard icon={<ShoppingCart size={27} strokeWidth={1.8} />} tone="green" label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" />
+            <MobileMetricCard icon={<Coins size={27} strokeWidth={1.8} />} tone="orange" label="Estimasi laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah modal & ongkir" />
+            <MobileMetricCard icon={<BarChart3 size={27} strokeWidth={1.8} />} tone="neutral" label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" />
+          </div>
+        </>
+      ) : (
+        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-2"><div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/25 bg-[#282321] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<ShoppingBag size={26} strokeWidth={1.8} />} tone="gold" label="Pesanan aktif" value={String(active.length)} detail="Perlu tindakan" /></div><div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/25 bg-[#29271d] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<Coins size={26} strokeWidth={1.8} />} tone="orange" label="Menunggu bayar" value={String(orders.filter((order) => order.status === "Pending").length)} detail="Belum masuk dapur" /></div></div>
+      )}
+
+      {isAdmin && <MobileNoPendingCard />}
+
+      <section className="mt-3 overflow-hidden rounded-[18px] border border-white/[0.1] bg-[#151e2b] p-3.5 lg:mt-6 lg:rounded-2xl lg:p-5 sm:p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#FDBD2C]" />
-            <h3 className="text-sm font-medium">
+            <h3 className="text-[16px] font-semibold lg:text-sm lg:font-medium">
               Perlu tindakan
-              {active.length > 0 && <span className="ml-2 rounded-lg bg-white/10 px-2 py-1 text-xs font-normal tabular-nums text-neutral-300">{active.length}</span>}
+              {active.length > 0 && <span className="ml-2 rounded-lg bg-[#354252] px-2.5 py-1 text-[14px] font-medium tabular-nums text-[#d7dfeb] lg:bg-white/10 lg:px-2 lg:text-xs lg:font-normal lg:text-neutral-300">{active.length}</span>}
             </h3>
           </div>
-          {active.length > 5 && (
-            <button type="button" onClick={onOpenOrders} className="text-[13px] font-normal text-neutral-400">
-              Semua
-            </button>
-          )}
+          {active.length > 0 && <button type="button" onClick={onOpenOrders} className="flex items-center gap-1 text-[13px] font-medium text-[#FDBD2C] lg:hidden">Lihat semua <ArrowRight size={16} strokeWidth={1.9} /></button>}
+          {active.length > 5 && <button type="button" onClick={onOpenOrders} className="hidden items-center gap-1 text-[13px] font-normal text-neutral-400 lg:flex">Semua <ArrowRight size={14} strokeWidth={1.7} /></button>}
         </div>
-        <div className="mt-4">
+        <div className="mt-3 lg:mt-4">
           {loading ? (
             <LoadingBlock label="Memuat pesanan…" />
           ) : active.length ? (
-            <div className="divide-y divide-white/[0.08]">
-              {active.slice(0, 5).map((order) => (
-                <div key={order.id} className="flex items-center gap-3 py-4">
+            <>
+              <div className="space-y-2.5 lg:hidden">
+                {active.slice(0, 3).map((order) => (
                   <button
                     type="button"
+                    key={order.id}
                     onClick={onOpenOrders}
-                    className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left active:bg-white/5"
                     aria-label={`Lihat ${order.number}`}
+                    className="grid w-full grid-cols-[36px_minmax(0,1fr)_auto_14px] items-start gap-2.5 rounded-2xl border border-white/[0.07] bg-[#182331] p-3 text-left shadow-[0_8px_18px_rgba(0,0,0,0.1)] active:bg-white/5"
                   >
-                    <p className="truncate text-[14px] font-medium text-white">
-                      {order.number} <span className="font-normal text-neutral-400">· {STATUS_LABEL[order.status]}</span>
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-neutral-400">
-                      {order.table ?? order.type} · {order.items} item · {order.time}
-                      {order.paymentStatus !== "Paid" ? " · Belum bayar" : ""}
-                    </p>
-                    <p className="mt-1 text-[13px] tabular-nums text-neutral-300">{formatCompactIDR(order.total)}</p>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#6b531c] text-[#FDBD2C]">
+                      <PackageOpen size={18} strokeWidth={1.8} />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="min-w-0 truncate text-[14px] font-semibold leading-tight text-white">{order.number}</p>
+                        <span className="flex shrink-0 items-center gap-1 text-[12px] text-[#aebbd0]"><Clock3 size={14} strokeWidth={1.8} />{order.time}</span>
+                      </div>
+                      <p className="mt-1 truncate text-[12px] leading-tight text-[#aebbd0]">
+                        {order.table ?? order.type} · {order.items} item{order.paymentStatus !== "Paid" ? " · Belum bayar" : ""}
+                      </p>
+                      <p className="mt-1.5 text-[15px] font-medium leading-none tabular-nums text-white">{formatCompactIDR(order.total)}</p>
+                    </div>
+                    <span className="mt-0.5 rounded-full bg-[#5d4d1e] px-3 py-1.5 text-[12px] font-medium leading-none text-[#FDBD2C]">{order.status === "Pending" ? "Menunggu" : STATUS_LABEL[order.status]}</span>
+                    <ChevronRight size={18} strokeWidth={1.8} className="mt-2 text-[#bdc9db]" />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => onAdvance(order)}
-                    disabled={order.status === "Pending" || advancingId === order.id}
-                    aria-busy={advancingId === order.id}
-                    aria-label={`Lanjut ${order.number}`}
-                    className={cn(
-                      "flex h-11 shrink-0 items-center rounded-full px-5 text-[13px] font-medium active:scale-[0.98]",
-                      order.status === "Pending" ? "bg-white/10 text-neutral-400" : "bg-[#FDBD2C] text-neutral-900",
-                    )}
-                  >
-                    {order.status === "Pending" ? "Menunggu" : order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+
+              <div className="hidden divide-y divide-white/[0.08] lg:block">
+                {active.slice(0, 5).map((order) => (
+                  <div key={order.id} className="flex items-center gap-3 py-4">
+                    <button
+                      type="button"
+                      onClick={onOpenOrders}
+                      className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left active:bg-white/5"
+                      aria-label={`Lihat ${order.number}`}
+                    >
+                      <p className="truncate text-[14px] font-medium text-white">
+                        {order.number} <span className="font-normal text-neutral-400">· {STATUS_LABEL[order.status]}</span>
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-neutral-400">
+                        {order.table ?? order.type} · {order.items} item · {order.time}
+                        {order.paymentStatus !== "Paid" ? " · Belum bayar" : ""}
+                      </p>
+                      <p className="mt-1 text-[13px] tabular-nums text-neutral-300">{formatCompactIDR(order.total)}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onAdvance(order)}
+                      disabled={order.status === "Pending" || advancingId === order.id}
+                      aria-busy={advancingId === order.id}
+                      aria-label={`Lanjut ${order.number}`}
+                      className={cn(
+                        "flex h-11 shrink-0 items-center rounded-full px-5 text-[13px] font-medium active:scale-[0.98]",
+                        order.status === "Pending" ? "bg-white/10 text-neutral-400" : "bg-[#FDBD2C] text-neutral-900",
+                      )}
+                    >
+                      {order.status === "Pending" ? "Menunggu" : order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <EmptyBlock title="Tidak ada pesanan aktif." sub="Pesanan baru akan muncul di sini." />
           )}
@@ -618,6 +837,122 @@ function LiveOverview({
 
 /* ================= Orders ================= */
 
+function MobileOrdersSummary({ completedCount }: { completedCount: number }) {
+  return (
+    <section className="block h-[112px] overflow-hidden rounded-[18px] border border-[#7655b2]/75 bg-[linear-gradient(112deg,#211f34_0%,#201d31_58%,#211e35_100%)] shadow-[0_16px_30px_rgba(0,0,0,0.14)] sm:h-[168px] sm:rounded-[26px] lg:hidden">
+      <div className="grid h-full grid-cols-[minmax(0,1.42fr)_1px_minmax(0,1fr)]">
+        <div className="flex min-w-0 items-center gap-3 px-4 sm:gap-[30px] sm:px-9">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#432981] text-white sm:h-[106px] sm:w-[106px]">
+            <Check className="h-7 w-7 sm:h-[54px] sm:w-[54px]" strokeWidth={2.2} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm leading-tight text-[#b5b5d0] sm:text-[22px]">Selesai</p>
+            <p className="mt-0.5 text-[28px] font-medium leading-none tracking-tight text-white sm:mt-1 sm:text-[48px]">{completedCount}</p>
+            <p className="mt-0.5 text-sm leading-tight text-[#b5b5d0] sm:mt-1 sm:text-[22px]">Hari ini</p>
+          </div>
+        </div>
+        <div className="my-5 w-px bg-[#66528f]/45 sm:my-9" />
+        <div className="flex min-w-0 items-center gap-2 px-3 sm:gap-4 sm:px-9">
+          <BarChart3 className="h-6 w-6 shrink-0 text-[#d8e0ef] sm:h-11 sm:w-11" strokeWidth={1.8} />
+          <div className="min-w-0">
+            <p className="text-[17px] font-medium leading-none text-[#55e4b1] sm:text-[27px]">+50%</p>
+            <p className="mt-1 truncate text-[13px] leading-tight text-[#b5b5d0] sm:mt-2 sm:text-[20px]">dari kemarin</p>
+          </div>
+          <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-[#e3e8f3] sm:h-8 sm:w-8" strokeWidth={1.7} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function mobileOrderFilterCount(orders: Order[], key: string) {
+  if (key === "All") return orders.length;
+  if (key === "Processing") return orders.filter((order) => ["Accepted", "Preparing", "Ready"].includes(order.status)).length;
+  return orders.filter((order) => order.status === key).length;
+}
+
+function matchesOrderFilter(order: Order, filter: string) {
+  if (filter === "All") return true;
+  if (filter === "Processing") return ["Accepted", "Preparing", "Ready"].includes(order.status);
+  return order.status === filter;
+}
+
+function mobileOrderStatusLabel(status: Order["status"]) {
+  if (status === "Pending") return "Menunggu bayar";
+  if (status === "New") return "Baru";
+  if (["Accepted", "Preparing", "Ready"].includes(status)) return "Diproses";
+  return STATUS_LABEL[status];
+}
+
+function mobileOrderStatusTone(status: Order["status"]) {
+  if (status === "Pending") return "bg-[#5e4d1d] text-[#ffc632]";
+  if (status === "Completed") return "bg-[#155744] text-[#70e6c0]";
+  if (status === "Cancelled" || status === "Refunded") return "bg-[#5e2839] text-[#ff9aa8]";
+  if (status === "New") return "bg-[#173d84] text-[#72aeff]";
+  return "bg-[#173f88] text-[#72aeff]";
+}
+
+function orderStatusTone(status: Order["status"]) {
+  if (status === "Pending") return "bg-[#FDBD2C]/15 text-[#FDBD2C]";
+  if (status === "Completed") return "bg-[#2F8062]/35 text-emerald-200";
+  if (status === "Cancelled" || status === "Refunded") return "bg-red-500/15 text-red-300";
+  if (status === "New") return "bg-blue-500/15 text-blue-200";
+  if (status === "Accepted") return "bg-violet-500/15 text-violet-200";
+  if (status === "Preparing") return "bg-[#FDBD2C]/15 text-[#FDBD2C]";
+  return "bg-emerald-500/15 text-emerald-200";
+}
+
+function MobileOrderCard({ order, opening, onOpen }: { order: Order; opening: boolean; onOpen: () => void }) {
+  const TypeIcon = order.type === "Dine in" ? Table2 : ShoppingBag;
+  return (
+    <article className="relative h-[148px] overflow-hidden rounded-[18px] border border-white/[0.1] bg-[linear-gradient(118deg,#151f2c_0%,#161e2a_100%)] shadow-[0_12px_24px_rgba(0,0,0,0.12)] sm:h-[199px] sm:rounded-[24px]">
+      <button
+        type="button"
+        onClick={onOpen}
+        disabled={opening}
+        aria-busy={opening}
+        aria-label={`Detail ${order.number}`}
+        className="absolute left-0 top-0 z-10 h-[94px] w-[58%] rounded-[18px] text-left active:bg-white/[0.03] sm:h-[135px] sm:w-[57%] sm:rounded-[24px]"
+      >
+        <p className="absolute left-5 top-5 truncate text-sm font-medium leading-none tracking-tight text-white sm:left-8 sm:top-8 sm:text-[25px] sm:font-semibold sm:tracking-[-0.025em]">{order.number}</p>
+        <p className="absolute left-5 top-[50px] text-[12px] leading-none text-[#a8b5ca] sm:left-8 sm:top-[74px] sm:text-[20px]">{formatShortDate(jakartaToday())} · {order.time}</p>
+      </button>
+
+      <button
+        type="button"
+        onClick={onOpen}
+        disabled={opening}
+        aria-label={`Buka ${order.type.toLowerCase()} ${order.number}`}
+        className="absolute right-3 top-4 z-10 flex h-[58px] w-[43%] items-start text-left active:opacity-80 sm:right-4 sm:top-[26px] sm:h-[88px] sm:w-[35%]"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#293342] text-[#dbe3ef] sm:h-[71px] sm:w-[71px]">
+          <TypeIcon size={24} className="sm:h-[34px] sm:w-[34px]" strokeWidth={1.6} />
+        </span>
+        <span className="min-w-0 flex-1 pl-2 pt-0.5 sm:pl-5 sm:pt-1">
+          <span className="block truncate text-[13px] font-medium leading-tight text-white sm:text-[22px] sm:font-semibold">{order.type}</span>
+          <span className="mt-0.5 block text-[12px] leading-tight text-[#a8b5ca] sm:mt-1 sm:text-[20px]">{order.items} item</span>
+        </span>
+        <ChevronRight className="mt-3 h-5 w-5 shrink-0 text-[#e3e8f3] sm:mt-[25px] sm:h-8 sm:w-8" strokeWidth={1.7} />
+      </button>
+
+      <p className="absolute bottom-6 left-5 text-base font-medium leading-none tracking-tight text-white sm:bottom-9 sm:left-8 sm:text-[26px] sm:font-semibold sm:tracking-[-0.025em]">{formatCompactIDR(order.total)}</p>
+      <span className={cn("absolute bottom-3 right-[66px] flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium leading-none sm:right-[116px] sm:bottom-6 sm:h-[53px] sm:gap-3 sm:px-5 sm:text-[20px]", mobileOrderStatusTone(order.status))}>
+        <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-current sm:h-3.5 sm:w-3.5" />
+        {mobileOrderStatusLabel(order.status)}
+      </span>
+      <button
+        type="button"
+        onClick={onOpen}
+        disabled={opening}
+        aria-label={`Opsi ${order.number}`}
+        className="absolute bottom-3 right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#293342] text-[#e1e8f2] active:scale-95 sm:bottom-6 sm:right-6 sm:h-[58px] sm:w-[58px]"
+      >
+        <MoreHorizontal size={22} className="sm:h-[31px] sm:w-[31px]" strokeWidth={2.3} />
+      </button>
+    </article>
+  );
+}
+
 function LiveOrders({
   orders,
   isAdmin,
@@ -646,7 +981,7 @@ function LiveOrders({
   const counts = FILTERS.map(({ key }) => ({ key, n: key === "All" ? orders.length : orders.filter((o) => o.status === key).length }));
   const filtered = orders.filter(
     (order) =>
-      (filter === "All" || order.status === filter) && `${order.number} ${order.table ?? ""}`.toLowerCase().includes(query.toLowerCase()),
+      matchesOrderFilter(order, filter) && `${order.number} ${order.table ?? ""}`.toLowerCase().includes(query.toLowerCase()),
   );
 
   async function openDetail(order: Order) {
@@ -704,21 +1039,48 @@ function LiveOrders({
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="hidden grid-cols-1 gap-4 xl:grid-cols-4 lg:grid">
         <div className="min-h-[132px] rounded-2xl border border-[#2F8062]/40 bg-[#1d2925] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<ShoppingBag size={26} strokeWidth={1.8} />} tone="green" label="Total pesanan" value={String(orders.length)} detail="Hari ini" /></div>
         <div className="min-h-[132px] rounded-2xl border border-[#FDBD2C]/30 bg-[#29271d] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<Clock3 size={26} strokeWidth={1.8} />} tone="orange" label="Menunggu bayar" value={String(pendingCount)} detail="Perlu tindakan" /></div>
         <div className="min-h-[132px] rounded-2xl border border-blue-400/25 bg-[#1d2430] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<ChefHat size={26} strokeWidth={1.8} />} tone="blue" label="Sedang diproses" value={String(processingCount)} detail="Di dapur" /></div>
         <div className="min-h-[132px] rounded-2xl border border-violet-400/25 bg-[#25202e] p-5 shadow-[0_14px_32px_rgba(0,0,0,0.14)]"><Metric icon={<Check size={26} strokeWidth={1.8} />} tone="purple" label="Selesai" value={String(completedCount)} detail="Hari ini" /></div>
       </div>
 
-      <div className="mt-6 flex items-center gap-3">
+      <MobileOrdersSummary completedCount={completedCount} />
+
+      <div className="mt-8 flex items-center gap-3 sm:mt-8 lg:mt-6">
         <div className="min-w-0 flex-1">
-          <SearchField value={query} onChange={setQuery} placeholder="Cari nomor pesanan atau meja…" />
+          <SearchField value={query} onChange={setQuery} onScan={() => onShowNotice("Scanner pesanan siap digunakan.")} ordersStyle placeholder="Cari nomor pesanan atau meja…" />
         </div>
         {isAdmin && <a href={`/api/reports/daily.pdf?date=${jakartaToday()}`} className="hidden h-11 shrink-0 items-center gap-2 rounded-full border border-white/[0.12] px-5 text-[13px] font-normal text-neutral-300 transition hover:bg-white/5 sm:flex"><Download size={15} strokeWidth={1.8} />Unduh PDF</a>}
       </div>
 
-      <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1 xl:mx-0 xl:px-0">
+      <div className="no-scrollbar mt-5 flex gap-3 overflow-x-auto pb-1 lg:hidden">
+        {MOBILE_FILTERS.map(({ key, label }) => {
+          const n = mobileOrderFilterCount(orders, key);
+          const isActive = filter === key;
+          const dotTone = key === "Pending" ? "bg-[#FDBD2C]" : key === "New" ? "bg-blue-500" : "bg-violet-500";
+          const width = key === "All" ? "w-[120px] sm:w-[173px]" : key === "Pending" ? "w-[188px] sm:w-[270px]" : key === "New" ? "w-[100px] sm:w-[145px]" : "w-[125px] sm:w-[181px]";
+          return (
+            <button
+              type="button"
+              key={key}
+              onClick={() => setFilter(key)}
+              aria-pressed={isActive}
+              className={cn(
+                "flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border px-3 text-[13px] leading-none transition active:scale-[0.98] sm:h-[65px] sm:gap-3 sm:px-4 sm:text-[20px]",
+                width,
+                isActive ? "border-[#FDBD2C] bg-[#2a2921] font-medium text-white" : "border-white/[0.14] font-normal text-[#c3cee0] hover:bg-white/5",
+              )}
+            >
+              {key !== "All" && <span aria-hidden="true" className={cn("h-2.5 w-2.5 rounded-full sm:h-3.5 sm:w-3.5", dotTone)} />}
+              {label} <span className={cn("tabular-nums", isActive ? "text-[#c7cfde]" : "text-[#8996ab]")}>{n}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="no-scrollbar -mx-5 mt-4 hidden gap-2 overflow-x-auto px-5 pb-1 lg:flex xl:mx-0 xl:px-0">
         {FILTERS.map(({ key, label }) => {
           const n = counts.find((c) => c.key === key)?.n ?? 0;
           const isActive = filter === key;
@@ -750,69 +1112,62 @@ function LiveOrders({
         })}
       </div>
 
-      <div className="mt-6">
+      <div className="mt-8 lg:mt-6">
         {loading ? (
           <LoadingBlock label="Memuat pesanan…" />
         ) : filtered.length ? (
-          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#1b2029]">
-            <div className="hidden grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_auto] gap-4 bg-white/[0.04] px-6 py-3 text-xs text-neutral-400 lg:grid">
-              <span>Pesanan</span>
-              <span>Detail</span>
-              <span>Total</span>
-              <span>Status</span>
-              <span className="text-right">Aksi</span>
+          <>
+            <div className="space-y-5 lg:hidden">
+              {filtered.map((order) => <MobileOrderCard key={order.id} order={order} opening={openingId === order.id} onOpen={() => void openDetail(order)} />)}
             </div>
-            <div className="divide-y divide-white/[0.08]">
-              {filtered.map((order) => {
-                const statusTone = order.status === "Pending"
-                  ? "bg-[#FDBD2C]/15 text-[#FDBD2C]"
-                  : order.status === "Completed"
-                    ? "bg-[#2F8062]/35 text-emerald-200"
-                    : order.status === "Cancelled" || order.status === "Refunded"
-                      ? "bg-red-500/15 text-red-300"
-                      : order.status === "New"
-                        ? "bg-blue-500/15 text-blue-200"
-                        : order.status === "Accepted"
-                          ? "bg-violet-500/15 text-violet-200"
-                          : order.status === "Preparing"
-                            ? "bg-[#FDBD2C]/15 text-[#FDBD2C]"
-                            : "bg-emerald-500/15 text-emerald-200";
-                return (
-                  <div key={order.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 px-4 py-4 sm:px-5 lg:grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_auto] lg:items-center lg:gap-4 lg:px-6">
-                    <button
-                      type="button"
-                      onClick={() => void openDetail(order)}
-                      disabled={openingId === order.id}
-                      aria-busy={openingId === order.id}
-                      className="min-w-0 rounded-xl text-left transition active:bg-white/5 lg:rounded-none"
-                      aria-label={`Detail ${order.number}`}
-                    >
-                      <p className="truncate text-[14px] font-medium text-white">{order.number}</p>
-                      <p className="mt-1 truncate text-xs text-neutral-400">{formatShortDate(jakartaToday())} · {order.time}</p>
-                    </button>
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-neutral-300"><ShoppingBag size={16} strokeWidth={1.7} /></span>
-                      <div className="min-w-0">
-                        <p className="truncate text-[13px] font-medium text-white">{order.type}</p>
-                        <p className="mt-0.5 truncate text-xs text-neutral-400">{order.table ? `${order.table} · ` : ""}{order.items} item</p>
+            <div className="hidden overflow-hidden rounded-2xl border border-white/[0.08] bg-[#1b2029] lg:block">
+              <div className="hidden grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_auto] gap-4 bg-white/[0.04] px-6 py-3 text-xs text-neutral-400 lg:grid">
+                <span>Pesanan</span>
+                <span>Detail</span>
+                <span>Total</span>
+                <span>Status</span>
+                <span className="text-right">Aksi</span>
+              </div>
+              <div className="divide-y divide-white/[0.08]">
+                {filtered.map((order) => {
+                  const statusTone = orderStatusTone(order.status);
+                  return (
+                    <div key={order.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 px-4 py-4 sm:px-5 lg:grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_auto] lg:items-center lg:gap-4 lg:px-6">
+                      <button
+                        type="button"
+                        onClick={() => void openDetail(order)}
+                        disabled={openingId === order.id}
+                        aria-busy={openingId === order.id}
+                        className="min-w-0 rounded-xl text-left transition active:bg-white/5 lg:rounded-none"
+                        aria-label={`Detail ${order.number}`}
+                      >
+                        <p className="truncate text-[14px] font-medium text-white">{order.number}</p>
+                        <p className="mt-1 truncate text-xs text-neutral-400">{formatShortDate(jakartaToday())} · {order.time}</p>
+                      </button>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-neutral-300"><ShoppingBag size={16} strokeWidth={1.7} /></span>
+                        <div className="min-w-0">
+                          <p className="truncate text-[13px] font-medium text-white">{order.type}</p>
+                          <p className="mt-0.5 truncate text-xs text-neutral-400">{order.table ? `${order.table} · ` : ""}{order.items} item</p>
+                        </div>
+                      </div>
+                      <p className="self-center text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(order.total)}</p>
+                      <span className={cn("inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-medium", statusTone)}><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />{STATUS_LABEL[order.status]}</span>
+                      <div className="flex justify-end">
+                        {order.status === "Pending" ? (
+                          <button type="button" onClick={() => void openDetail(order)} className="h-10 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 active:scale-[0.98]">Lihat</button>
+                        ) : isActiveOrder(order) ? (
+                          <button type="button" onClick={() => onAdvance(order)} disabled={advancingId === order.id} aria-busy={advancingId === order.id} aria-label={`Lanjut ${order.number}`} className="h-10 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 active:scale-[0.98] disabled:opacity-40">{order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}</button>
+                        ) : (
+                          <button type="button" onClick={() => void openDetail(order)} aria-label={`Buka detail ${order.number}`} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-neutral-300 active:scale-95">•••</button>
+                        )}
                       </div>
                     </div>
-                    <p className="self-center text-[13px] font-medium tabular-nums text-white">{formatCompactIDR(order.total)}</p>
-                    <span className={cn("inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-medium", statusTone)}><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />{STATUS_LABEL[order.status]}</span>
-                    <div className="flex justify-end">
-                      {order.status === "Pending" ? (
-                        <button type="button" onClick={() => void openDetail(order)} className="h-10 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 active:scale-[0.98]">Lihat</button>
-                      ) : isActiveOrder(order) ? (
-                        <button type="button" onClick={() => onAdvance(order)} disabled={advancingId === order.id} aria-busy={advancingId === order.id} aria-label={`Lanjut ${order.number}`} className="h-10 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 active:scale-[0.98] disabled:opacity-40">{order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}</button>
-                      ) : (
-                        <button type="button" onClick={() => void openDetail(order)} aria-label={`Buka detail ${order.number}`} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-neutral-300 active:scale-95">•••</button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          </>
         ) : (
           <EmptyBlock title="Tidak ada pesanan cocok." sub="Pesanan yang lunas akan muncul di sini." />
         )}
@@ -2041,6 +2396,18 @@ function formatLongDate(date: string) {
   const parsed = new Date(`${date}T12:00:00+07:00`);
   if (Number.isNaN(parsed.getTime())) return date;
   return new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(parsed);
+}
+
+function formatMobileDate(date: string) {
+  const parsed = new Date(`${date}T12:00:00+07:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(parsed);
+}
+
+function formatOrdersHeaderDate(date: string) {
+  const parsed = new Date(`${date}T12:00:00+07:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(parsed);
 }
 
 function jakartaGreeting() {

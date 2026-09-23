@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Home, ReceiptText } from "lucide-react";
+import { ArrowLeft, Home, ReceiptText, Search, X } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import type { CartItem, Product } from "@/lib/types";
 import { buildCartItem } from "@/lib/domain/cart";
@@ -28,10 +28,11 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const [menuRetry, setMenuRetry] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [category, setCategory] = useState<OrderCategory>("Semua Menu");
-  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [placedOrders, setPlacedOrders] = useState<PlacedOrder[]>([]);
   const [activeTab, setActiveTab] = useState<"home" | "orders">("home");
+  const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [step, setStep] = useState<OrderStep>("menu");
   const [orderType, setOrderType] = useState<"Dine in" | "Takeaway">(
@@ -51,12 +52,10 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const [logoFailed, setLogoFailed] = useState(false);
 
   const tableLabel = session?.tableLabel ?? "Dine in";
   const toastTimer = useRef<number | null>(null);
   const checkoutIntentKey = useRef<string | null>(null);
-  const categoryMenuRef = useRef<HTMLDivElement>(null);
 
   function resetCheckoutIntent() { checkoutIntentKey.current = null; }
 
@@ -176,27 +175,16 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
     };
   }, [toast]);
 
-  useEffect(() => {
-    if (!categoryOpen) return;
-    function closeOnOutsidePress(event: PointerEvent) {
-      if (!categoryMenuRef.current?.contains(event.target as Node)) {
-        setCategoryOpen(false);
-      }
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setCategoryOpen(false);
-    }
-    document.addEventListener("pointerdown", closeOnOutsidePress);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePress);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [categoryOpen]);
-
   const filteredProducts = useMemo(() => {
-    return menuProducts.filter((product) => matchesOrderCategory(product, category));
-  }, [menuProducts, category]);
+    const query = search.trim().toLowerCase();
+    return menuProducts.filter((product) => {
+      if (!matchesOrderCategory(product, category)) return false;
+      if (!query) return true;
+      return `${product.name} ${product.description} ${product.category}`
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [menuProducts, category, search]);
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce(
@@ -206,6 +194,22 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
   function showToast(message: string) {
     setToast(message);
+  }
+
+  function toggleFavorite(product: Product) {
+    setFavoriteProductIds((current) =>
+      current.includes(product.id)
+        ? current.filter((id) => id !== product.id)
+        : [...current, product.id],
+    );
+  }
+
+  function goBack() {
+    if (activeTab === "orders") {
+      setActiveTab("home");
+      return;
+    }
+    if (window.history.length > 1) window.history.back();
   }
 
   function openProduct(product: Product) {
@@ -425,25 +429,25 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   }
 
   const dineIn = orderType === "Dine in";
+  const menuTitle = category === "Semua Menu" ? "Menu" : category;
 
   return (
     <main className="flex min-h-screen justify-center bg-white text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
       <div className="relative flex min-h-screen w-full max-w-[440px] flex-col bg-white pb-36">
         <header className="sticky top-0 z-30 border-b border-neutral-100 bg-white/90 backdrop-blur-md">
-          <div className="px-5 pb-3 pt-[calc(1rem+env(safe-area-inset-top))]">
-            <div className="relative flex items-center justify-center">
-              {logoFailed ? (
-                <p className="text-[15px] font-medium tracking-tight">
-                  Bara &amp; Burn
-                </p>
-              ) : (
-                <img
-                  src="/logo.png"
-                  alt="Baraburn"
-                  onError={() => setLogoFailed(true)}
-                  className="h-10 w-auto max-w-[220px] object-contain"
-                />
-              )}
+          <div className="px-5 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+            <div className="relative flex h-10 items-center justify-center">
+              <button
+                type="button"
+                onClick={goBack}
+                aria-label="Kembali"
+                className="absolute left-0 flex h-9 w-9 items-center justify-center rounded-full text-neutral-900 transition active:scale-95"
+              >
+                <ArrowLeft size={21} strokeWidth={1.8} />
+              </button>
+              <h1 className="max-w-[230px] truncate text-[18px] font-medium tracking-tight">
+                {menuTitle}
+              </h1>
               {dineIn && session?.tableLabel && (
                 <p className="absolute right-0 text-xs text-neutral-400">
                   {session.tableLabel}
@@ -483,109 +487,57 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         </header>
 
         {activeTab === "home" ? (
-          <div key="home" className="ord-rise flex-1 px-5 pt-7" aria-busy={menuLoading}>
-            <div className="flex items-end justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400">
-                  Menu hari ini
-                </p>
-                <h1 className="mt-2 text-[22px] font-medium leading-snug tracking-tight">
-                  Mau makan apa?
-                </h1>
-                <p className="mt-1 text-[13px] text-neutral-500">
-                  {dineIn
-                    ? "Pesan dari meja, bayar via QRIS."
-                    : "Pesan cepat, ambil di kasir."}
-                </p>
-              </div>
-              <span className="mb-1 shrink-0 rounded-full bg-[#FDBD2C]/15 px-3 py-1.5 text-[11px] font-medium text-neutral-900">
-                Fresh dibakar
-              </span>
-            </div>
-
-            <div className="relative mt-6 overflow-hidden rounded-[24px] bg-neutral-900">
-              <img
-                src="/landing/sate-taichan-hero.png"
-                alt="Sate taichan panggang dengan sambal dan jeruk limau"
-                className="aspect-[2/1] w-full object-cover opacity-90"
+          <div key="home" className="ord-rise flex-1 px-5 pt-4" aria-busy={menuLoading}>
+            <div className="relative">
+              <Search
+                aria-hidden="true"
+                size={18}
+                strokeWidth={1.8}
+                className="pointer-events-none absolute inset-y-0 left-4 my-auto text-neutral-400"
               />
-              <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-neutral-900/85 via-neutral-900/10 to-transparent" />
-              <div className="absolute inset-x-4 bottom-4">
-                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">
-                  Bara &amp; Burn kitchen
-                </p>
-                <p className="mt-1 text-lg font-medium leading-snug tracking-tight text-white">
-                  Hangat dari grill.
-                </p>
-              </div>
-            </div>
-
-            <div ref={categoryMenuRef} className="relative mt-6">
-              <label htmlFor="menu-category" className="sr-only">
-                Filter kategori menu
+              <label htmlFor="menu-search" className="sr-only">
+                Cari menu
               </label>
-              <button
-                type="button"
-                id="menu-category"
-                aria-haspopup="listbox"
-                aria-expanded={categoryOpen}
-                aria-controls="menu-category-options"
-                onClick={() => setCategoryOpen((open) => !open)}
-                onKeyDown={(event) => {
-                  if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    setCategoryOpen(true);
-                  }
-                }}
-                className="flex h-12 w-full items-center justify-between rounded-2xl bg-neutral-100 px-4 text-left text-[13px] text-neutral-900 outline-none transition hover:bg-neutral-50 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
-              >
-                <span className="truncate">{category}</span>
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "pointer-events-none ml-3 h-2.5 w-2.5 shrink-0 rotate-45 border-b-2 border-r-2 border-neutral-500 transition-transform",
-                    categoryOpen && "-translate-y-0.5 rotate-[225deg]",
-                  )}
-                />
-              </button>
-              {categoryOpen && (
-                <div
-                  id="menu-category-options"
-                  role="listbox"
-                  aria-label="Kategori menu"
-                  className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-2xl border border-neutral-100 bg-white/95 p-1 shadow-[0_14px_30px_rgba(24,24,27,0.12)] backdrop-blur-md"
+              <input
+                id="menu-search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Cari menu"
+                className="h-12 w-full rounded-2xl bg-neutral-100 pl-11 pr-11 text-[13px] outline-none transition placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
+              />
+              {search && (
+                <button
+                  type="button"
+                  aria-label="Hapus pencarian"
+                  onClick={() => setSearch("")}
+                  className="absolute inset-y-0 right-3 my-auto flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition active:scale-95"
                 >
-                  <div className="max-h-64 overflow-y-auto">
-                    {categories.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        role="option"
-                        aria-selected={category === item}
-                        onClick={() => {
-                          setCategory(item);
-                          setCategoryOpen(false);
-                        }}
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors",
-                          category === item
-                            ? "bg-[#FDBD2C]/15 font-medium text-neutral-900"
-                            : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900",
-                        )}
-                      >
-                        <span>{item}</span>
-                        {category === item && (
-                          <span aria-hidden="true" className="ml-3 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FDBD2C]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                  <X size={15} />
+                </button>
               )}
             </div>
 
-            <div className="mt-8 flex items-baseline justify-between">
-              <h2 className="text-sm font-medium">{category}</h2>
+            <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5">
+              {categories.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setCategory(item)}
+                  aria-pressed={category === item}
+                  className={cn(
+                    "shrink-0 rounded-full px-3.5 py-2 text-[13px] transition active:scale-95",
+                    category === item
+                      ? "bg-[#FDBD2C]/20 font-medium text-neutral-900"
+                      : "bg-neutral-100 text-neutral-500",
+                  )}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-7 flex items-baseline justify-between">
+              <h2 className="text-sm font-medium">{menuTitle}</h2>
               <span className="text-xs text-neutral-400">
                 {filteredProducts.length} menu
               </span>
@@ -612,6 +564,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                     product={product}
                     onOpen={openProduct}
                     onQuickAdd={quickAdd}
+                    isFavorite={favoriteProductIds.includes(product.id)}
+                    onToggleFavorite={toggleFavorite}
                   />
                 ))}
               </div>
@@ -768,6 +722,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
           setNote={setNote}
           onClose={() => setStep("menu")}
           onAdd={addToCart}
+          isFavorite={favoriteProductIds.includes(selectedProduct.id)}
+          onToggleFavorite={toggleFavorite}
         />
       )}
     </main>

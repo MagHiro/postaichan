@@ -173,6 +173,8 @@
       overflow: hidden;
       overscroll-behavior: none;
     }
+    .pos-theme.pos-overview-mobile { --pos-bg: #0e1824; }
+    .pos-theme.pos-orders-mobile { --pos-bg: #0f1722; }
     .pos-theme main {
       min-height: 0;
       max-width: 100%;
