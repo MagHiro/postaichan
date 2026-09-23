@@ -42,7 +42,7 @@ npm run db:down
 - Tracked inventory is reserved atomically for QRIS attempts, consumed exactly once at settlement/cash checkout, and released on expiry/failure/cancellation. Refunds do not silently restock prepared food.
 - Historical order lines retain immutable product/modifier names, selling prices, and estimated costs.
 - Payment attempts remain separate records. Duplicate checkout requests and provider notifications are harmless; out-of-order payment transitions cannot move state backwards.
-- Reports recognize sales at payment settlement time in `Asia/Jakarta`; refund events use their processing time. Estimated gross profit is revenue less snapshot COGS and known payment fees, not accounting net profit.
+- Reports recognize sales at payment settlement time in `Asia/Jakarta`; refund events use their processing time.
 
 ## Deployment notes
 

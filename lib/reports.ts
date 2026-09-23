@@ -8,7 +8,6 @@ type PaymentRow = {
   order_id: string;
   status: string;
   amount_idr: number;
-  fee_idr?: number | null;
   refunded_amount_idr?: number | null;
   orphaned_settlement?: boolean | null;
   settled_at?: string | null;
@@ -16,8 +15,8 @@ type PaymentRow = {
 };
 
 type RefundRow = { id: string; payment_id: string; amount_idr: number; processed_at: string; reason?: string | null };
-type OrderRow = { id: string; order_number: string; order_type: string; status: string; total_idr: number; estimated_cost_idr: number; created_at: string };
-type ItemRow = { order_id: string; product_name_snapshot: string; quantity: number; line_total_idr: number; unit_cost_snapshot_idr: number };
+type OrderRow = { id: string; order_number: string; order_type: string; status: string; total_idr: number; created_at: string };
+type ItemRow = { order_id: string; product_name_snapshot: string; quantity: number; line_total_idr: number };
 
 export type ReportDay = { date: string; grossRevenueIdr: number; refundsIdr: number; netRevenueIdr: number; paidOrderCount: number };
 
@@ -32,16 +31,12 @@ export type DailyReport = {
   netRevenueIdr: number;
   revenueIdr: number;
   orderCount: number;
-  averageOrderValueIdr: number;
-  estimatedCogsIdr: number;
-  paymentFeesIdr: number;
-  estimatedGrossProfitIdr: number;
   dineInRevenueIdr: number;
   takeawayRevenueIdr: number;
   paymentMethodMix: Array<{ method: string; amountIdr: number; orderCount: number }>;
   dailyBreakdown: ReportDay[];
   bestSellers: Array<{ name: string; quantity: number; revenueIdr: number }>;
-  orders: Array<{ orderNumber: string; createdAt: string; settledAt: string; type: string; totalIdr: number; estimatedCostIdr: number; status: string }>;
+  orders: Array<{ orderNumber: string; createdAt: string; settledAt: string; type: string; totalIdr: number; status: string }>;
 };
 
 export function netRecognizedPayment(payment: { status: string; amount_idr: number; refunded_amount_idr?: number | null; orphaned_settlement?: boolean | null }) {
@@ -87,7 +82,7 @@ export async function getReport(fromValue?: string, toValue?: string): Promise<D
   const { query } = await import("@/lib/db");
   const range = jakartaRange(fromValue, toValue);
   const candidatePayments = await query<PaymentRow & { method: string }>(
-    `select id, order_id, status, amount_idr, fee_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method
+    `select id, order_id, status, amount_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method
      from public.payments
      where status = any($1::public.payment_status[])
        and orphaned_settlement = false
@@ -100,7 +95,7 @@ export async function getReport(fromValue?: string, toValue?: string): Promise<D
   const candidateOrderIds = [...new Set(candidateRows.map((row) => row.order_id))];
   const allOrderPayments = candidateOrderIds.length
     ? await query<PaymentRow & { method: string }>(
-      `select id, order_id, status, amount_idr, fee_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method
+      `select id, order_id, status, amount_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method
        from public.payments
        where order_id = any($1::uuid[]) and status = any($2::public.payment_status[]) and settled_at is not null
        order by settled_at asc`,
@@ -122,7 +117,7 @@ export async function getReport(fromValue?: string, toValue?: string): Promise<D
       [range.start, range.end],
     ),
     candidateOrderIds.length
-      ? query<OrderRow>("select id, order_number, order_type, status, total_idr, estimated_cost_idr, created_at from public.orders where id = any($1::uuid[])", [candidateOrderIds])
+      ? query<OrderRow>("select id, order_number, order_type, status, total_idr, created_at from public.orders where id = any($1::uuid[])", [candidateOrderIds])
       : Promise.resolve({ rows: [] as OrderRow[] }),
   ]);
 
@@ -130,7 +125,7 @@ export async function getReport(fromValue?: string, toValue?: string): Promise<D
   const refundPaymentIds = [...new Set(refundRows.map((row) => row.payment_id))];
   const extraPaymentIds = refundPaymentIds.filter((id) => !settlementPaymentIds.includes(id));
   const refundPayments = extraPaymentIds.length
-    ? await query<PaymentRow & { method: string }>("select id, order_id, status, amount_idr, fee_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method from public.payments where id = any($1::uuid[])", [extraPaymentIds])
+    ? await query<PaymentRow & { method: string }>("select id, order_id, status, amount_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method from public.payments where id = any($1::uuid[])", [extraPaymentIds])
     : { rows: [] as Array<PaymentRow & { method: string }> };
 
   const paymentById = new Map<string, PaymentRow & { method: string }>();
@@ -145,11 +140,11 @@ export async function getReport(fromValue?: string, toValue?: string): Promise<D
   const relevantOrders = new Map(orders.rows.map((order) => [order.id, order]));
   const missingOrderIds = allRelevantOrderIds.filter((id) => !relevantOrders.has(id));
   if (missingOrderIds.length) {
-    const extraOrders = await query<OrderRow>("select id, order_number, order_type, status, total_idr, estimated_cost_idr, created_at from public.orders where id = any($1::uuid[])", [missingOrderIds]);
+    const extraOrders = await query<OrderRow>("select id, order_number, order_type, status, total_idr, created_at from public.orders where id = any($1::uuid[])", [missingOrderIds]);
     for (const order of extraOrders.rows) relevantOrders.set(order.id, order);
   }
   const items = allRelevantOrderIds.length
-    ? await query<ItemRow>("select order_id, product_name_snapshot, quantity, line_total_idr, unit_cost_snapshot_idr from public.order_items where order_id = any($1::uuid[])", [allRelevantOrderIds])
+    ? await query<ItemRow>("select order_id, product_name_snapshot, quantity, line_total_idr from public.order_items where order_id = any($1::uuid[])", [allRelevantOrderIds])
     : { rows: [] as ItemRow[] };
   const itemRows = items.rows;
 
@@ -158,10 +153,8 @@ export async function getReport(fromValue?: string, toValue?: string): Promise<D
   const grossRevenueIdr = settlementRows.reduce((sum, row) => sum + row.amount_idr, 0);
   const refundsIdr = validRefunds.reduce((sum, row) => sum + row.amount_idr, 0);
   const netRevenueIdr = grossRevenueIdr - refundsIdr;
-  const paymentFeesIdr = settlementRows.reduce((sum, row) => sum + (row.fee_idr ?? 0), 0);
   const settlementOrderIds = new Set(settlementRows.map((row) => row.order_id));
   const settlementItems = itemRows.filter((item) => settlementOrderIds.has(item.order_id));
-  const estimatedCogsIdr = settlementItems.reduce((sum, item) => sum + item.unit_cost_snapshot_idr * item.quantity, 0);
 
   const byProduct = new Map<string, { quantity: number; revenueIdr: number }>();
   for (const item of settlementItems) {
@@ -224,10 +217,6 @@ export async function getReport(fromValue?: string, toValue?: string): Promise<D
     netRevenueIdr,
     revenueIdr: netRevenueIdr,
     orderCount: settlementRows.length,
-    averageOrderValueIdr: settlementRows.length ? Math.round(netRevenueIdr / settlementRows.length) : 0,
-    estimatedCogsIdr,
-    paymentFeesIdr,
-    estimatedGrossProfitIdr: netRevenueIdr - estimatedCogsIdr - paymentFeesIdr,
     dineInRevenueIdr,
     takeawayRevenueIdr,
     paymentMethodMix: [...paymentMix.entries()].map(([method, values]) => ({ method, ...values })),
@@ -241,7 +230,6 @@ export async function getReport(fromValue?: string, toValue?: string): Promise<D
         settledAt: row.settled_at!,
         type: order?.order_type ?? "unknown",
         totalIdr: row.amount_idr - (refundsByPayment.get(row.id) ?? 0),
-        estimatedCostIdr: order?.estimated_cost_idr ?? 0,
         status: order?.status ?? "unknown",
       };
     }),

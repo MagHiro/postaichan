@@ -458,15 +458,6 @@ function MobileMetricCard({ label, value, detail }: { label: string; value: stri
   );
 }
 
-function MobileNoPendingCard() {
-  return (
-    <section className="mt-3 rounded-2xl border border-neutral-100 bg-white shadow-soft px-4 py-4 lg:hidden">
-      <p className="text-sm font-medium text-neutral-900">Tidak ada pesanan tertunda</p>
-      <p className="mt-1 text-[13px] leading-tight text-neutral-500">Bagus! Semua pesanan sudah diproses.</p>
-    </section>
-  );
-}
-
 function ReportMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="min-w-0 rounded-2xl border border-neutral-100 bg-white shadow-soft p-5">
@@ -585,24 +576,18 @@ function LiveOverview({
 
       {isAdmin ? (
         <>
-          <div className="mt-6 hidden grid-cols-2 gap-4 lg:grid xl:grid-cols-4">
+          <div className="mt-6 hidden grid-cols-2 gap-4 lg:grid">
             <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail="Settlement Jakarta" /></div>
             <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" /></div>
-            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Est. laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah COGS + fee" /></div>
-            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" /></div>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3 lg:hidden">
             <MobileMetricCard label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail={`dari ${summary?.orderCount ?? 0} pesanan hari ini`} />
             <MobileMetricCard label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" />
-            <MobileMetricCard label="Estimasi laba" value={summary ? formatCompactIDR(summary.estimatedGrossProfitIdr) : "—"} detail="Setelah modal & ongkir" />
-            <MobileMetricCard label="Rata-rata" value={summary ? formatCompactIDR(summary.averageOrderValueIdr) : "—"} detail="Per pesanan" />
           </div>
         </>
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-2"><div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Pesanan aktif" value={String(active.length)} detail="Perlu tindakan" /></div><div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Menunggu bayar" value={String(orders.filter((order) => order.status === "Pending").length)} detail="Belum masuk dapur" /></div></div>
       )}
-
-      {isAdmin && <MobileNoPendingCard />}
 
       <section className="mt-3 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft p-5 lg:mt-6">
         <div className="flex items-center justify-between">
@@ -2051,11 +2036,10 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
 
       {report ? (
         <>
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <ReportMetric label="Penjualan bersih" value={formatCompactIDR(report.netRevenueIdr)} detail={`${report.orderCount} pesanan lunas`} />
             <ReportMetric label="Penjualan kotor" value={formatCompactIDR(report.grossRevenueIdr)} detail="Settlement periode ini" />
             <ReportMetric label="Refund" value={formatCompactIDR(report.refundsIdr)} detail="Diproses periode ini" />
-            <ReportMetric label="Est. laba" value={formatCompactIDR(report.estimatedGrossProfitIdr)} detail="Bukan laba bersih" />
           </div>
 
           <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
@@ -2075,14 +2059,6 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
                 <span className="truncate text-[13px] font-medium text-neutral-900">Takeaway</span>
                 <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.takeawayRevenueIdr)}</span>
-              </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
-                <span className="truncate text-[13px] font-medium text-neutral-900">Rata-rata</span>
-                <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.averageOrderValueIdr)}</span>
-              </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
-                <span className="truncate text-[13px] font-medium text-neutral-900">Est. COGS · fee</span>
-                <span className="text-right text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.estimatedCogsIdr)} · {formatCompactIDR(report.paymentFeesIdr)}</span>
               </div>
             </div>
           </section>
