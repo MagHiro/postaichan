@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Plus, Search, X } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ConfirmSheet, type ConfirmState } from "@/components/pos-confirm-sheet";
 import { useDialogFocus } from "@/components/use-dialog-focus";
 
 type AdminProduct = {
@@ -37,6 +39,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const pendingImagePaths = useRef(new Set<string>());
 
   async function loadMenu() {
@@ -132,8 +135,16 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
     }
   }
 
+  function requestArchiveProduct(product: AdminProduct) {
+    setConfirm({
+      title: `Arsipkan ${product.name}?`,
+      description: "Produk hilang dari menu tapi riwayat pesanan tetap aman.",
+      confirmLabel: "Arsipkan",
+      onConfirm: () => void archiveProduct(product),
+    });
+  }
+
   async function archiveProduct(product: AdminProduct) {
-    if (!window.confirm(`Hapus ${product.name} dari menu? Produk tidak akan mengubah riwayat pesanan.`)) return;
     try {
       const response = await fetch(`/api/admin/menu/${product.id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Produk gagal diarsipkan.");
@@ -217,13 +228,23 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
 
         <div className="mt-5 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
           {loading ? (
-            <p className="py-14 text-center text-[13px] text-neutral-400">Memuat menu…</p>
+            <div className="divide-y divide-neutral-100 px-4 sm:px-5" aria-hidden="true">
+              {[0, 1, 2].map((row) => (
+                <div key={row} className="flex items-center gap-3 py-3.5">
+                  <div className="ord-skeleton h-14 w-14 shrink-0 rounded-xl" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="ord-skeleton h-3.5 w-2/3 rounded-full" />
+                    <div className="ord-skeleton h-3 w-1/2 rounded-full" />
+                  </div>
+                  <div className="ord-skeleton h-7 w-20 shrink-0 rounded-full" />
+                </div>
+              ))}
+            </div>
           ) : visibleProducts.length ? (
             <>
-              <div className="hidden grid-cols-[minmax(0,1fr)_170px_40px] gap-4 bg-white px-5 py-3 text-xs text-neutral-400 sm:grid">
+              <div className="hidden grid-cols-[minmax(0,1fr)_170px] gap-4 bg-white px-5 py-3 text-xs text-neutral-400 sm:grid">
                 <span>Menu</span>
                 <span>Status</span>
-                <span aria-hidden="true" />
               </div>
               <div className="divide-y divide-neutral-100">
                 {visibleProducts.map((product) => {
@@ -234,7 +255,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                       ? "bg-[#FDBD2C]/20 text-neutral-900"
                       : "bg-neutral-100 text-neutral-500";
                   return (
-                    <div key={product.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-3 py-3.5 sm:grid-cols-[minmax(0,1fr)_170px_40px] sm:items-center sm:gap-4 sm:px-5 sm:py-3">
+                    <div key={product.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-4 py-3.5 sm:grid-cols-[minmax(0,1fr)_170px] sm:items-center sm:gap-4 sm:px-5 sm:py-3">
                       <button
                         type="button"
                         onClick={() => openEdit(product)}
@@ -246,8 +267,8 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                         </span>
                         <span className="min-w-0">
                           <span className="block truncate text-[13px] font-medium text-neutral-900">{product.name}</span>
-                          <span className="mt-1 block truncate text-[13px] text-neutral-400">
-                            {product.categoryName} · {formatCompactIDR(product.priceIdr)}{product.stockTracked ? ` · ${product.stockQuantity} tersisa` : " · unlimited"}
+                          <span className="mt-1 block truncate text-xs tabular-nums text-neutral-400">
+                            {product.categoryName} · {formatCompactIDR(product.priceIdr)}{product.stockTracked ? ` · ${product.stockQuantity} tersisa` : ""}
                           </span>
                         </span>
                       </button>
@@ -257,25 +278,17 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                           onClick={() => void toggleAvailability(product)}
                           aria-label={`${product.name}: ${product.available ? "tersedia" : "habis"}`}
                           aria-pressed={product.available}
-                          className={cn("col-start-1 row-start-2 flex h-10 w-fit items-center gap-2 rounded-full border px-4 text-[13px] font-medium transition active:scale-[0.98] sm:col-start-2 sm:row-start-1", statusClass)}
+                          className={cn("col-start-1 row-start-2 flex h-9 w-fit items-center gap-2 rounded-full border px-3.5 text-[11px] font-medium transition active:scale-[0.98] sm:col-start-2 sm:row-start-1", statusClass)}
                         >
-                          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-current" />
+                          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
                           {statusLabel}
                         </button>
                       ) : (
-                        <span className={cn("col-start-1 row-start-2 flex h-10 w-fit items-center gap-2 rounded-full px-4 text-[13px] font-medium sm:col-start-2 sm:row-start-1", statusClass)}>
-                          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-current" />
+                        <span className={cn("col-start-1 row-start-2 flex h-9 w-fit items-center gap-2 rounded-full px-3.5 text-[11px] font-medium sm:col-start-2 sm:row-start-1", statusClass)}>
+                          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
                           {statusLabel}
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => openEdit(product)}
-                        aria-label={`Buka aksi ${product.name}`}
-                        className="col-start-2 row-span-2 row-start-1 flex h-10 w-10 items-center justify-center self-center rounded-full text-neutral-400 active:scale-95 sm:col-start-3 sm:row-span-1 sm:row-start-1"
-                      >
-                        ···
-                      </button>
                     </div>
                   );
                 })}
@@ -292,6 +305,8 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           )}
         </div>
       </div>
+
+      <ConfirmSheet confirm={confirm} onClose={() => setConfirm(null)} />
 
       {editor && (
         <ProductEditor
@@ -311,7 +326,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
               : (product) => {
                   void cleanupPendingImages();
                   setEditor(null);
-                  void archiveProduct(product);
+                  requestArchiveProduct(product);
                 }
           }
           onRestore={
@@ -329,12 +344,12 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
   const isCreate = editor === "create";
   const dialogRef = useRef<HTMLElement>(null);
   useDialogFocus(dialogRef, onClose);
-  return (
+  return createPortal(
     <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 p-0 sm:items-center sm:p-5" onClick={onClose}>
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet max-h-[92dvh] w-full max-w-[560px] overflow-y-auto rounded-t-[28px] bg-white p-5 text-neutral-900 sm:rounded-[28px] sm:p-6"
+        className="ord-sheet max-h-[92dvh] w-full max-w-[440px] overflow-y-auto rounded-t-[28px] bg-white p-5 text-neutral-900 sm:rounded-[28px] sm:p-6"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -358,13 +373,13 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
             <input id="product-name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Sate Taichan 10 Tusuk" className="input" />
           </Field>
           <Field label="Kategori">
-            <select id="product-category" required value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })} className="input">
+            <select id="product-category" required value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })} className="select">
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
           </Field>
           <Field label="Foto menu · opsional">
             <div className="space-y-3">
-              {form.imagePath ? <div className="relative overflow-hidden rounded-2xl bg-neutral-100"><img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/9] w-full object-cover" /><button type="button" onClick={() => setForm({ ...form, imagePath: "" })} className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-500">Hapus foto</button></div> : <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-neutral-100 text-[13px] text-neutral-400">Belum ada foto</div>}
+              {form.imagePath ? <div className="relative overflow-hidden rounded-2xl bg-neutral-100"><img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/10] w-full object-cover" /><button type="button" onClick={() => setForm({ ...form, imagePath: "" })} className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-500">Hapus foto</button></div> : <div className="flex aspect-[16/10] items-center justify-center rounded-2xl bg-neutral-100 text-[13px] text-neutral-400">Belum ada foto</div>}
               <label className="flex h-11 cursor-pointer items-center justify-center rounded-full border border-neutral-200 text-[13px] font-medium text-neutral-500">
                 {uploading ? "Mengunggah…" : form.imagePath ? "Ganti foto" : "Upload foto"}
                 <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = ""; }} className="sr-only" />
@@ -385,11 +400,28 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
           </div>
           <fieldset className="border-0 p-0">
             <legend className="mb-3 text-[13px] font-medium">Stok</legend>
-            <div className="space-y-2">
-              <label className="flex items-center gap-3 text-[13px] text-neutral-500"><input type="radio" name="stock-mode" checked={!form.stockTracked} onChange={() => setForm({ ...form, stockTracked: false })} /> Unlimited</label>
-              <label className="flex items-center gap-3 text-[13px] text-neutral-500"><input type="radio" name="stock-mode" checked={form.stockTracked} onChange={() => setForm({ ...form, stockTracked: true })} /> Track stock</label>
-              {form.stockTracked && <input id="product-stock" required type="number" min="0" max="1000000" value={form.stockQuantity} onChange={(event) => setForm({ ...form, stockQuantity: event.target.value })} className="input tabular-nums" aria-label="Jumlah stok" placeholder="24" />}
+            <div className="flex rounded-full bg-neutral-100 p-1" role="group" aria-label="Mode stok">
+              {(
+                [
+                  { key: false, label: "Unlimited" },
+                  { key: true, label: "Track stok" },
+                ] as const
+              ).map(({ key, label }) => (
+                <button
+                  type="button"
+                  key={label}
+                  onClick={() => setForm({ ...form, stockTracked: key })}
+                  aria-pressed={form.stockTracked === key}
+                  className={cn(
+                    "h-11 flex-1 rounded-full text-center text-[13px] transition active:scale-[0.98]",
+                    form.stockTracked === key ? "bg-white font-medium text-neutral-900 shadow-xs" : "font-normal text-neutral-500",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+            {form.stockTracked && <input id="product-stock" required type="number" min="0" max="1000000" value={form.stockQuantity} onChange={(event) => setForm({ ...form, stockQuantity: event.target.value })} className="input mt-3 tabular-nums" aria-label="Jumlah stok" placeholder="24" />}
           </fieldset>
           <button
             type="button"
@@ -425,7 +457,8 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
         </div>
         </form>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

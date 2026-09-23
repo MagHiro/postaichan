@@ -45,3 +45,17 @@ export const cashierOrderSchema = z.object({
 }).strict();
 
 export const uuidParamSchema = z.string().uuid();
+
+export const shiftIntakeItemSchema = z.object({
+  productId: z.string().uuid(),
+  quantity: z.number().int().min(0).max(1000000),
+}).strict();
+
+export const shiftOpenSchema = z.object({
+  note: z.string().trim().max(240).optional(),
+  items: z.array(shiftIntakeItemSchema).max(500),
+}).strict();
+
+export const shiftCloseSchema = z.object({
+  note: z.string().trim().max(240).optional(),
+}).strict();

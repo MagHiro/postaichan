@@ -45,6 +45,10 @@ export function checkoutDatabaseFailure(error: unknown, audience: "customer" | "
   if (code === "ORDER_NOT_RETRYABLE") return { code, error: withCode("Pesanan ini sudah dibatalkan atau selesai dan tidak dapat dicoba ulang. Buat pesanan baru.", code), status: 409, action: "refresh" };
   if (code === "INVALID_IDEMPOTENCY") return { code, error: withCode("Identitas checkout tidak valid. Muat ulang halaman lalu coba lagi.", code), status: 400, action: "refresh" };
   if (code === "STAFF_NOT_AUTHORIZED") return { code, error: withCode("Sesi kasir tidak memiliki izin membuat pesanan.", code), status: 403 };
+  if (code === "SHIFT_CLOSED") {
+    const message = audience === "staff" ? "Kasir sedang tutup. Buka kasir dan isi stok awal dulu." : "Kasir sedang tutup. Coba lagi nanti atau hubungi kasir.";
+    return { code, error: withCode(message, code), status: 409, action: "refresh" };
+  }
   if (code === "CATEGORY_NOT_AVAILABLE" || code === "INVALID_PRODUCT" || code === "PRODUCT_NOT_FOUND") return { code, error: withCode("Item menu tidak valid atau sudah tidak tersedia. Muat ulang menu.", code), status: 409, action: "refresh" };
 
   const prefix = audience === "staff" ? "Pesanan kasir" : "Checkout";

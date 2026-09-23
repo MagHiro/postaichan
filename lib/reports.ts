@@ -78,33 +78,46 @@ function methodLabel(method: string) {
   return method.toLowerCase() === "cash" ? "cash" : "qris";
 }
 
-export async function getReport(fromValue?: string, toValue?: string): Promise<DailyReport> {
+export async function getReport(fromValue?: string, toValue?: string, shiftId?: string): Promise<DailyReport> {
   const { query } = await import("@/lib/db");
   const range = jakartaRange(fromValue, toValue);
-  const candidatePayments = await query<PaymentRow & { method: string }>(
-    `select id, order_id, status, amount_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method
-     from public.payments
-     where status = any($1::public.payment_status[])
-       and orphaned_settlement = false
-       and settled_at is not null
-       and settled_at >= $2 and settled_at < $3
-     order by settled_at asc`,
-    [RECOGNIZED_PAYMENT_STATUSES, range.start, range.end],
+  const candidatePayments = await query<PaymentRow & { method: string; order_status: string; shift_id: string | null }>(
+    `select p.id, p.order_id, p.status, p.amount_idr, p.refunded_amount_idr, p.orphaned_settlement, p.settled_at, p.created_at, p.method,
+            o.status as order_status, o.shift_id
+     from public.payments p
+     join public.orders o on o.id = p.order_id
+     where p.status = any($1::public.payment_status[])
+       and p.orphaned_settlement = false
+       and p.settled_at is not null
+       and p.settled_at >= $2 and p.settled_at < $3
+       and ($4::uuid is null or o.shift_id = $4::uuid)
+       and o.status not in ('cancelled', 'draft')
+     order by p.settled_at asc`,
+    [RECOGNIZED_PAYMENT_STATUSES, range.start, range.end, shiftId ?? null],
   );
   const candidateRows = candidatePayments.rows;
   const candidateOrderIds = [...new Set(candidateRows.map((row) => row.order_id))];
   const allOrderPayments = candidateOrderIds.length
     ? await query<PaymentRow & { method: string }>(
-      `select id, order_id, status, amount_idr, refunded_amount_idr, orphaned_settlement, settled_at, created_at, method
-       from public.payments
-       where order_id = any($1::uuid[]) and status = any($2::public.payment_status[]) and settled_at is not null
-       order by settled_at asc`,
+      `select p.id, p.order_id, p.status, p.amount_idr, p.refunded_amount_idr, p.orphaned_settlement, p.settled_at, p.created_at, p.method
+       from public.payments p
+       join public.orders o on o.id = p.order_id
+       where p.order_id = any($1::uuid[]) and p.status = any($2::public.payment_status[]) and p.settled_at is not null
+         and o.status not in ('cancelled', 'draft')
+       order by p.settled_at asc`,
       [candidateOrderIds, RECOGNIZED_PAYMENT_STATUSES],
     )
     : { rows: [] as Array<PaymentRow & { method: string }> };
 
+  // The pg driver returns timestamptz columns as Date objects. Normalize to
+  // ISO strings once: downstream code string-compares against range bounds
+  // (Date >= string is always false) and buckets/outputs ISO text.
+  const normalizedPayments = allOrderPayments.rows.map((row) => ({
+    ...row,
+    settled_at: row.settled_at == null ? null : new Date(row.settled_at).toISOString(),
+  }));
   const primaryByOrder = new Map<string, PaymentRow & { method: string }>();
-  for (const row of allOrderPayments.rows) {
+  for (const row of normalizedPayments) {
     if (row.orphaned_settlement !== true && row.settled_at && !primaryByOrder.has(row.order_id)) primaryByOrder.set(row.order_id, row);
   }
   const settlementRows = [...primaryByOrder.values()].filter((row) => row.settled_at! >= range.start && row.settled_at! < range.end);

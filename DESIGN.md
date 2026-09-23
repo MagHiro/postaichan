@@ -21,7 +21,9 @@ surface. Routes (`app/order/page.tsx`, `app/order/[accessToken]/page.tsx`,
 - `font-medium` is the ceiling — no bold/extrabold/black in order UI.
 - One accent (`#FDBD2C`), used sparingly: solid on primary CTAs only,
   soft tint for selections, nothing else.
-- Icons: Home, ReceiptText, X, Plus, Minus, ArrowLeft only.
+- Icons: Home, ReceiptText, X, Plus, Minus, ArrowLeft only on the
+  customer surface. POS additionally allows Search, BookOpen, TrendingUp,
+  Download, RefreshCw for staff speed (documented per section below).
 - Motion: small fades/rises only (`ord-*`), press shrink on tap, no hovers
   that lift, no emoji ornament.
 
@@ -260,7 +262,7 @@ toast, "Pesan lagi" button. Selection:
 - `fixed inset-x-0 bottom-24 z-50 flex justify-center px-5`
   (above the tab bar); pill `rounded-full bg-neutral-900 px-4 py-2
   text-[13px] text-white` (`ord-toast`); auto-dismiss 2200ms.
-  Text only, no icon.
+  Text only, no icon. POS shares the same toast and timing.
 
 ## Motion
 
@@ -271,6 +273,162 @@ toast, "Pesan lagi" button. Selection:
 - Press feedback: `active:scale-95` (icon buttons), `active:scale-[0.98]`
   (full-width buttons). No hover lifts, no staggered entrances.
 - `prefers-reduced-motion: reduce` disables all `ord-*` animation.
+
+## POS Workspace (`/pos`, phone-first)
+
+`components/pos-workspace-live.tsx` (+ `pos-confirm-sheet.tsx`,
+`menu-manager.tsx`) follows the same tokens, type scale, and motion,
+with staff-speed exceptions noted here. Desktop keeps the same cards
+in wider grids (`lg:`) plus a `266px` sidebar.
+
+- Mobile headers: `text-[22px] font-medium tracking-tight` + `13px
+  neutral-500` sub, compact `h-10` accent `Pesanan baru` CTA
+  (compact header exception vs customer `h-12` primary). Kasir hides
+  the CTA while active; sub shows `N aktif · date`.
+- Metrics: `grid-cols-2 gap-3` compact cards (`min-h-[108px] p-4`,
+  `sm:p-5`, `lg:min-h-[132px]`) using the shared `Metric` type
+  (`xs neutral-400 / 22px medium tabular / 13px neutral-500`).
+- Search: `h-12 rounded-2xl bg-neutral-100 text-[13px]` with `Search`
+  16 + clear `X`, `focus:bg-white focus:ring-2
+  focus:ring-[#FDBD2C]/50` (POS icon exception).
+- Filter/pill rows: `h-10 rounded-full text-[13px]` (Kasir categories
+  `px-3.5 py-2`); active `bg-[#FDBD2C]/20 font-medium`, inactive
+  `bg-neutral-100 text-neutral-500`, `aria-pressed`, counts
+  `tabular-nums`.
+- Dropdowns (`.select` in `globals.css`): inherit `.input` fill
+  (`#f5f5f5`, `rounded-2xl`, accent focus ring) with `appearance:
+  none` + right-aligned CSS chevron (`12×8 neutral-400`). Used for
+  Menu editor category + Kasir table select. All POS dialogs render
+  via `createPortal(..., document.body)` so `fixed` positioning is
+  never trapped by the `ord-rise` transform ancestor.
+- Loading: `ListSkeleton` rows (`ord-skeleton` bars + pill) instead
+  of plain text. Empty: `EmptyBlock` (`py-14`, `sm medium` title +
+  `13px neutral-500` hint). Errors: white card
+  (`rounded-2xl border neutral-100 bg-white shadow-soft px-4 py-3
+  text-[13px] neutral-500`) + dark `h-9 Muat ulang`.
+- ConfirmSheet (`pos-confirm-sheet.tsx`): replaces all native
+  `window.confirm` (cancel order, clear cart, archive menu, download
+  PDF). Backdrop `fixed inset-0 z-[70] bg-neutral-900/30`
+  (`ord-backdrop`); panel `max-w-[440px] rounded-t-[28px] bg-white
+  p-5` (`ord-sheet`) + grabber; title `15px font-medium
+  tracking-tight`, desc `13px neutral-500`; accent `h-12` confirm +
+  quiet `h-12 Batal`. Focus trap + ESC via `use-dialog-focus`.
+
+### POS Beranda
+
+- Admin: Penjualan bersih + Pesanan aktif. Operator: Pesanan aktif +
+  Menunggu bayar.
+- `Perlu tindakan` white card (`p-5 shadow-soft`): accent dot +
+  `sm medium` + count pill (`bg-neutral-100 text-xs tabular`);
+  mobile shows 3 queue rows + `Lihat N lainnya`; desktop 5 with
+  Terima/Mulai/Siap/Selesaikan (`h-11`, accent; `Menunggu` neutral
+  when Pending).
+- `Terlaris hari ini` borderless `divide-y`; `Tutup kasir` white card
+  + neutral `bg-neutral-900 Unduh PDF` routed through ConfirmSheet.
+
+### POS Pesanan
+
+- Summary card: `Selesai hari ini` (`22px medium tabular`) + `N
+  aktif perlu tindakan` (`13px tabular neutral-500`).
+- List keeps soft cards (`rounded-2xl border neutral-100 bg-white
+  shadow-soft p-4`, `space-y-3`): number `13px medium`, meta `xs
+  neutral-400`, total `13px tabular neutral-500`, status pill
+  `text-[11px] px-3 py-1.5` (active tint `bg-[#FDBD2C]/20`,
+  done `bg-neutral-100`).
+- OrderDetail dialog: panel `max-w-[440px]` phone
+  (`lg:max-w-[560px]` desktop), `max-h-[94dvh] rounded-t-[28px]`
+  + grabber; status pill `text-[11px]`; title `lg medium
+  tracking-tight`; date `13px neutral-500`; chips `bg-neutral-100`;
+  items `divide-y py-3.5`; total `13px / 15px medium tabular`;
+  footer `bg-[#FAFAFA]/95` with accent `h-12` primary + quiet `h-11
+  text-[13px]` (`Cek pembayaran / Tampilkan QR / Batalkan`);
+  Batalkan routes through ConfirmSheet. Nested resume-QR overlay
+  `max-w-[300px] rounded-3xl`, code `192px rounded-2xl p-2`.
+
+### POS Kasir
+
+- Toggles (`Dine in / Takeaway`, `Tunai / QRIS`): `bg-neutral-100
+  p-1 rounded-full`, `h-11 text-[13px]`, active `bg-white shadow-xs
+  medium`. Table `select.input h-12 rounded-2xl`, label `13px
+  medium + opsional`.
+- Menu grid `grid-cols-2 gap-3`: white `p-2.5 shadow-soft` cards
+  (POS exception, not borderless); phone shows name + price only
+  (desc `hidden sm:block`); `Habis` pill `left-2 top-2 text-[11px]
+  bg-white/90`; qty badge dark `×N`; stock line only when tracked
+  and `≤ 5`; Plus `h-7 border`.
+- Floating cart bar (POS exception to "no floating pill"):
+  `bottom-[84px+safe] max-w-[440px]`, dark `rounded-2xl
+  bg-neutral-900`, `xs neutral-400 + 15px medium tabular`, CTA
+  `h-10 rounded-full bg-[#FDBD2C] Lihat`.
+- Cart sheet `max-w-[440px] rounded-t-[28px]` + grabber; rows
+  `14px medium / xs neutral-400 / 13px tabular` + `QtyStepper h-9`;
+  footer total `13px / base medium tabular`; CTA `h-12` accent
+  `Buat pembayaran · Rp`; `Kosongkan` quiet → ConfirmSheet.
+- ProductSheet (shared with customer): footer `bg-[#FAFAFA]/95`,
+  label `Total` (not "Total amount"); POS keeps grid variants +
+  stepper addons as staff exception.
+- CashierPayment dialog `max-w-[320px]`; amount `3xl medium
+  tabular`; QR card `rounded-3xl border bg-white shadow-soft p-4`,
+  code `220px rounded-2xl`; hint `13px neutral-400`; CTA `h-12`
+  accent; polls every 7s; plain settled/expired/failed states.
+
+### POS Menu (admin)
+
+- Count `13px neutral-500` + `Tambah h-12` accent; search `h-12`;
+  `Aktif|Arsip h-11` pills with `aria-pressed`.
+- Rows: `px-4 py-3.5`, thumb `h-14 rounded-xl`, name `13px medium`,
+  meta `xs tabular neutral-400` (no "unlimited" noise); status pill
+  `h-9 text-[11px]` + dot; whole row is the edit target (no `···`).
+- Editor sheet `max-w-[440px]`; image `16/10 rounded-2xl`; stock
+  mode as `bg-neutral-100` pill toggle (Unlimited / Track stok);
+  Simpan `h-12` accent, Arsipkan quiet → ConfirmSheet, Pulihkan
+  accent (only one accent at a time), Batal quiet.
+
+### POS Laporan (admin)
+
+- Presets `Hari ini / Kemarin / 7 hari` (`h-11`) all get
+  `aria-pressed` + accent `/20` when active; tapping a preset
+  auto-loads (manual `Muat` kept as refresh).
+- Metrics `grid-cols-2 gap-3` compact on phone (Bersih / Kotor /
+  Refund) via unified `ReportMetric` (same type as `Metric`).
+- Sections stay white cards: `Rincian / Per hari / Terlaris /
+  Lunas` (last 12), headers `sm medium`, rows `13px medium / xs
+  neutral-400 / 13px tabular`, `divide-y`.
+- Loading uses metric skeletons; empty copy points to presets.
+
+## Cashier Shifts (open / close / stock intake)
+
+- No order can exist without an open shift. A `BEFORE INSERT` trigger
+  (`orders_require_open_shift`, migration `020`) stamps every new order
+  with the open `shift_id` and raises `SHIFT_CLOSED` otherwise — so the
+  rule holds for customer QR, POS cash, and POS QR alike. Replays insert
+  no rows and keep settling after close.
+- Opening (`POST /api/pos/shifts/open`, either role): requires a stock
+  count for **every** active tracked product (`SHIFT_INTAKE_INCOMPLETE`
+  names the missing ones). Counts are set absolutely, logged as
+  `manual_set` ("Stok awal shift …"), and snapshotted into
+  `shift_stock_intakes`. `ShiftOpenSheet` (`pos-shift.tsx`): per-product
+  stepper + numeric input with last-stock hint, optional note, accent
+  `h-12 Buka kasir`.
+- Closing (`POST /api/pos/shifts/close`): blocked while QR payments are
+  pending (`SHIFT_CLOSE_BLOCKED:N`). `ShiftCloseSheet` shows the full
+  recap first — net/gross/refund/cash/QRIS, orders, items sold,
+  per-product Terjual, per-product Sisa stok (awal · terjual ·
+  tersisa) — then a neutral `h-12 Tutup kasir`. QRs minted before close
+  keep settling afterwards.
+- Closed states: Beranda shows a `Kasir tutup` card + `Buka kasir` CTA;
+  all `Pesanan baru` buttons become `Buka kasir`; Kasir tab shows the
+  closed card; `/order` shows a quiet notice and blocks checkout with
+  "Kasir sedang tutup…". Desktop sidebar + mobile header carry a
+  Buka/Tutup pill.
+- Reports: `getReport(from, to, shiftId?)` — daily/range reports now
+  exclude `cancelled`/`draft` orders with live settlements
+  (fail-closed) and normalize `settled_at` Date objects to ISO before
+  comparing (the pg driver returns `Date`, and `Date >= string` is
+  always false — this previously zeroed **every** daily report).
+  Laporan tab adds a `Shift berjalan` live section (net · orders,
+  Tunai, QRIS, Refund, Item terjual) fed by `GET
+  /api/pos/shifts/recap`.
 
 ## Behavior Notes (not visual)
 

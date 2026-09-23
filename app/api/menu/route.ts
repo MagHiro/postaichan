@@ -67,7 +67,8 @@ export async function GET() {
       const modifiersAvailable = modifierGroups.every((group) => !group.required || group.options.filter((option) => option.available).length >= Math.max(1, group.minSelection));
       return { id: product.id, name: product.name, description: product.description ?? "", categoryId: product.category_id, category: product.category_name, price: product.price_idr, available: product.available && stockAvailable && modifiersAvailable, stockTracked: product.stock_tracked, stockQuantity: product.stock_tracked ? sellableStock : undefined, popular: product.popular, imageUrl: product.image_path, accent: "#f5f5f5", imageTone: "from-neutral-100 via-neutral-200 to-neutral-300", modifierGroups };
     });
-    return NextResponse.json({ products: safeProducts, categories: [...categoryMap.values()], settings: { qrisEnabled: settings.rows[0]?.qris_enabled === true, cashEnabled: settings.rows[0]?.cash_enabled === true } }, { headers: noStoreHeaders() });
+    const shift = await query<{ id: string }>("select id from public.cashier_shifts where closed_at is null order by opened_at desc limit 1");
+    return NextResponse.json({ products: safeProducts, categories: [...categoryMap.values()], settings: { qrisEnabled: settings.rows[0]?.qris_enabled === true, cashEnabled: settings.rows[0]?.cash_enabled === true }, cashierOpen: shift.rows.length > 0 }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("menu_fetch_failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Menu belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });

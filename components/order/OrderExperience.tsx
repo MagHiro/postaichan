@@ -26,6 +26,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const [menuLoading, setMenuLoading] = useState(true);
   const [menuError, setMenuError] = useState<string | null>(null);
   const [menuRetry, setMenuRetry] = useState(0);
+  const [cashierOpen, setCashierOpen] = useState(true);
   const [categories, setCategories] = useState<string[]>([]);
   const [category, setCategory] = useState<OrderCategory>("Semua Menu");
   const [search, setSearch] = useState("");
@@ -80,6 +81,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
       })
       .then((payload) => {
         if (!active) return;
+        setCashierOpen(payload?.cashierOpen !== false);
         if (payload?.products?.length) {
           setMenuError(null);
           setMenuProducts(payload.products);
@@ -273,6 +275,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
   async function beginCheckout() {
     if (cart.length === 0) return;
+    if (!cashierOpen) { setCheckoutError("Kasir sedang tutup. Coba lagi nanti atau hubungi kasir."); return; }
     if ((tableToken || generalToken) && !session) { setCheckoutError(sessionError ?? "QR pemesanan sudah tidak aktif."); return; }
     setCheckoutLoading(true);
     setCheckoutError(null);
@@ -488,6 +491,11 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
         {activeTab === "home" ? (
           <div key="home" className="ord-rise flex-1 px-5 pt-4" aria-busy={menuLoading}>
+            {!cashierOpen && !menuLoading && (
+              <p role="status" className="mb-4 rounded-2xl bg-neutral-100 p-4 text-center text-[13px] leading-relaxed text-neutral-500">
+                Kasir sedang tutup. Menu bisa dilihat, tapi pesanan belum bisa dibuat.
+              </p>
+            )}
             <div className="relative">
               <Search
                 aria-hidden="true"

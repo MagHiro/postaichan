@@ -7,6 +7,9 @@ import { createOpaqueToken, hashOpaqueToken } from "../lib/domain/tokens.ts";
 import { netRecognizedPayment } from "../lib/reports.ts";
 import { jakartaRange } from "../lib/reports.ts";
 import { buildCartItem } from "../lib/domain/cart.ts";
+import { shiftCloseSchema, shiftIntakeItemSchema, shiftOpenSchema } from "../lib/schemas.ts";
+import { shiftDatabaseFailure } from "../lib/domain/shift-errors.ts";
+import { checkoutDatabaseFailure } from "../lib/domain/checkout-errors.ts";
 
 const product = {
   id: "product-1", name: "Meal", priceIdr: 20_000, estimatedCostIdr: 8_000, active: true, available: true,
@@ -86,6 +89,15 @@ test("add-on quantities affect cart price and authoritative validation", () => {
   assert.equal(line.modifiers.filter((modifier) => modifier.id === "addon-1").length, 2);
 });
 
+test("settled_at Date objects compare correctly against ISO range bounds", () => {
+  // Regression: the pg driver returns timestamptz as Date. Comparing
+  // Date >= string is always false, which zeroed every daily report.
+  const settled = new Date("2026-09-22T10:15:38.606Z");
+  const normalized = new Date(settled).toISOString();
+  assert.equal(normalized >= "2026-09-21T17:00:00.000Z" && normalized < "2026-09-22T17:00:00.000Z", true);
+  assert.equal((settled as unknown as string) >= "2026-09-21T17:00:00.000Z", false);
+});
+
 test("Jakarta report ranges are bounded and inclusive by calendar date", () => {
   const range = jakartaRange("2026-09-01", "2026-09-07");
   assert.equal(range.days, 7);
@@ -93,4 +105,24 @@ test("Jakarta report ranges are bounded and inclusive by calendar date", () => {
   assert.equal(range.to, "2026-09-07");
   assert.throws(() => jakartaRange("2026-09-07", "2026-09-01"), /REPORT_RANGE_LIMIT/);
   assert.throws(() => jakartaRange("2026-09-01", "2026-10-02"), /REPORT_RANGE_LIMIT/);
+});
+
+test("shift intake requires valid per-product quantities", () => {
+  const valid = shiftOpenSchema.safeParse({ note: "pagi", items: [{ productId: "00000000-0000-0000-0000-000000000000", quantity: 10 }] });
+  assert.equal(valid.success, true);
+  assert.equal(shiftOpenSchema.safeParse({ items: [{ productId: "not-a-uuid", quantity: 1 }] }).success, false);
+  assert.equal(shiftOpenSchema.safeParse({ items: [{ productId: "00000000-0000-0000-0000-000000000000", quantity: -1 }] }).success, false);
+  assert.equal(shiftIntakeItemSchema.safeParse({ productId: "00000000-0000-0000-0000-000000000000", quantity: 1_000_001 }).success, false);
+  assert.equal(shiftCloseSchema.safeParse({ note: "x".repeat(241) }).success, false);
+});
+
+test("shift gate failures explain the closed register", () => {
+  assert.deepEqual(shiftDatabaseFailure(new Error("SHIFT_CLOSE_BLOCKED:2")), { code: "SHIFT_CLOSE_BLOCKED", error: "Masih ada 2 pembayaran QR yang belum selesai. Tunggu lunas atau kedaluwarsa dulu.", status: 409 });
+  assert.deepEqual(shiftDatabaseFailure(new Error("SHIFT_INTAKE_INCOMPLETE:Sate, Lontong")), { code: "SHIFT_INTAKE_INCOMPLETE", error: "Produk ini belum diisi stok awalnya: Sate, Lontong.", status: 400 });
+  assert.equal(shiftDatabaseFailure(new Error("SHIFT_ALREADY_OPEN")).status, 409);
+  const staffClosed = checkoutDatabaseFailure(new Error("SHIFT_CLOSED"), "staff");
+  assert.equal(staffClosed.status, 409);
+  assert.match(staffClosed.error, /Buka kasir/);
+  const guestClosed = checkoutDatabaseFailure(new Error("SHIFT_CLOSED"), "customer");
+  assert.match(guestClosed.error, /Kasir sedang tutup/);
 });

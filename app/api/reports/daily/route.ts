@@ -13,7 +13,11 @@ export async function GET(request: Request) {
     const date = params.get("date") ?? undefined;
     const from = params.get("from") ?? date;
     const to = params.get("to") ?? date;
-    const report = await getReport(from ?? undefined, to ?? undefined);
+    const shiftId = params.get("shiftId") ?? undefined;
+    if (shiftId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shiftId)) {
+      return NextResponse.json({ error: "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });
+    }
+    const report = await getReport(from ?? undefined, to ?? undefined, shiftId);
     return NextResponse.json(report, { headers: noStoreHeaders() });
   } catch (error) {
     if (error instanceof Error && ["INVALID_REPORT_DATE", "REPORT_RANGE_LIMIT"].includes(error.message)) return NextResponse.json({ error: error.message === "REPORT_RANGE_LIMIT" ? "Rentang laporan maksimal 31 hari." : "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });

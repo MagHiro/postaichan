@@ -11,6 +11,7 @@ import type { DailyReport } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 import { MenuManager } from "@/components/menu-manager";
 import { ProductSheet } from "@/components/order/ProductSheet";
+import { formatShiftOpenedAt, ShiftCloseSheet, ShiftOpenSheet, useShiftStatus, type CloseRecap } from "@/components/pos-shift";
 import { useDialogFocus } from "@/components/use-dialog-focus";
 
 type NavItem = "Overview" | "Orders" | "POS" | "Menu" | "Reports";
@@ -109,11 +110,14 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   const date = jakartaToday();
   const activeCount = orders.filter(isActiveOrder).length;
   const noticeTimer = useRef<number | null>(null);
+  const { shift, refresh: refreshShift } = useShiftStatus(showNotice);
+  const [shiftSheet, setShiftSheet] = useState<"open" | "close" | null>(null);
+  const cashierOpen = shift?.open === true;
 
   function showNotice(message: string) {
     if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
     setNotice(message);
-    noticeTimer.current = window.setTimeout(() => setNotice(null), 3200);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 2200);
   }
 
   useEffect(() => () => {
@@ -242,10 +246,21 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
           })}
         </nav>
         {role === "admin" && <a href="/admin" className="mt-4 flex items-center gap-3 rounded-full px-3.5 py-2 text-[13px] text-neutral-500"><span>Admin / Pengaturan</span></a>}
-        <p className="mt-auto text-xs leading-relaxed text-neutral-400">
+        <button
+          type="button"
+          onClick={() => setShiftSheet(cashierOpen ? "close" : "open")}
+          className={cn(
+            "mt-4 flex w-full items-center gap-3 rounded-full px-3.5 py-2 text-[13px] transition active:scale-[0.98]",
+            cashierOpen ? "font-normal text-neutral-500" : "bg-[#FDBD2C]/20 font-medium text-neutral-900",
+          )}
+        >
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+          <span className="flex-1 text-left">{cashierOpen ? "Tutup kasir" : "Buka kasir"}</span>
+        </button>
+        <p className="mt-4 text-xs leading-relaxed text-neutral-400">
           {activeCount} pesanan aktif
           <br />
-          {date}
+          {shift?.shift ? `Buka ${formatShiftOpenedAt(shift.shift.opened_at)}` : "Kasir tutup"}
         </p>
       </aside>
 
@@ -270,11 +285,11 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
               <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setNav("POS")}
+                  onClick={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))}
                   className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#FDBD2C] px-3.5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
                 >
                   <Plus size={16} strokeWidth={2} />
-                  Pesanan baru
+                  {cashierOpen ? "Pesanan baru" : "Buka kasir"}
                 </button>
               </div>
             </div>
@@ -286,17 +301,29 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
               </div>
               <button
                 type="button"
-                onClick={() => setNav("POS")}
+                onClick={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))}
                 className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-4 text-sm font-medium leading-none text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
               >
                 <Plus size={16} strokeWidth={2} />
-                Pesanan baru
+                {cashierOpen ? "Pesanan baru" : "Buka kasir"}
               </button>
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-[15px] font-medium tracking-tight"><span aria-hidden="true" className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#FDBD2C] align-middle" />{pageTitle(nav)}</p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="truncate text-[15px] font-medium tracking-tight"><span aria-hidden="true" className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#FDBD2C] align-middle" />{pageTitle(nav)}</p>
+                  <button
+                    type="button"
+                    onClick={() => setShiftSheet(cashierOpen ? "close" : "open")}
+                    className={cn(
+                      "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium leading-none",
+                      cashierOpen ? "bg-neutral-100 text-neutral-500" : "bg-[#FDBD2C]/20 text-neutral-900",
+                    )}
+                  >
+                    {cashierOpen ? "Buka" : "Tutup"}
+                  </button>
+                </div>
                 <p className="mt-0.5 text-xs tabular-nums text-neutral-400">
                   {activeCount} aktif · {date}
                 </p>
@@ -304,11 +331,11 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
               {nav !== "POS" && (
                 <button
                   type="button"
-                  onClick={() => setNav("POS")}
+                  onClick={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))}
                   className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
                 >
                   <Plus size={16} strokeWidth={2} />
-                  Pesanan baru
+                  {cashierOpen ? "Pesanan baru" : "Buka kasir"}
                 </button>
               )}
             </div>
@@ -323,7 +350,17 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
               <h1 className="mt-1 text-[22px] font-medium leading-snug tracking-tight">{pageTitle(nav)}</h1>
             </div>
             <div className="flex items-center gap-5">
-              <span className="hidden items-center gap-2 rounded-full bg-neutral-100 px-3 py-2 text-xs text-neutral-500 xl:flex"><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#FDBD2C]" />Operasional</span>
+              <button
+                type="button"
+                onClick={() => setShiftSheet(cashierOpen ? "close" : "open")}
+                className={cn(
+                  "hidden items-center gap-2 rounded-full px-3 py-2 text-xs xl:flex",
+                  cashierOpen ? "bg-neutral-100 text-neutral-500" : "bg-[#FDBD2C]/20 font-medium text-neutral-900",
+                )}
+              >
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+                {cashierOpen ? "Kasir buka" : "Kasir tutup"}
+              </button>
               <button type="button" onClick={() => void loadOperations()} disabled={loading} className="flex items-center gap-2 text-[13px] font-normal text-neutral-500 active:scale-[0.98] disabled:opacity-50">
                 <RefreshCw size={15} strokeWidth={1.8} />
                 {loading ? "Memuat…" : "Muat ulang"}
@@ -363,14 +400,18 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 summary={summary}
                 isAdmin={role === "admin"}
                 loading={loading}
+                cashierOpen={cashierOpen}
+                shiftOpenedAt={shift?.shift?.opened_at ?? null}
+                onOpenShift={() => setShiftSheet("open")}
+                onCloseShift={() => setShiftSheet("close")}
                 onAdvance={advanceOrderGuarded}
                 advancingId={advancingId}
                 onOpenOrders={() => setNav("Orders")}
                 onOpenReports={() => setNav("Reports")}
               />
             )}
-            {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} onAdvance={advanceOrderGuarded} advancingId={advancingId} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} onNewOrder={() => setNav("POS")} />}
-            {nav === "POS" && <LiveCashier onShowNotice={showNotice} onOrderCreated={() => loadOperations(true)} />}
+            {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} onAdvance={advanceOrderGuarded} advancingId={advancingId} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} onNewOrder={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))} />}
+            {nav === "POS" && <LiveCashier cashierOpen={cashierOpen} onOpenShift={() => setShiftSheet("open")} onShowNotice={showNotice} onOrderCreated={() => loadOperations(true)} />}
             {nav === "Menu" && role === "admin" && <MenuManager onShowNotice={showNotice} />}
             {nav === "Reports" && role === "admin" && <LiveReports initialReport={summary} onShowNotice={showNotice} />}
           </div>
@@ -406,8 +447,32 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
         </div>
       </nav>
 
+      {shiftSheet === "open" && (
+        <ShiftOpenSheet
+          onClose={() => setShiftSheet(null)}
+          onOpened={() => {
+            setShiftSheet(null);
+            void refreshShift();
+            void loadOperations(true);
+            showNotice("Kasir dibuka. Stok awal tersimpan.");
+          }}
+        />
+      )}
+      {shiftSheet === "close" && (
+        <ShiftCloseSheet
+          onClose={() => setShiftSheet(null)}
+          onShowNotice={showNotice}
+          onClosed={() => {
+            setShiftSheet(null);
+            void refreshShift();
+            void loadOperations(true);
+            showNotice("Kasir ditutup. Rekap tersimpan di Laporan.");
+          }}
+        />
+      )}
+
       {notice && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-5">
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-5">
           <p role="status" aria-live="polite" className="ord-toast shadow-soft pointer-events-auto max-w-[min(92vw,680px)] rounded-full bg-neutral-900 px-4 py-2 text-[13px] text-white">{notice}</p>
         </div>
       )}
@@ -446,32 +511,12 @@ function Metric({ label, value, detail }: { label: string; value: string; detail
   );
 }
 
-function MobileMetricCard({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <article className="flex min-h-[116px] min-w-0 flex-col justify-between rounded-2xl border border-neutral-100 bg-white shadow-soft p-4">
-      <div className="min-w-0">
-        <p className="min-w-0 truncate text-xs font-normal leading-tight text-neutral-400">{label}</p>
-        <p className="mt-1 text-[22px] font-medium leading-none tabular-nums tracking-tight text-neutral-900">{value}</p>
-        <p className="mt-1 truncate text-xs leading-tight text-neutral-500">{detail}</p>
-      </div>
-    </article>
-  );
-}
-
 function ReportMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-neutral-100 bg-white shadow-soft p-5">
-      <div className="min-w-0">
-        <p className="truncate text-[13px] text-neutral-500">{label}</p>
-        <p className="mt-1 text-[22px] font-medium leading-tight tabular-nums tracking-tight text-neutral-900">{value}</p>
-        <p className="mt-1 truncate text-[13px] text-neutral-400">{detail}</p>
-      </div>
+    <div className="min-h-[108px] min-w-0 rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5 lg:min-h-[132px]">
+      <Metric label={label} value={value} detail={detail} />
     </div>
   );
-}
-
-function LoadingBlock({ label }: { label: string }) {
-  return <p className="py-14 text-center text-[13px] text-neutral-500">{label}</p>;
 }
 
 function EmptyBlock({ title, sub }: { title: string; sub: string }) {
@@ -483,6 +528,24 @@ function EmptyBlock({ title, sub }: { title: string; sub: string }) {
   );
 }
 
+function ListSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="divide-y divide-neutral-100" aria-hidden="true">
+      {Array.from({ length: rows }, (_, row) => (
+        <div key={row} className="flex items-center gap-3 py-3.5">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="ord-skeleton h-3.5 w-2/3 rounded-full" />
+            <div className="ord-skeleton h-3 w-1/2 rounded-full" />
+          </div>
+          <div className="ord-skeleton h-7 w-20 shrink-0 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+import { ConfirmSheet, type ConfirmState } from "@/components/pos-confirm-sheet";
+
 function SearchField({ value, onChange, placeholder, id = "workspace-search", onScan }: { value: string; onChange: (v: string) => void; placeholder: string; id?: string; ordersStyle?: boolean; onScan?: () => void }) {
   return (
     <div className="relative">
@@ -493,7 +556,7 @@ function SearchField({ value, onChange, placeholder, id = "workspace-search", on
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="h-11 w-full rounded-2xl bg-neutral-100 pl-10 pr-10 text-sm outline-none transition placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50 lg:rounded-full"
+        className="h-12 w-full rounded-2xl bg-neutral-100 pl-10 pr-10 text-[13px] outline-none transition placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50 lg:rounded-full"
       />
       {value && (
         <button
@@ -541,6 +604,10 @@ function LiveOverview({
   summary,
   isAdmin,
   loading,
+  cashierOpen,
+  shiftOpenedAt,
+  onOpenShift,
+  onCloseShift,
   onAdvance,
   advancingId,
   onOpenOrders,
@@ -550,64 +617,128 @@ function LiveOverview({
   summary: DailyReport | null;
   isAdmin: boolean;
   loading: boolean;
+  cashierOpen: boolean;
+  shiftOpenedAt: string | null;
+  onOpenShift: () => void;
+  onCloseShift: () => void;
   onAdvance: (order: Order) => void;
   advancingId: string | null;
   onOpenOrders: () => void;
   onOpenReports: () => void;
 }) {
   const active = orders.filter(isActiveOrder);
+  const pendingCount = orders.filter((order) => order.status === "Pending").length;
+  const paidCount = summary?.orderCount ?? orders.filter((order) => order.status === "Completed").length;
   const dateLabel = summary?.date ?? jakartaToday();
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const queueMobile = active.slice(0, 3);
+  const queueDesktop = active.slice(0, 5);
+  const remainingMobile = active.length - queueMobile.length;
 
   return (
     <div>
-      <div className="hidden lg:block"><PageHead title="Hari ini" /></div>
+      <div className="hidden lg:block">
+        <PageHead
+          title="Hari ini"
+          sub={loading ? "Memuat ringkasan…" : `${active.length} aktif · ${paidCount} lunas`}
+        />
+      </div>
 
-      {isAdmin && (
-        <section className="flex min-h-[65px] items-center justify-between gap-3 rounded-2xl border border-neutral-100 bg-white shadow-soft px-4 py-3.5 lg:hidden">
+      {!cashierOpen && (
+        <section className="mt-6 flex flex-col gap-3 rounded-2xl border border-neutral-100 bg-white p-5 shadow-soft sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-medium text-neutral-900">Ringkasan hari ini</h2>
-            <p className="mt-1 truncate text-[13px] leading-tight text-neutral-500">Pantau performa tokomu</p>
+            <h2 className="text-sm font-medium text-neutral-900">Kasir tutup</h2>
+            <p className="mt-1 text-[13px] leading-relaxed text-neutral-500">Buka kasir dan isi stok awal untuk mulai menerima pesanan.</p>
           </div>
-          <button type="button" onClick={onOpenReports} className="shrink-0 text-[13px] font-medium text-neutral-900 active:scale-[0.98]">
-            Lihat detail
+          <button
+            type="button"
+            onClick={onOpenShift}
+            className="h-10 shrink-0 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+          >
+            Buka kasir
           </button>
         </section>
       )}
-
-      {isAdmin ? (
-        <>
-          <div className="mt-6 hidden grid-cols-2 gap-4 lg:grid">
-            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail="Settlement Jakarta" /></div>
-            <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" /></div>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3 lg:hidden">
-            <MobileMetricCard label="Penjualan bersih" value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"} detail={`dari ${summary?.orderCount ?? 0} pesanan hari ini`} />
-            <MobileMetricCard label="Pesanan" value={summary ? String(summary.orderCount) : "—"} detail="Lunas hari ini" />
-          </div>
-        </>
-      ) : (
-        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-2"><div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Pesanan aktif" value={String(active.length)} detail="Perlu tindakan" /></div><div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Menunggu bayar" value={String(orders.filter((order) => order.status === "Pending").length)} detail="Belum masuk dapur" /></div></div>
+      {cashierOpen && shiftOpenedAt && (
+        <p className="mt-6 text-xs tabular-nums text-neutral-400">Kasir buka sejak {formatShiftOpenedAt(shiftOpenedAt)}</p>
       )}
 
-      <section className="mt-3 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft p-5 lg:mt-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#FDBD2C]" />
-            <h3 className="text-sm font-medium text-neutral-900">
-              Perlu tindakan
-              {active.length > 0 && <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium tabular-nums text-neutral-500">{active.length}</span>}
+      {isAdmin ? (
+        <div className="mt-6 grid grid-cols-2 gap-3 lg:gap-4">
+          <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5 lg:min-h-[132px]">
+            <Metric
+              label="Penjualan bersih"
+              value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"}
+              detail={`${paidCount} lunas hari ini`}
+            />
+          </div>
+          <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5 lg:min-h-[132px]">
+            <Metric
+              label="Pesanan aktif"
+              value={String(active.length)}
+              detail={pendingCount > 0 ? `${pendingCount} menunggu bayar` : active.length > 0 ? "Semua terbayar" : "Siap terima pesanan"}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="mt-6 grid grid-cols-2 gap-3 lg:gap-4">
+          <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5 lg:min-h-[132px]">
+            <Metric
+              label="Pesanan aktif"
+              value={String(active.length)}
+              detail={active.length > 0 ? "Perlu tindakan" : "Siap terima pesanan"}
+            />
+          </div>
+          <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5 lg:min-h-[132px]">
+            <Metric
+              label="Menunggu bayar"
+              value={String(pendingCount)}
+              detail={pendingCount > 0 ? "Belum masuk dapur" : "Semua terbayar"}
+            />
+          </div>
+        </div>
+      )}
+
+      <section className="mt-3 overflow-hidden rounded-2xl border border-neutral-100 bg-white p-5 shadow-soft lg:mt-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#FDBD2C]" />
+            <h3 className="flex min-w-0 items-center text-sm font-medium text-neutral-900">
+              <span className="truncate">Perlu tindakan</span>
+              {active.length > 0 && (
+                <span className="ml-2 shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium tabular-nums text-neutral-500">
+                  {active.length}
+                </span>
+              )}
             </h3>
           </div>
-          {active.length > 0 && <button type="button" onClick={onOpenOrders} className="text-[13px] font-medium text-neutral-900 lg:hidden">Lihat semua</button>}
-          {active.length > 5 && <button type="button" onClick={onOpenOrders} className="hidden items-center gap-1 text-[13px] font-normal text-neutral-500 lg:flex">Semua</button>}
+          {active.length > 0 && (
+            <button
+              type="button"
+              onClick={onOpenOrders}
+              className="shrink-0 text-[13px] font-medium text-neutral-900 active:scale-[0.98]"
+            >
+              Lihat semua
+            </button>
+          )}
         </div>
         <div className="mt-3 lg:mt-4">
           {loading ? (
-            <LoadingBlock label="Memuat pesanan…" />
+            <div className="divide-y divide-neutral-100" aria-hidden="true">
+              {[0, 1, 2].map((row) => (
+                <div key={row} className="flex items-center gap-3 py-3.5">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="ord-skeleton h-3.5 w-2/3 rounded-full" />
+                    <div className="ord-skeleton h-3 w-1/2 rounded-full" />
+                  </div>
+                  <div className="ord-skeleton h-7 w-20 shrink-0 rounded-full" />
+                </div>
+              ))}
+            </div>
           ) : active.length ? (
             <>
               <div className="lg:hidden">
-                {active.slice(0, 3).map((order) => (
+                {queueMobile.map((order) => (
                   <button
                     type="button"
                     key={order.id}
@@ -615,20 +746,31 @@ function LiveOverview({
                     aria-label={`Lihat ${order.number}`}
                     className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-neutral-100 py-3.5 text-left last:border-b-0"
                   >
-                    <div className="min-w-0">
-                      <p className="min-w-0 truncate text-[13px] font-medium leading-tight text-neutral-900">{order.number}</p>
-                      <p className="mt-0.5 truncate text-xs leading-tight text-neutral-400">
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13px] font-medium leading-tight text-neutral-900">{order.number}</span>
+                      <span className="mt-0.5 block truncate text-xs leading-tight text-neutral-400">
                         {order.table ?? order.type} · {order.items} item · {order.time}{order.paymentStatus !== "Paid" ? " · Belum bayar" : ""}
-                      </p>
-                      <p className="mt-1 text-[13px] leading-none tabular-nums text-neutral-500">{formatCompactIDR(order.total)}</p>
-                    </div>
-                    <span className="rounded-full bg-[#FDBD2C]/20 px-3 py-1.5 text-xs font-medium leading-none text-neutral-900">{order.status === "Pending" ? "Menunggu" : STATUS_LABEL[order.status]}</span>
+                      </span>
+                      <span className="mt-1 block text-[13px] leading-none tabular-nums text-neutral-500">{formatCompactIDR(order.total)}</span>
+                    </span>
+                    <span className="rounded-full bg-[#FDBD2C]/20 px-3 py-1.5 text-xs font-medium leading-none text-neutral-900">
+                      {order.status === "Pending" ? "Menunggu" : STATUS_LABEL[order.status]}
+                    </span>
                   </button>
                 ))}
+                {remainingMobile > 0 && (
+                  <button
+                    type="button"
+                    onClick={onOpenOrders}
+                    className="w-full py-3 text-center text-[13px] text-neutral-500 active:scale-[0.98]"
+                  >
+                    Lihat {remainingMobile} lainnya
+                  </button>
+                )}
               </div>
 
               <div className="hidden divide-y divide-neutral-100 lg:block">
-                {active.slice(0, 5).map((order) => (
+                {queueDesktop.map((order) => (
                   <div key={order.id} className="flex items-center gap-3 py-4">
                     <button
                       type="button"
@@ -668,50 +810,87 @@ function LiveOverview({
         </div>
       </section>
 
-      {isAdmin && <section className="mt-8 border-t border-neutral-100 pt-6">
-        <h3 className="text-sm font-medium">Terlaris</h3>
-        {summary?.bestSellers.length ? (
-          <div className="mt-1 divide-y divide-neutral-100">
-            {summary.bestSellers.slice(0, 5).map((item) => (
-              <div key={item.name} className="flex items-center justify-between gap-3 py-3.5">
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium">{item.name}</p>
-                  <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{item.quantity} porsi</p>
-                </div>
-                <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.revenueIdr)}</span>
-              </div>
-            ))}
+      {isAdmin && (
+        <section className="mt-8 lg:mt-10">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="text-sm font-medium text-neutral-900">Terlaris hari ini</h3>
+            <button
+              type="button"
+              onClick={onOpenReports}
+              className="shrink-0 text-[13px] text-neutral-500 active:scale-[0.98]"
+            >
+              Laporan
+            </button>
           </div>
-        ) : (
-          <p className="py-10 text-center text-[13px] text-neutral-500">Belum ada penjualan lunas.</p>
-        )}
-      </section>}
+          {summary?.bestSellers.length ? (
+            <div className="mt-1 divide-y divide-neutral-100">
+              {summary.bestSellers.slice(0, 5).map((item) => (
+                <div key={item.name} className="flex items-center justify-between gap-3 py-3.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-medium text-neutral-900">{item.name}</p>
+                    <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{item.quantity} porsi</p>
+                  </div>
+                  <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.revenueIdr)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="py-10 text-center text-[13px] text-neutral-500">
+              {loading ? "Memuat…" : "Belum ada penjualan lunas."}
+            </p>
+          )}
+        </section>
+      )}
 
-      {isAdmin && <section className="mt-8 flex flex-col gap-3 border-t border-neutral-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="text-sm font-medium">Tutup kasir</h3>
-          <p className="mt-1 text-[13px] text-neutral-500">Pastikan pembayaran terakhir lunas.</p>
-        </div>
-        <button
-          onClick={() => {
-            if (window.confirm("Unduh laporan harian Jakarta?")) window.location.href = `/api/reports/daily.pdf?date=${dateLabel}`;
-          }}
-          className="h-10 shrink-0 rounded-full bg-[#FDBD2C] px-5 text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
-        >
-          Unduh PDF
-        </button>
-      </section>}
+      {isAdmin && cashierOpen && (
+        <section className="mt-8 flex flex-col gap-3 rounded-2xl border border-neutral-100 bg-white p-5 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-sm font-medium text-neutral-900">Tutup kasir</h3>
+            <p className="mt-1 text-[13px] text-neutral-500">Lihat rekap shift lalu tutup dan arsipkan.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onCloseShift}
+            className="h-10 shrink-0 rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98]"
+          >
+            Rekap & tutup
+          </button>
+        </section>
+      )}
+      {isAdmin && !cashierOpen && (
+        <section className="mt-8 flex flex-col gap-3 rounded-2xl border border-neutral-100 bg-white p-5 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-sm font-medium text-neutral-900">Rekap harian</h3>
+            <p className="mt-1 text-[13px] text-neutral-500">Unduh rekap harian untuk arsip.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setConfirm({
+              title: "Unduh rekap harian?",
+              description: "File PDF berisi penjualan lunas hari ini.",
+              confirmLabel: "Unduh PDF",
+              onConfirm: () => { window.location.href = `/api/reports/daily.pdf?date=${dateLabel}`; },
+            })}
+            className="h-10 shrink-0 rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98]"
+          >
+            Unduh PDF
+          </button>
+        </section>
+      )}
+
+      <ConfirmSheet confirm={confirm} onClose={() => setConfirm(null)} />
     </div>
   );
 }
 
 /* ================= Orders ================= */
 
-function MobileOrdersSummary({ completedCount }: { completedCount: number }) {
+function MobileOrdersSummary({ completedCount, activeCount }: { completedCount: number; activeCount: number }) {
   return (
     <section className="rounded-2xl border border-neutral-100 bg-white shadow-soft px-5 py-4 lg:hidden">
       <p className="text-xs text-neutral-400">Selesai hari ini</p>
       <p className="mt-1 text-[22px] font-medium leading-none tabular-nums tracking-tight text-neutral-900">{completedCount}</p>
+      <p className="mt-1 text-[13px] tabular-nums text-neutral-500">{activeCount} aktif perlu tindakan</p>
     </section>
   );
 }
@@ -761,7 +940,7 @@ function MobileOrderCard({ order, opening, onOpen }: { order: Order; opening: bo
           <span className="mt-0.5 block truncate text-xs leading-tight text-neutral-400">{order.type} · {order.items} item · {order.time}</span>
           <span className="mt-1 block text-[13px] leading-none tabular-nums text-neutral-500">{formatCompactIDR(order.total)}</span>
         </span>
-        <span className={cn("rounded-full px-3 py-1.5 text-xs font-medium leading-none", mobileOrderStatusTone(order.status))}>
+        <span className={cn("rounded-full px-3 py-1.5 text-[11px] font-medium leading-none", mobileOrderStatusTone(order.status))}>
           {mobileOrderStatusLabel(order.status)}
         </span>
       </button>
@@ -793,6 +972,7 @@ function LiveOrders({
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const counts = FILTERS.map(({ key }) => ({ key, n: key === "All" ? orders.length : orders.filter((o) => o.status === key).length }));
   const filtered = orders.filter(
@@ -827,8 +1007,16 @@ function LiveOrders({
     if (response.ok && payload) setDetail(payload);
   }
 
+  function requestCancelOrder(orderId: string, orderNumber: string) {
+    setConfirm({
+      title: `Batalkan ${orderNumber}?`,
+      description: "QR pending akan dinonaktifkan. Tindakan ini tidak dapat dibatalkan.",
+      confirmLabel: "Batalkan pesanan",
+      onConfirm: () => void cancelOrder(orderId, orderNumber),
+    });
+  }
+
   async function cancelOrder(orderId: string, orderNumber: string) {
-    if (!window.confirm(`Batalkan pesanan ${orderNumber}? QR pending akan dinonaktifkan.`)) return;
     try {
       const response = await fetch(`/api/pos/orders/${orderId}/status`, {
         method: "PATCH",
@@ -862,9 +1050,9 @@ function LiveOrders({
         <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Selesai" value={String(completedCount)} detail="Hari ini" /></div>
       </div>
 
-      <MobileOrdersSummary completedCount={completedCount} />
+      <MobileOrdersSummary completedCount={completedCount} activeCount={orders.filter(isActiveOrder).length} />
 
-      <div className="mt-8 flex items-center gap-3 sm:mt-8 lg:mt-6">
+      <div className="mt-6 flex items-center gap-3 lg:mt-6">
         <div className="min-w-0 flex-1">
           <SearchField value={query} onChange={setQuery} placeholder="Cari nomor pesanan atau meja…" />
         </div>
@@ -913,9 +1101,9 @@ function LiveOrders({
         })}
       </div>
 
-      <div className="mt-8 lg:mt-6">
+      <div className="mt-6 lg:mt-6">
         {loading ? (
-          <LoadingBlock label="Memuat pesanan…" />
+          <ListSkeleton />
         ) : filtered.length ? (
           <>
             <div className="space-y-3 lg:hidden">
@@ -987,7 +1175,7 @@ function LiveOrders({
             setDetail(null);
             setDetailId(null);
           }}
-          onCancel={() => void cancelOrder(detailId, detail.order.order_number)}
+          onCancel={() => requestCancelOrder(detailId, detail.order.order_number)}
           onShowNotice={onShowNotice}
           onNewOrder={() => {
             setDetail(null);
@@ -1000,6 +1188,8 @@ function LiveOrders({
           }}
         />
       )}
+
+      <ConfirmSheet confirm={confirm} onClose={() => setConfirm(null)} />
     </div>
   );
 }
@@ -1150,21 +1340,21 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
       <aside
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet relative flex max-h-[94dvh] w-full max-w-[1100px] flex-col overflow-hidden rounded-t-[28px] bg-white text-neutral-900 sm:max-h-[90dvh] sm:rounded-[28px]"
+        className="ord-sheet relative flex max-h-[94dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-white text-neutral-900 sm:max-h-[90dvh] sm:rounded-[28px] lg:max-w-[560px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="order-detail-title"
       >
         <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-neutral-200 sm:mt-5" />
-        <div className="flex shrink-0 items-start justify-between gap-4 px-5 pb-5 pt-4 sm:px-12 sm:pb-7 sm:pt-6">
+        <div className="flex shrink-0 items-start justify-between gap-4 px-5 pb-5 pt-4 sm:px-8 sm:pb-7 sm:pt-6">
           <div className="min-w-0">
-            <div className={cn("inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium", statusTone)}>
-              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-current" />
+            <div className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-medium", statusTone)}>
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
               {rawStatusLabel(detail.order.status)}
             </div>
-            <h2 id="order-detail-title" className="mt-5 truncate text-lg font-medium leading-tight tracking-tight text-neutral-900">{detail.order.order_number}</h2>
-            <p className="mt-1.5 text-sm text-neutral-500">{formatCreatedAt(detail.order.created_at)}</p>
+            <h2 id="order-detail-title" className="mt-4 truncate text-lg font-medium leading-tight tracking-tight text-neutral-900">{detail.order.order_number}</h2>
+            <p className="mt-1 text-[13px] text-neutral-500">{formatCreatedAt(detail.order.created_at)}</p>
             <div className="mt-5 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2 text-[13px] text-neutral-500">
                 {detail.order.order_type === "dine_in" ? (table ?? "Dine in") : "Takeaway"}
@@ -1185,7 +1375,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 pb-6 sm:px-12 sm:pb-8">
+        <div className="flex-1 overflow-y-auto px-5 pb-6 sm:px-8 sm:pb-8">
           <section>
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-sm font-medium text-neutral-900">Item Pesanan</h3>
@@ -1233,7 +1423,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
               </div>
               <div className="flex items-center justify-between gap-4">
                 <span className="text-[13px] text-neutral-400">Status</span>
-                <span className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium", paymentTone)}>
+                <span className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-medium", paymentTone)}>
                   <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
                   {payStateLabel(payment?.status)}
                 </span>
@@ -1255,7 +1445,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
           )}
         </div>
 
-        <div className="shrink-0 border-t border-neutral-100 bg-white/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur sm:px-12 sm:pt-5">
+        <div className="shrink-0 border-t border-neutral-100 bg-[#FAFAFA]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur sm:px-8 sm:pt-5">
           {isStale ? (
             <>
               <button
@@ -1385,7 +1575,7 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
 
 type CartLine = CartItem;
 
-function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message: string) => void; onOrderCreated?: () => Promise<void> }) {
+function LiveCashier({ cashierOpen, onOpenShift, onShowNotice, onOrderCreated }: { cashierOpen: boolean; onOpenShift: () => void; onShowNotice: (message: string) => void; onOrderCreated?: () => Promise<void> }) {
   const [menu, setMenu] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"qris" | "cash">("qris");
@@ -1475,12 +1665,19 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
     );
   }
 
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+
   function clearCart() {
     if (!cart.length) return;
-    if (window.confirm("Kosongkan semua item dari pesanan berjalan?")) {
-      intentKey.current = null;
-      setCart([]);
-    }
+    setConfirm({
+      title: "Kosongkan pesanan berjalan?",
+      description: "Semua item di keranjang akan dihapus.",
+      confirmLabel: "Kosongkan",
+      onConfirm: () => {
+        intentKey.current = null;
+        setCart([]);
+      },
+    });
   }
 
   async function createOrder() {
@@ -1519,6 +1716,24 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
     }
   }
 
+  if (!cashierOpen) {
+    return (
+      <div className="flex flex-col gap-3 rounded-2xl border border-neutral-100 bg-white p-5 shadow-soft">
+        <div className="min-w-0">
+          <h2 className="text-sm font-medium text-neutral-900">Kasir tutup</h2>
+          <p className="mt-1 text-[13px] leading-relaxed text-neutral-500">Buka kasir dan isi stok awal untuk mulai menerima pesanan.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenShift}
+          className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] sm:w-auto sm:px-8"
+        >
+          Buka kasir
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="hidden lg:block">
@@ -1555,7 +1770,7 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
             {orderType === "dine_in" && (
               <label htmlFor="cashier-table" className="block text-[13px] font-medium text-neutral-900 sm:col-span-2 xl:col-span-1">
                 Meja <span className="font-normal text-neutral-400">· opsional</span>
-                <select id="cashier-table" value={tableId ?? ""} onChange={(event) => setTableId(event.target.value || null)} className="input mt-2 h-12 rounded-2xl">
+                <select id="cashier-table" value={tableId ?? ""} onChange={(event) => setTableId(event.target.value || null)} className="select mt-2 h-12 rounded-2xl">
                   <option value="">Tanpa meja / walk-in</option>
                   {tables.map((table) => <option key={table.id} value={table.id}>{table.label}</option>)}
                 </select>
@@ -1615,15 +1830,15 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
                           </span>
                         )}
                         {!product.available && (
-                          <span className="absolute inset-x-2 bottom-2 rounded-full bg-white/90 py-1 text-center text-xs font-medium text-neutral-500">
+                          <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-neutral-500 backdrop-blur">
                             Habis
                           </span>
                         )}
                       </div>
                       <p className="mt-2 truncate px-1 text-[13px] font-medium leading-snug text-neutral-900">{product.name}</p>
-                      <p className="mt-0.5 truncate px-1 text-xs text-neutral-400">{product.description || "Menu pilihan"}</p>
+                      <p className="mt-0.5 hidden truncate px-1 text-xs text-neutral-400 sm:block">{product.description || "Menu pilihan"}</p>
                       <p className="mt-1 px-1 pb-1 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(product.price)}</p>
-                      {product.stockTracked && product.available && <p className="px-1 pb-1 text-xs tabular-nums text-neutral-400">{product.stockQuantity ?? 0} tersisa</p>}
+                      {product.stockTracked && product.available && (product.stockQuantity ?? 0) <= 5 && <p className="px-1 pb-1 text-xs tabular-nums text-neutral-400">{product.stockQuantity ?? 0} tersisa</p>}
                       <span aria-hidden="true" className="absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-900"><Plus size={13} strokeWidth={2} /></span>
                     </button>
                   );
@@ -1706,7 +1921,7 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
             <section
             ref={cartDialogRef}
             tabIndex={-1}
-            className="ord-sheet flex max-h-[88vh] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[28px] bg-white"
+            className="ord-sheet flex max-h-[88vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-white"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -1802,6 +2017,8 @@ function LiveCashier({ onShowNotice, onOrderCreated }: { onShowNotice: (message:
           }}
         />
       )}
+
+      <ConfirmSheet confirm={confirm} onClose={() => setConfirm(null)} />
     </div>
   );
 }
@@ -1866,7 +2083,7 @@ function CashierPayment({
       }
     }
     void poll();
-    const timer = window.setInterval(() => void poll(), 8000);
+    const timer = window.setInterval(() => void poll(), 7000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -1880,7 +2097,7 @@ function CashierPayment({
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet w-full max-w-[380px] rounded-t-[28px] bg-white p-5 text-center text-neutral-900 sm:rounded-[28px]"
+        className="ord-sheet w-full max-w-[320px] rounded-t-[28px] bg-white p-5 text-center text-neutral-900 sm:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -1903,19 +2120,19 @@ function CashierPayment({
 
         <div className="mx-auto mt-8 w-fit rounded-3xl border border-neutral-100 bg-white shadow-soft p-4">
           {state === "settled" ? (
-            <p className="flex h-56 w-56 items-center justify-center px-6 text-center text-sm font-medium">Pembayaran lunas.</p>
+            <p className="flex h-[220px] w-[220px] items-center justify-center px-6 text-center text-sm font-medium">Pembayaran lunas.</p>
           ) : state === "expired" ? (
-            <p className="flex h-56 w-56 items-center justify-center px-6 text-center text-[13px] text-neutral-500">
+            <p className="flex h-[220px] w-[220px] items-center justify-center px-6 text-center text-[13px] text-neutral-500">
               Kode kedaluwarsa. Buat pesanan baru.
             </p>
           ) : state === "failed" ? (
-            <p className="flex h-56 w-56 items-center justify-center px-6 text-center text-[13px] text-neutral-500">Pembayaran gagal. Coba lagi.</p>
+            <p className="flex h-[220px] w-[220px] items-center justify-center px-6 text-center text-[13px] text-neutral-500">Pembayaran gagal. Coba lagi.</p>
           ) : payment.qrImageUrl ? (
-            <img src={payment.qrImageUrl} alt="QRIS pembayaran" width={224} height={224} decoding="async" className="h-56 w-56 rounded-2xl" />
+            <img src={payment.qrImageUrl} alt="QRIS pembayaran" width={220} height={220} decoding="async" className="h-[220px] w-[220px] rounded-2xl" />
           ) : qr ? (
-            <img src={qr} alt="QRIS pembayaran" width={224} height={224} decoding="async" className="h-56 w-56 rounded-2xl" />
+            <img src={qr} alt="QRIS pembayaran" width={220} height={220} decoding="async" className="h-[220px] w-[220px] rounded-2xl" />
           ) : (
-            <div className="ord-skeleton h-56 w-56 rounded-2xl" />
+            <div className="ord-skeleton h-[220px] w-[220px] rounded-2xl" />
           )}
         </div>
         <p className="mt-6 text-[13px] text-neutral-400">          {state === "settled" ? (
@@ -1951,15 +2168,40 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
   const [to, setTo] = useState(jakartaToday());
   const [report, setReport] = useState<DailyReport | null>(initialReport);
   const [loading, setLoading] = useState(false);
+  const [shiftRecap, setShiftRecap] = useState<CloseRecap | null>(null);
+  const [shiftRecapLoading, setShiftRecapLoading] = useState(true);
 
   useEffect(() => {
     setReport(initialReport);
   }, [initialReport]);
 
-  async function load() {
+  useEffect(() => {
+    let cancelled = false;
+    setShiftRecapLoading(true);
+    fetch("/api/pos/shifts/recap", { cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) return null;
+        return (payload.recap ?? null) as CloseRecap | null;
+      })
+      .then((recap) => {
+        if (!cancelled) setShiftRecap(recap);
+      })
+      .catch(() => {
+        if (!cancelled) setShiftRecap(null);
+      })
+      .finally(() => {
+        if (!cancelled) setShiftRecapLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function load(rangeFrom = from, rangeTo = to) {
     setLoading(true);
     try {
-      const response = await fetch(`/api/reports/daily?from=${from}&to=${to}`, { cache: "no-store" });
+      const response = await fetch(`/api/reports/daily?from=${rangeFrom}&to=${rangeTo}`, { cache: "no-store" });
       const payload = await response.json().catch(() => null);
       setReport(response.ok ? payload : null);
       if (!response.ok) onShowNotice(payload?.error ?? "Laporan gagal dimuat.");
@@ -1971,22 +2213,30 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
     }
   }
 
-  function applyPreset(key: "Today" | "Yesterday" | "Last 7 days") {
+  function rangeForPreset(key: "Today" | "Yesterday" | "Last 7 days") {
     const today = jakartaToday();
-    if (key === "Today") {
-      setFrom(today);
-      setTo(today);
-      return;
-    }
+    if (key === "Today") return { from: today, to: today };
     const date = new Date(`${today}T12:00:00+07:00`);
     date.setDate(date.getDate() - (key === "Yesterday" ? 1 : 6));
     const value = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(date);
-    setFrom(value);
-    setTo(key === "Yesterday" ? value : today);
+    return { from: value, to: key === "Yesterday" ? value : today };
+  }
+
+  function applyPreset(key: "Today" | "Yesterday" | "Last 7 days") {
+    const range = rangeForPreset(key);
+    setFrom(range.from);
+    setTo(range.to);
+    void load(range.from, range.to);
   }
 
   const today = jakartaToday();
-  const todaySelected = from === today && to === today;
+  const yesterdayRange = rangeForPreset("Yesterday");
+  const lastWeek = rangeForPreset("Last 7 days");
+  const activePreset =
+    from === today && to === today ? "Today"
+    : from === yesterdayRange.from && to === yesterdayRange.to ? "Yesterday"
+    : null;
+  const lastWeekSelected = from === lastWeek.from && to === lastWeek.to;
 
   return (
     <div>
@@ -1996,19 +2246,23 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
         action={
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              {([{ key: "Today", label: "Hari ini" }, { key: "Yesterday", label: "Kemarin" }, { key: "Last 7 days", label: "7 hari" }] as const).map(({ key, label }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => applyPreset(key)}
-                  className={cn(
-                    "h-11 rounded-full px-4 text-[13px] transition active:scale-[0.98]",
-                    key === "Today" && todaySelected ? "bg-[#FDBD2C]/20 font-medium text-neutral-900" : "bg-neutral-100 text-neutral-500",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
+              {([{ key: "Today", label: "Hari ini" }, { key: "Yesterday", label: "Kemarin" }, { key: "Last 7 days", label: "7 hari" }] as const).map(({ key, label }) => {
+                const selected = key === "Last 7 days" ? lastWeekSelected : activePreset === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => applyPreset(key)}
+                    aria-pressed={selected}
+                    className={cn(
+                      "h-11 rounded-full px-4 text-[13px] transition active:scale-[0.98]",
+                      selected ? "bg-[#FDBD2C]/20 font-medium text-neutral-900" : "bg-neutral-100 font-normal text-neutral-500",
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
               <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-full bg-neutral-100 px-3 sm:flex-none">
                 <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label="Tanggal mulai laporan" className="min-w-0 flex-1 bg-transparent px-1 text-xs text-neutral-900 outline-none sm:w-[104px] sm:flex-none" />
                 <span aria-hidden="true" className="shrink-0 text-neutral-400">–</span>
@@ -2034,9 +2288,53 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
         }
       />
 
-      {report ? (
+      {!shiftRecapLoading && shiftRecap && (
+        <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
+          <div className="px-5 pb-4 pt-5 sm:px-6">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-sm font-medium text-neutral-900">Shift berjalan</h3>
+              <span className="text-xs tabular-nums text-neutral-400">Buka {formatShiftOpenedAt(shiftRecap.openedAt)}</span>
+            </div>
+            <p className="mt-1 text-[13px] text-neutral-500">Rekap live sejak kasir dibuka</p>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-5 py-3.5 sm:px-6">
+            <span className="truncate text-[13px] font-medium text-neutral-900">Bersih · {shiftRecap.orderCount} lunas</span>
+            <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(shiftRecap.netRevenueIdr)}</span>
+          </div>
+          <div className="divide-y divide-neutral-100 border-t border-neutral-100">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
+              <span className="truncate text-[13px] text-neutral-500">Tunai</span>
+              <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(shiftRecap.cashRevenueIdr)}</span>
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
+              <span className="truncate text-[13px] text-neutral-500">QRIS</span>
+              <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(shiftRecap.qrisRevenueIdr)}</span>
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
+              <span className="truncate text-[13px] text-neutral-500">Refund</span>
+              <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(shiftRecap.refundsIdr)}</span>
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
+              <span className="truncate text-[13px] text-neutral-500">Item terjual</span>
+              <span className="text-[13px] tabular-nums text-neutral-500">{shiftRecap.itemsSold} porsi</span>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {loading && !report ? (
+        <div className="mt-6 grid grid-cols-2 gap-3 lg:gap-4">
+          {[0, 1, 2, 3].map((row) => (
+            <div key={row} className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5" aria-hidden="true">
+              <div className="ord-skeleton h-3 w-2/3 rounded-full" />
+              <div className="ord-skeleton mt-2 h-6 w-1/2 rounded-full" />
+              <div className="ord-skeleton mt-2 h-3 w-3/4 rounded-full" />
+            </div>
+          ))}
+        </div>
+      ) : report ? (
         <>
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-6 grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-3">
             <ReportMetric label="Penjualan bersih" value={formatCompactIDR(report.netRevenueIdr)} detail={`${report.orderCount} pesanan lunas`} />
             <ReportMetric label="Penjualan kotor" value={formatCompactIDR(report.grossRevenueIdr)} detail="Settlement periode ini" />
             <ReportMetric label="Refund" value={formatCompactIDR(report.refundsIdr)} detail="Diproses periode ini" />
@@ -2125,14 +2423,8 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
         </>
       ) : (
         <div className="mt-6 rounded-2xl border border-neutral-100 bg-white shadow-soft px-5 py-14 text-center">
-          {loading ? (
-            <p className="text-[13px] text-neutral-500">Memuat laporan…</p>
-          ) : (
-            <>
-              <p className="text-sm font-medium text-neutral-900">Tidak ada data tanggal ini.</p>
-              <p className="mt-1 text-[13px] text-neutral-500">Pilih tanggal lain lalu tekan Muat.</p>
-            </>
-          )}
+          <p className="text-sm font-medium text-neutral-900">Tidak ada data tanggal ini.</p>
+          <p className="mt-1 text-[13px] text-neutral-500">Pilih tanggal lain atau preset di atas.</p>
         </div>
       )}
     </div>

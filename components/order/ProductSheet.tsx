@@ -168,10 +168,10 @@ export function ProductSheet({
           </div>
         </div>
 
-        <div className="absolute inset-x-0 bottom-0 border-t border-neutral-100 bg-white/95 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+        <div className="absolute inset-x-0 bottom-0 border-t border-neutral-100 bg-[#FAFAFA]/95 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
           <div className="flex items-center gap-3">
             <div className="min-w-[90px] shrink-0">
-              <p className="text-xs text-neutral-400">Total amount</p>
+              <p className="text-xs text-neutral-400">Total</p>
               <p className="mt-0.5 text-[15px] font-medium tabular-nums">
                 {formatCompactIDR(total)}
               </p>
