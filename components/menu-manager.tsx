@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MoreVertical, Plus, Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useDialogFocus } from "@/components/use-dialog-focus";
@@ -157,7 +157,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
     <div>
       <div>
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <p className="text-[15px] text-neutral-300">
+          <p className="text-[13px] text-neutral-500">
             {showArchived ? `${products.filter((product) => !product.active).length} produk diarsipkan` : `${activeCount} produk aktif · perubahan berlaku saat checkout`}
           </p>
           <button
@@ -171,20 +171,20 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
 
         <div className="relative mt-6">
           <label htmlFor="menu-manager-search" className="sr-only">Cari menu</label>
-          <Search size={20} strokeWidth={1.7} className="absolute left-5 top-1/2 -translate-y-1/2 text-[#aebbd0]" />
+          <Search size={16} strokeWidth={1.8} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
             id="menu-manager-search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Cari menu…"
-            className="h-12 w-full rounded-full border border-white/[0.12] bg-[#222d3d] pl-16 pr-12 text-[15px] text-white outline-none placeholder:text-[#aebbd0] focus:border-[#FDBD2C]/70 focus:ring-2 focus:ring-[#FDBD2C]/20"
+            className="h-12 w-full rounded-2xl bg-neutral-100 pl-11 pr-11 text-[13px] text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery("")}
               aria-label="Hapus pencarian"
-              className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-300 transition hover:bg-white/10"
+              className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400 active:scale-95"
             >
               <X size={15} />
             </button>
@@ -204,8 +204,8 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
               onClick={() => setShowArchived(key)}
               aria-pressed={showArchived === key}
               className={cn(
-                "flex h-11 min-w-[108px] items-center justify-center rounded-full border px-5 text-[13px] transition active:scale-[0.98]",
-                showArchived === key ? "border-[#FDBD2C] bg-[#FDBD2C]/10 font-medium text-white" : "border-white/[0.14] font-normal text-neutral-300 hover:bg-white/5",
+                "flex h-11 min-w-[108px] items-center justify-center rounded-full px-5 text-[13px] transition active:scale-[0.98]",
+                showArchived === key ? "bg-[#FDBD2C]/20 font-medium text-neutral-900" : "bg-neutral-100 font-normal text-neutral-500",
               )}
             >
               {label}
@@ -213,39 +213,39 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           ))}
         </div>
 
-        {error && <div role="alert" className="mt-5 flex flex-col items-center gap-3 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-4 text-center text-[13px] text-red-200"><p>{error}</p><button type="button" onClick={() => void loadMenu()} className="h-10 rounded-full bg-[#FDBD2C] px-4 text-[13px] font-medium text-neutral-900">Coba lagi</button></div>}
+        {error && <div role="alert" className="mt-5 text-center"><p className="text-[13px] text-neutral-500">{error}</p><button type="button" onClick={() => void loadMenu()} className="mx-auto mt-3 block h-11 rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white">Coba lagi</button></div>}
 
-        <div className="mt-5 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111720]">
+        <div className="mt-5 overflow-hidden rounded-2xl border border-neutral-100 bg-white">
           {loading ? (
             <p className="py-14 text-center text-[13px] text-neutral-400">Memuat menu…</p>
           ) : visibleProducts.length ? (
             <>
-              <div className="hidden grid-cols-[minmax(0,1fr)_170px_40px] gap-4 bg-white/[0.04] px-5 py-3 text-[13px] text-neutral-300 sm:grid">
+              <div className="hidden grid-cols-[minmax(0,1fr)_170px_40px] gap-4 bg-white px-5 py-3 text-xs text-neutral-400 sm:grid">
                 <span>Menu</span>
                 <span>Status</span>
                 <span aria-hidden="true" />
               </div>
-              <div className="divide-y divide-white/[0.08]">
+              <div className="divide-y divide-neutral-100">
                 {visibleProducts.map((product) => {
                   const statusLabel = product.active ? (product.available ? (product.sellable ? "Manual aktif" : "Stok habis") : "Manual off") : "Diarsipkan";
                   const statusClass = product.active && product.available && product.sellable
-                    ? "border-emerald-400/20 bg-emerald-500/15 text-emerald-300"
+                    ? "bg-neutral-100 text-neutral-500"
                     : product.active && product.available
-                      ? "border-[#FDBD2C]/25 bg-[#FDBD2C]/12 text-[#FDBD2C]"
-                      : "border-white/[0.08] bg-[#232a35] text-neutral-300";
+                      ? "bg-[#FDBD2C]/20 text-neutral-900"
+                      : "bg-neutral-100 text-neutral-500";
                   return (
                     <div key={product.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-3 py-3.5 sm:grid-cols-[minmax(0,1fr)_170px_40px] sm:items-center sm:gap-4 sm:px-5 sm:py-3">
                       <button
                         type="button"
                         onClick={() => openEdit(product)}
-                        className="row-start-1 flex min-w-0 items-center gap-3 rounded-xl text-left transition active:bg-white/5 sm:col-start-1"
+                        className="row-start-1 flex min-w-0 items-center gap-3 rounded-xl text-left sm:col-start-1"
                         aria-label={`Ubah ${product.name}`}
                       >
-                        <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[0.12] bg-[#232a35] text-base font-medium text-neutral-400">
+                        <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-neutral-100 text-base font-medium text-neutral-400">
                           {product.imageUrl ? <img src={product.imageUrl} alt="" className="h-full w-full object-cover" /> : product.name.slice(0, 1)}
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate text-[15px] font-medium text-white">{product.name}</span>
+                          <span className="block truncate text-[13px] font-medium text-neutral-900">{product.name}</span>
                           <span className="mt-1 block truncate text-[13px] text-neutral-400">
                             {product.categoryName} · {formatCompactIDR(product.priceIdr)}{product.stockTracked ? ` · ${product.stockQuantity} tersisa` : " · unlimited"}
                           </span>
@@ -263,7 +263,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                           {statusLabel}
                         </button>
                       ) : (
-                        <span className={cn("col-start-1 row-start-2 flex h-10 w-fit items-center gap-2 rounded-full border px-4 text-[13px] font-medium sm:col-start-2 sm:row-start-1", statusClass)}>
+                        <span className={cn("col-start-1 row-start-2 flex h-10 w-fit items-center gap-2 rounded-full px-4 text-[13px] font-medium sm:col-start-2 sm:row-start-1", statusClass)}>
                           <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-current" />
                           {statusLabel}
                         </span>
@@ -272,22 +272,22 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                         type="button"
                         onClick={() => openEdit(product)}
                         aria-label={`Buka aksi ${product.name}`}
-                        className="col-start-2 row-span-2 row-start-1 flex h-10 w-10 items-center justify-center self-center rounded-full text-neutral-300 transition hover:bg-white/5 active:scale-95 sm:col-start-3 sm:row-span-1 sm:row-start-1"
+                        className="col-start-2 row-span-2 row-start-1 flex h-10 w-10 items-center justify-center self-center rounded-full text-neutral-400 active:scale-95 sm:col-start-3 sm:row-span-1 sm:row-start-1"
                       >
-                        <MoreVertical size={19} strokeWidth={1.8} />
+                        ···
                       </button>
                     </div>
                   );
                 })}
               </div>
-              <p className="border-t border-white/[0.08] px-5 py-4 text-[13px] text-neutral-400">
+              <p className="border-t border-neutral-100 px-5 py-4 text-[13px] text-neutral-400">
                 Menampilkan {visibleProducts.length} dari {showArchived ? products.filter((product) => !product.active).length : activeCount} menu {showArchived ? "arsip" : "aktif"}
               </p>
             </>
           ) : (
             <div className="px-5 py-14 text-center">
-              <p className="text-sm font-medium text-white">Tidak ada produk cocok.</p>
-              <p className="mt-1 text-[13px] text-neutral-400">Coba kata kunci lain.</p>
+              <p className="text-sm font-medium text-neutral-900">Tidak ada produk cocok.</p>
+              <p className="mt-1 text-[13px] text-neutral-500">Coba kata kunci lain.</p>
             </div>
           )}
         </div>
@@ -330,27 +330,27 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
   const dialogRef = useRef<HTMLElement>(null);
   useDialogFocus(dialogRef, onClose);
   return (
-    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#070a0f]/80 p-0 backdrop-blur-sm sm:items-center sm:p-5" onClick={onClose}>
+    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 p-0 sm:items-center sm:p-5" onClick={onClose}>
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet max-h-[92dvh] w-full max-w-[560px] overflow-y-auto rounded-t-[28px] border border-white/[0.12] bg-[#151a22] p-5 text-white shadow-[0_24px_80px_rgba(0,0,0,0.5)] sm:rounded-[28px] sm:p-6"
+        className="ord-sheet max-h-[92dvh] w-full max-w-[560px] overflow-y-auto rounded-t-[28px] bg-white p-5 text-neutral-900 sm:rounded-[28px] sm:p-6"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="product-editor-title"
       >
-        <div className="mx-auto h-1 w-9 rounded-full bg-white/25 sm:hidden" />
+        <div className="mx-auto h-1 w-9 rounded-full bg-neutral-200 sm:hidden" />
         <div className="mt-2 flex items-start justify-between sm:mt-0">
           <div>
             <p className="text-xs text-neutral-400">{isCreate ? "Produk baru" : "Ubah produk"}</p>
             <h2 id="product-editor-title" className="mt-1 text-lg font-medium tracking-tight">{isCreate ? "Tambah ke menu" : (editor as AdminProduct).name}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#232a35] text-neutral-300 active:scale-95">
+          <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95">
             <X size={15} />
           </button>
         </div>
-        {error && <p role="alert" className="mt-5 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-[13px] text-red-200">{error}</p>}
+        {error && <p role="alert" className="mt-5 text-center text-[13px] text-neutral-500">{error}</p>}
 
         <form onSubmit={(event) => { event.preventDefault(); onSave(); }}>
         <div className="mt-6 space-y-7">
@@ -364,8 +364,8 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
           </Field>
           <Field label="Foto menu · opsional">
             <div className="space-y-3">
-              {form.imagePath ? <div className="relative overflow-hidden rounded-2xl bg-[#232a35]"><img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/9] w-full object-cover" /><button type="button" onClick={() => setForm({ ...form, imagePath: "" })} className="absolute right-3 top-3 rounded-full bg-[#151a22]/90 px-3 py-1.5 text-xs font-medium text-white">Hapus foto</button></div> : <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-[#232a35] text-[13px] text-neutral-400">Belum ada foto</div>}
-              <label className="flex h-11 cursor-pointer items-center justify-center rounded-full border border-white/[0.16] text-[13px] font-medium text-neutral-200 transition hover:bg-white/5">
+              {form.imagePath ? <div className="relative overflow-hidden rounded-2xl bg-neutral-100"><img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/9] w-full object-cover" /><button type="button" onClick={() => setForm({ ...form, imagePath: "" })} className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-500">Hapus foto</button></div> : <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-neutral-100 text-[13px] text-neutral-400">Belum ada foto</div>}
+              <label className="flex h-11 cursor-pointer items-center justify-center rounded-full border border-neutral-200 text-[13px] font-medium text-neutral-500">
                 {uploading ? "Mengunggah…" : form.imagePath ? "Ganti foto" : "Upload foto"}
                 <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = ""; }} className="sr-only" />
               </label>
@@ -386,8 +386,8 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
           <fieldset className="border-0 p-0">
             <legend className="mb-3 text-[13px] font-medium">Stok</legend>
             <div className="space-y-2">
-              <label className="flex items-center gap-3 text-[13px] text-neutral-300"><input type="radio" name="stock-mode" checked={!form.stockTracked} onChange={() => setForm({ ...form, stockTracked: false })} /> Unlimited</label>
-              <label className="flex items-center gap-3 text-[13px] text-neutral-300"><input type="radio" name="stock-mode" checked={form.stockTracked} onChange={() => setForm({ ...form, stockTracked: true })} /> Track stock</label>
+              <label className="flex items-center gap-3 text-[13px] text-neutral-500"><input type="radio" name="stock-mode" checked={!form.stockTracked} onChange={() => setForm({ ...form, stockTracked: false })} /> Unlimited</label>
+              <label className="flex items-center gap-3 text-[13px] text-neutral-500"><input type="radio" name="stock-mode" checked={form.stockTracked} onChange={() => setForm({ ...form, stockTracked: true })} /> Track stock</label>
               {form.stockTracked && <input id="product-stock" required type="number" min="0" max="1000000" value={form.stockQuantity} onChange={(event) => setForm({ ...form, stockQuantity: event.target.value })} className="input tabular-nums" aria-label="Jumlah stok" placeholder="24" />}
             </div>
           </fieldset>
@@ -405,7 +405,7 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
           <button
             type="submit"
             disabled={saving || uploading || !form.name || !form.categoryId || form.priceIdr === "" || (form.stockTracked && form.stockQuantity === "")}
-            className="h-[52px] w-full rounded-2xl bg-[#FDBD2C] text-[15px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+            className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
           >
             {saving ? "Menyimpan…" : isCreate ? "Tambah" : "Simpan"}
           </button>
@@ -413,13 +413,13 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
             <button
               type="button"
               onClick={() => onArchive(editor as AdminProduct)}
-              className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-400 transition hover:bg-white/5"
+              className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500"
             >
               Arsipkan produk
             </button>
           )}
           {!isCreate && onRestore && <button type="button" onClick={() => onRestore(editor as AdminProduct)} className="h-11 w-full rounded-full bg-[#FDBD2C] text-[13px] font-medium text-neutral-900 active:scale-[0.98]">Pulihkan produk</button>}
-          <button type="button" onClick={onClose} className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-400 transition hover:bg-white/5">
+          <button type="button" onClick={onClose} className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500">
             Batal
           </button>
         </div>

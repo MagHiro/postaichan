@@ -8,7 +8,6 @@
   --line: #f5f5f5;
   --accent: #fdbd2c;
   --accent-dark: #eca90f;
-  --green: #2f8062;
   --warm: #ffffff;
 }
 
@@ -69,44 +68,7 @@
   .input:focus { background: #ffffff; box-shadow: 0 0 0 2px rgba(253, 189, 44, 0.5); }
   .input::placeholder { color: #a3a3a3; }
 
-  /* ---- POS workspace: modern SaaS motion (CSS only) ---- */
-  .pos-rise { animation: pos-rise 0.45s cubic-bezier(0.22, 0.8, 0.32, 1) both; animation-delay: var(--d, 0ms); }
-  /* Fade-only entrance: safe on wrappers that host fixed overlays (a retained
-     transform would trap fixed descendants inside the wrapper). */
-  .pos-fade { animation: pos-fade-in 0.35s ease-out both; }
-  .pos-backdrop { animation: pos-backdrop-in 0.22s ease-out both; }
-  .pos-toast { animation: pos-toast-in 0.25s cubic-bezier(0.22, 0.8, 0.32, 1) both; }
-  .pos-bar { animation: pos-bar-up 0.32s cubic-bezier(0.22, 0.8, 0.32, 1) both; }
-  .pos-pop { animation: pos-pop 0.28s cubic-bezier(0.22, 0.8, 0.32, 1) both; }
-  .pos-panel { animation: pos-sheet-up 0.32s cubic-bezier(0.22, 0.8, 0.32, 1) both; }
-  .pos-skeleton {
-    background: linear-gradient(90deg, #e9e2d8 25%, #f5f0e8 40%, #e9e2d8 55%);
-    background-size: 800px 100%;
-    animation: ord-shimmer 1.4s linear infinite;
-  }
-  .pos-press { transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
-  .pos-press:active { transform: scale(0.96); }
-  .pos-lift { transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease; }
-  .pos-lift:hover { transform: translateY(-2px); }
-  .pos-grow { transition: height 0.7s cubic-bezier(0.22, 0.8, 0.32, 1), width 0.7s cubic-bezier(0.22, 0.8, 0.32, 1); }
-
-  @media (min-width: 640px) {
-    .pos-panel { animation-name: pos-drawer-in; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .pos-rise,
-    .pos-fade,
-    .pos-backdrop,
-    .pos-toast,
-    .pos-bar,
-    .pos-pop,
-    .pos-panel,
-    .pos-skeleton {
-      animation: none;
-    }
-    .pos-press, .pos-lift, .pos-grow { transition: none; }
-  }
+  /* ---- POS workspace: calm minimal motion (same as order UI) ---- */
   .ord-rise { animation: ord-rise 0.3s cubic-bezier(0.22, 0.8, 0.32, 1) both; }
   .ord-sheet { animation: ord-sheet-in 0.28s cubic-bezier(0.22, 0.8, 0.32, 1) both; box-shadow: 0 -12px 32px rgba(24, 24, 27, 0.1); }
   .ord-backdrop { animation: ord-backdrop-in 0.2s ease-out both; }
@@ -114,75 +76,13 @@
   .ord-bar { animation: ord-rise 0.25s ease-out both; }
 
   .ord-skeleton {
-    background: linear-gradient(90deg, #ece5da 25%, #f5f0e8 40%, #ece5da 55%);
+    background: linear-gradient(90deg, #f5f5f5 25%, #ffffff 40%, #f5f5f5 55%);
     background-size: 800px 100%;
     animation: ord-shimmer 1.4s linear infinite;
   }
 
   .ord-row {
     -webkit-overflow-scrolling: touch;
-  }
-
-  /* ---- POS workspace: dark operations surface ---- */
-  .pos-theme {
-    color-scheme: dark;
-    --pos-bg: #141820;
-    --pos-surface: #1b2029;
-    --pos-surface-raised: #232a35;
-    --pos-line: rgba(255, 255, 255, 0.08);
-    --pos-text: #f4f4f5;
-    --pos-muted: #a1a1aa;
-    min-width: 0;
-    max-width: 100vw;
-    background-color: var(--pos-bg) !important;
-    color: var(--pos-text);
-  }
-  .pos-theme.text-neutral-900 { color: var(--pos-text) !important; }
-  .pos-theme [class~="bg-white"] { background-color: var(--pos-surface) !important; }
-  .pos-theme [class*="bg-white/"] { background-color: rgba(27, 32, 41, 0.94) !important; }
-  .pos-theme [class~="bg-white/10"] { background-color: rgba(255, 255, 255, 0.1) !important; }
-  .pos-theme [class~="bg-white/5"] { background-color: rgba(255, 255, 255, 0.05) !important; }
-  .pos-theme [class*="bg-white/[0."] { background-color: rgba(255, 255, 255, 0.04) !important; }
-  .pos-theme [class~="bg-neutral-50"] { background-color: #1f252f !important; }
-  .pos-theme [class*="bg-neutral-50/"] { background-color: rgba(31, 37, 47, 0.9) !important; }
-  .pos-theme [class~="bg-neutral-100"] { background-color: #232a35 !important; }
-  .pos-theme [class*="bg-neutral-100/"] { background-color: rgba(35, 42, 53, 0.86) !important; }
-  .pos-theme [class~="bg-neutral-900"] { background-color: #2b323e !important; }
-  .pos-theme [class*="bg-neutral-900/"] { background-color: rgba(0, 0, 0, 0.46) !important; }
-  .pos-theme [class*="text-neutral-900"] { color: var(--pos-text) !important; }
-  .pos-theme [class*="text-neutral-600"] { color: #d4d4d8 !important; }
-  .pos-theme [class*="text-neutral-500"] { color: var(--pos-muted) !important; }
-  .pos-theme [class*="text-neutral-400"] { color: #8f96a3 !important; }
-  .pos-theme [class*="text-neutral-300"] { color: #c5cad2 !important; }
-  .pos-theme [class~="text-black"],
-  .pos-theme [class*="text-[#18181B]"] { color: var(--pos-text) !important; }
-  .pos-theme [class~="border-neutral-100"] { border-color: var(--pos-line) !important; }
-  .pos-theme [class*="border-neutral-200"] { border-color: rgba(255, 255, 255, 0.14) !important; }
-  .pos-theme [class*="border-neutral-900"] { border-color: rgba(255, 255, 255, 0.22) !important; }
-  .pos-theme [class*="divide-neutral-100"] > :not([hidden]) ~ :not([hidden]) { border-color: var(--pos-line) !important; }
-  .pos-theme [class~="bg-[#FDBD2C]"][class*="text-neutral-900"] { color: #18181b !important; }
-  .pos-theme .input { background: #232a35; color: var(--pos-text); }
-  .pos-theme .input:focus { background: #2b323e; }
-  .pos-theme .shadow-soft { box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28); }
-  .pos-theme .shadow-sheet { box-shadow: 0 -14px 32px rgba(0, 0, 0, 0.3); }
-
-  @media (max-width: 1023px) {
-    .pos-theme {
-      height: 100dvh;
-      max-height: 100dvh;
-      overflow: hidden;
-      overscroll-behavior: none;
-    }
-    .pos-theme.pos-overview-mobile { --pos-bg: #0e1824; }
-    .pos-theme.pos-orders-mobile { --pos-bg: #0f1722; }
-    .pos-theme main {
-      min-height: 0;
-      max-width: 100%;
-      overflow-x: hidden;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      -webkit-overflow-scrolling: touch;
-    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -217,39 +117,4 @@
 @keyframes ord-shimmer {
   0% { background-position: -400px 0; }
   100% { background-position: 400px 0; }
-}
-
-/* ---- POS workspace keyframes ---- */
-@keyframes pos-rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes pos-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes pos-backdrop-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes pos-toast-in {
-  from { opacity: 0; transform: translate(-50%, 8px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
-}
-@keyframes pos-bar-up {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes pos-pop {
-  0% { opacity: 0; transform: scale(0.6); }
-  60% { opacity: 1; transform: scale(1.12); }
-  100% { opacity: 1; transform: scale(1); }
-}
-@keyframes pos-sheet-up {
-  from { opacity: 0; transform: translateY(40px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes pos-drawer-in {
-  from { opacity: 0.4; transform: translateX(48px); }
-  to { opacity: 1; transform: translateX(0); }
 }
