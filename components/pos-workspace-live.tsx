@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
-import { BookOpen, Download, Home, Minus, Plus, ReceiptText, RefreshCw, Search, TrendingUp, X } from "lucide-react";
+import { Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, Minus, Package, Plus, QrCode, ReceiptText, RefreshCw, Search, ShoppingBag, Store, TrendingUp, Wallet, X } from "lucide-react";
 import { formatCompactIDR, formatCountdown, formatIDR } from "@/lib/format";
 import type { CartItem, Order, Product } from "@/lib/types";
 import { buildCartItem } from "@/lib/domain/cart";
@@ -212,13 +212,13 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   const isOrders = nav === "Orders";
 
   return (
-    <div className="flex h-[100dvh] max-h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden bg-[#FAFAFA] text-neutral-900 antialiased lg:h-auto lg:max-h-none lg:min-h-screen lg:overflow-visible lg:pl-[266px]">
+    <div className="flex h-[100dvh] max-h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden bg-[#FAF7F1] text-[#1C1917] antialiased lg:h-auto lg:max-h-none lg:min-h-screen lg:overflow-visible lg:pl-[266px]">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden h-screen w-[266px] flex-col overflow-y-auto border-r border-neutral-100 bg-[#FAFAFA] px-5 py-8 lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden h-screen w-[266px] flex-col overflow-y-auto border-r border-[#EFE7D6] bg-[#FAF7F1] px-5 py-8 lg:flex">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[15px] font-medium tracking-tight">Tempat Taichan</p>
-            <p className="mt-1 text-xs text-neutral-400">{role === "admin" ? "Administrator" : "Staff"}</p>
+            <p className="mt-1 text-xs text-[#A8A29E]">{role === "admin" ? "Administrator" : "Staff"}</p>
           </div>
           <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#FDBD2C]" />
         </div>
@@ -233,31 +233,31 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 onClick={() => setNav(item)}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-full px-3.5 py-2 text-[13px] transition active:scale-[0.98]",
-                  active ? "bg-[#FDBD2C]/20 font-medium text-neutral-900" : "font-normal text-neutral-500",
+                  active ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]" : "font-normal text-[#78716C]",
                 )}
               >
-                <Icon size={17} strokeWidth={active ? 2 : 1.6} className="text-neutral-400" />
+                <Icon size={17} strokeWidth={active ? 2 : 1.6} className="text-[#A8A29E]" />
                 <span className="flex-1 text-left">{NAV_LABEL[item]}</span>
                 {item === "Orders" && activeCount > 0 && (
-                  <span className="text-xs font-medium tabular-nums text-neutral-400">{activeCount}</span>
+                  <span className="text-xs font-medium tabular-nums text-[#A8A29E]">{activeCount}</span>
                 )}
               </button>
             );
           })}
         </nav>
-        {role === "admin" && <a href="/admin" className="mt-4 flex items-center gap-3 rounded-full px-3.5 py-2 text-[13px] text-neutral-500"><span>Admin / Pengaturan</span></a>}
+        {role === "admin" && <a href="/admin" className="mt-4 flex items-center gap-3 rounded-full px-3.5 py-2 text-[13px] text-[#78716C]"><span>Admin / Pengaturan</span></a>}
         <button
           type="button"
           onClick={() => setShiftSheet(cashierOpen ? "close" : "open")}
           className={cn(
             "mt-4 flex w-full items-center gap-3 rounded-full px-3.5 py-2 text-[13px] transition active:scale-[0.98]",
-            cashierOpen ? "font-normal text-neutral-500" : "bg-[#FDBD2C]/20 font-medium text-neutral-900",
+            cashierOpen ? "font-normal text-[#78716C]" : "bg-[#FDBD2C]/20 font-medium text-[#1C1917]",
           )}
         >
           <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
           <span className="flex-1 text-left">{cashierOpen ? "Tutup kasir" : "Buka kasir"}</span>
         </button>
-        <p className="mt-4 text-xs leading-relaxed text-neutral-400">
+        <p className="mt-4 text-xs leading-relaxed text-[#A8A29E]">
           {activeCount} pesanan aktif
           <br />
           {shift?.shift ? `Buka ${formatShiftOpenedAt(shift.shift.opened_at)}` : "Kasir tutup"}
@@ -267,7 +267,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:block lg:min-h-screen">
         {/* Mobile top bar */}
         <header className={cn(
-          "shrink-0 border-b border-neutral-100 bg-[#FAFAFA]/90 backdrop-blur-md lg:hidden",
+          "shrink-0 border-b border-[#EFE7D6] bg-[#FAF7F1]/90 backdrop-blur-md lg:hidden",
           isOverview
             ? "px-5 pb-2 pt-[max(1.25rem,env(safe-area-inset-top))]"
             : isOrders
@@ -277,16 +277,16 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
           {isOverview ? (
             <div className="flex items-center justify-between gap-2.5">
               <div className="min-w-0 flex-1 pt-1">
-                <p className="truncate text-[22px] font-medium leading-snug tracking-tight text-neutral-900">
+                <p className="truncate text-[22px] font-medium leading-snug tracking-tight text-[#1C1917]">
                   {jakartaGreeting()}
                 </p>
-                <p className="mt-1 text-[13px] leading-tight tabular-nums text-neutral-500">{formatMobileDate(date)}</p>
+                <p className="mt-1 text-[13px] leading-tight tabular-nums text-[#78716C]">{formatMobileDate(date)}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
                   onClick={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))}
-                  className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#FDBD2C] px-3.5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+                  className="flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-[#FDBD2C] px-3.5 text-[13px] font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
                 >
                   <Plus size={16} strokeWidth={2} />
                   {cashierOpen ? "Pesanan baru" : "Buka kasir"}
@@ -296,13 +296,13 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
           ) : isOrders ? (
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <h1 className="truncate text-[22px] font-medium leading-snug tracking-tight text-neutral-900">Pesanan</h1>
-                <p className="mt-1 text-[13px] leading-tight tabular-nums text-neutral-500">{activeCount} aktif · {formatOrdersHeaderDate(date)}</p>
+                <h1 className="truncate text-[22px] font-medium leading-snug tracking-tight text-[#1C1917]">Pesanan</h1>
+                <p className="mt-1 text-[13px] leading-tight tabular-nums text-[#78716C]">{activeCount} aktif · {formatOrdersHeaderDate(date)}</p>
               </div>
               <button
                 type="button"
                 onClick={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))}
-                className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-4 text-sm font-medium leading-none text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+                className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-4 text-sm font-medium leading-none text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
               >
                 <Plus size={16} strokeWidth={2} />
                 {cashierOpen ? "Pesanan baru" : "Buka kasir"}
@@ -318,13 +318,13 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                     onClick={() => setShiftSheet(cashierOpen ? "close" : "open")}
                     className={cn(
                       "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium leading-none",
-                      cashierOpen ? "bg-neutral-100 text-neutral-500" : "bg-[#FDBD2C]/20 text-neutral-900",
+                      cashierOpen ? "bg-[#F3EFE6] text-[#78716C]" : "bg-[#FDBD2C]/20 text-[#1C1917]",
                     )}
                   >
                     {cashierOpen ? "Buka" : "Tutup"}
                   </button>
                 </div>
-                <p className="mt-0.5 text-xs tabular-nums text-neutral-400">
+                <p className="mt-0.5 text-xs tabular-nums text-[#A8A29E]">
                   {activeCount} aktif · {date}
                 </p>
               </div>
@@ -332,7 +332,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 <button
                   type="button"
                   onClick={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))}
-                  className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+                  className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
                 >
                   <Plus size={16} strokeWidth={2} />
                   {cashierOpen ? "Pesanan baru" : "Buka kasir"}
@@ -343,10 +343,10 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
         </header>
 
         {/* Desktop top bar */}
-        <header className="sticky top-0 z-30 hidden border-b border-neutral-100 bg-[#FAFAFA]/90 px-0 py-5 backdrop-blur-md lg:block">
+        <header className="sticky top-0 z-30 hidden border-b border-[#EFE7D6] bg-[#FAF7F1]/90 px-0 py-5 backdrop-blur-md lg:block">
           <div className="mx-auto flex max-w-[1540px] items-end justify-between px-8 xl:px-12 2xl:px-[74px]">
             <div>
-              <p className="text-xs text-neutral-400">{formatLongDate(date)}</p>
+              <p className="text-xs text-[#A8A29E]">{formatLongDate(date)}</p>
               <h1 className="mt-1 text-[22px] font-medium leading-snug tracking-tight">{pageTitle(nav)}</h1>
             </div>
             <div className="flex items-center gap-5">
@@ -355,24 +355,24 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 onClick={() => setShiftSheet(cashierOpen ? "close" : "open")}
                 className={cn(
                   "hidden items-center gap-2 rounded-full px-3 py-2 text-xs xl:flex",
-                  cashierOpen ? "bg-neutral-100 text-neutral-500" : "bg-[#FDBD2C]/20 font-medium text-neutral-900",
+                  cashierOpen ? "bg-[#F3EFE6] text-[#78716C]" : "bg-[#FDBD2C]/20 font-medium text-[#1C1917]",
                 )}
               >
                 <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
                 {cashierOpen ? "Kasir buka" : "Kasir tutup"}
               </button>
-              <button type="button" onClick={() => void loadOperations()} disabled={loading} className="flex items-center gap-2 text-[13px] font-normal text-neutral-500 active:scale-[0.98] disabled:opacity-50">
+              <button type="button" onClick={() => void loadOperations()} disabled={loading} className="flex items-center gap-2 text-[13px] font-normal text-[#78716C] active:scale-[0.98] disabled:opacity-50">
                 <RefreshCw size={15} strokeWidth={1.8} />
                 {loading ? "Memuat…" : "Muat ulang"}
               </button>
               <button
                 onClick={() => setNav("POS")}
-                className="flex h-10 items-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+                className="flex h-10 items-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
               >
                 <Plus size={17} strokeWidth={2} />
                 Pesanan baru
               </button>
-              <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
+              <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F3EFE6] text-[#78716C]">
                 {role === "admin" ? "A" : "S"}
               </span>
             </div>
@@ -393,7 +393,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
           )}
         >
           <div key={nav} className="ord-rise">
-            {workspaceError && <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-100 bg-white shadow-soft px-4 py-3 text-[13px] text-neutral-500"><span>{workspaceError}</span><button type="button" onClick={() => void loadOperations()} className="h-9 rounded-full bg-neutral-900 px-4 text-xs font-medium text-white">Muat ulang</button></div>}
+            {workspaceError && <div role="alert" className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft px-4 py-3 text-[13px] text-[#78716C]"><span>{workspaceError}</span><button type="button" onClick={() => void loadOperations()} className="h-9 rounded-full bg-[#1C1917] px-4 text-xs font-medium text-white">Muat ulang</button></div>}
             {nav === "Overview" && (
               <LiveOverview
                 orders={orders}
@@ -407,10 +407,11 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 advancingId={advancingId}
                 onOpenOrders={() => setNav("Orders")}
                 onOpenReports={() => setNav("Reports")}
+                onNewOrder={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))}
               />
             )}
-            {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} onAdvance={advanceOrderGuarded} advancingId={advancingId} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} onNewOrder={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))} />}
-            {nav === "POS" && <LiveCashier cashierOpen={cashierOpen} onShowNotice={showNotice} onOrderCreated={() => loadOperations(true)} />}
+            {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} cashierOpen={cashierOpen} onAdvance={advanceOrderGuarded} advancingId={advancingId} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} onNewOrder={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))} onOpenShift={() => setShiftSheet("open")} />}
+            {nav === "POS" && <LiveCashier cashierOpen={cashierOpen} onShowNotice={showNotice} onOrderCreated={() => loadOperations(true)} onOpenShift={() => setShiftSheet("open")} />}
             {nav === "Menu" && role === "admin" && <MenuManager onShowNotice={showNotice} />}
             {nav === "Reports" && role === "admin" && <LiveReports initialReport={summary} onShowNotice={showNotice} />}
           </div>
@@ -418,7 +419,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
       </div>
 
       {/* Mobile bottom tabs */}
-      <nav aria-label="Navigasi workspace" className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-[#FAFAFA]/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
+      <nav aria-label="Navigasi workspace" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#EFE7D6] bg-[#FAF7F1]/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
         <div className={cn("mx-auto grid w-full max-w-[440px] gap-1", navItems.length === 3 ? "grid-cols-3" : "grid-cols-5")}>
           {navItems.map((item) => {
             const Icon = item === "Overview" ? Home : NAV_ICON[item];
@@ -431,11 +432,11 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 aria-current={active ? "page" : undefined}
                 className="relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-2xl py-2"
               >
-                <Icon size={20} strokeWidth={active ? 2 : 1.6} className={active ? "text-neutral-900" : "text-neutral-400"} />
-                <span className={cn("flex items-center gap-1 text-[11px] leading-none", active ? "font-medium text-neutral-900" : "font-normal text-neutral-400")}>
+                <Icon size={20} strokeWidth={active ? 2 : 1.6} className={active ? "text-[#1C1917]" : "text-[#A8A29E]"} />
+                <span className={cn("flex items-center gap-1 text-[11px] leading-none", active ? "font-medium text-[#1C1917]" : "font-normal text-[#A8A29E]")}>
                   {NAV_SHORT_LABEL[item]}
                   {item === "Orders" && activeCount > 0 && (
-                    <span className="rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white">
+                    <span className="rounded-full bg-[#1C1917] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white">
                       {activeCount > 99 ? "99+" : activeCount}
                     </span>
                   )}
@@ -472,7 +473,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
 
       {notice && (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-5">
-          <p role="status" aria-live="polite" className="ord-toast shadow-soft pointer-events-auto max-w-[min(92vw,680px)] rounded-full bg-neutral-900 px-4 py-2 text-[13px] text-white">{notice}</p>
+          <p role="status" aria-live="polite" className="ord-toast shadow-soft pointer-events-auto max-w-[min(92vw,680px)] rounded-full bg-[#1C1917] px-4 py-2 text-[13px] text-white">{notice}</p>
         </div>
       )}
     </div>
@@ -491,45 +492,79 @@ function PageHead({ title, sub, action }: { title: string; sub?: string; action?
     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
       <div className="min-w-0">
         <h2 className="hidden text-[22px] font-medium leading-snug tracking-tight lg:block">{title}</h2>
-        {sub && <p className="text-[13px] text-neutral-500 lg:mt-1">{sub}</p>}
+        {sub && <p className="text-[13px] text-[#78716C] lg:mt-1">{sub}</p>}
       </div>
       {action}
     </div>
   );
 }
 
-function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
+function Ornament({ icon: Icon, size = 18 }: { icon: typeof Wallet; size?: number }) {
+  return (
+    <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F3EFE6]">
+      <Icon size={size} strokeWidth={1.6} className="text-[#A8A29E]" />
+    </span>
+  );
+}
+
+function Metric({ label, value, detail, icon }: { label: string; value: string; detail: string; icon?: typeof Wallet }) {
   return (
     <div className="min-w-0">
       <div className="min-w-0">
-        <p className="truncate text-xs leading-tight text-neutral-400">{label}</p>
-        <p className="mt-1 break-words text-[22px] font-medium tabular-nums leading-snug tracking-tight text-neutral-900">{value}</p>
-        <p className="mt-0.5 truncate text-[13px] leading-tight text-neutral-500">{detail}</p>
+        {icon && (
+          <span className="mb-2 block w-fit">
+            <Ornament icon={icon} />
+          </span>
+        )}
+        <p className="truncate text-xs leading-tight text-[#A8A29E]">{label}</p>
+        <p className="mt-1 break-words text-[22px] font-medium tabular-nums leading-snug tracking-tight text-[#1C1917]">{value}</p>
+        <p className="mt-0.5 truncate text-[13px] leading-tight text-[#78716C]">{detail}</p>
       </div>
     </div>
   );
 }
 
-function ReportMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
+function ReportMetric({ label, value, detail, icon }: { label: string; value: string; detail: string; icon?: typeof Wallet }) {
   return (
-    <div className="min-h-[108px] min-w-0 rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5 lg:min-h-[132px]">
-      <Metric label={label} value={value} detail={detail} />
+    <div className="min-h-[108px] min-w-0 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4 shadow-soft sm:p-5 lg:min-h-[132px]">
+      <Metric label={label} value={value} detail={detail} icon={icon} />
     </div>
   );
 }
 
-function EmptyBlock({ title, sub }: { title: string; sub: string }) {
+function EmptyBlock({ title, sub, icon }: { title: string; sub: string; icon?: typeof Wallet }) {
   return (
-    <div className="px-5 py-14 text-center">
-      <p className="text-sm font-medium">{title}</p>
-      <p className="mt-1 text-[13px] text-neutral-500">{sub}</p>
+    <div className="flex flex-col items-center px-5 py-8 text-center">
+      {icon && <Ornament icon={icon} />}
+      <p className="mt-3 text-sm font-medium">{title}</p>
+      <p className="mt-1 text-[13px] text-[#78716C]">{sub}</p>
     </div>
+  );
+}
+
+function CashierClosedCard({ title, sub, onOpen }: { title: string; sub: string; onOpen: () => void }) {
+  return (
+    <section className="rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-5 shadow-soft sm:p-6">
+      <Ornament icon={Store} size={20} />
+      <div className="mt-3 flex min-w-0 items-center gap-2">
+        <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#FDBD2C]" />
+        <h3 className="truncate text-sm font-medium text-[#1C1917]">{title}</h3>
+      </div>
+      <p className="mt-1 text-[13px] leading-relaxed text-[#78716C]">{sub}</p>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-4 h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] sm:w-auto sm:px-8"
+      >
+        Buka kasir
+      </button>
+    </section>
   );
 }
 
 function ListSkeleton({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="divide-y divide-neutral-100" aria-hidden="true">
+    <div className="divide-y divide-[#E9E1D1]" aria-hidden="true">
       {Array.from({ length: rows }, (_, row) => (
         <div key={row} className="flex items-center gap-3 py-3.5">
           <div className="min-w-0 flex-1 space-y-2">
@@ -549,20 +584,20 @@ function SearchField({ value, onChange, placeholder, id = "workspace-search", on
   return (
     <div className="relative">
       <label htmlFor={id} className="sr-only">{placeholder}</label>
-      <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
+      <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A8A29E]" />
       <input
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="h-12 w-full rounded-2xl bg-neutral-100 pl-10 pr-10 text-[13px] outline-none transition placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50 lg:rounded-full"
+        className="h-12 w-full rounded-2xl bg-[#F3EFE6] pl-10 pr-10 text-[13px] outline-none transition placeholder:text-[#A8A29E] focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#FDBD2C]/50 lg:rounded-full"
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange("")}
           aria-label="Hapus pencarian"
-          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400 active:bg-neutral-200"
+          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#A8A29E] active:bg-[#EDE8DB]"
         >
           <X size={14} />
         </button>
@@ -579,7 +614,7 @@ function QtyStepper({ count, onMinus, onPlus, large = false, itemName }: { count
         type="button"
         onClick={onMinus}
         aria-label={itemName ? `Kurangi ${itemName}` : "Kurangi"}
-        className={cn("flex items-center justify-center rounded-full border border-neutral-200 text-neutral-500 active:scale-95", size)}
+        className={cn("flex items-center justify-center rounded-full border border-[#E5DCC8] text-[#78716C] active:scale-95", size)}
       >
         <Minus size={15} />
       </button>
@@ -588,7 +623,7 @@ function QtyStepper({ count, onMinus, onPlus, large = false, itemName }: { count
         type="button"
         onClick={onPlus}
         aria-label={itemName ? `Tambah ${itemName}` : "Tambah"}
-        className={cn("flex items-center justify-center rounded-full bg-neutral-900 text-white active:scale-95", size)}
+        className={cn("flex items-center justify-center rounded-full bg-[#1C1917] text-white active:scale-95", size)}
       >
         <Plus size={15} />
       </button>
@@ -610,6 +645,7 @@ function LiveOverview({
   advancingId,
   onOpenOrders,
   onOpenReports,
+  onNewOrder,
 }: {
   orders: Order[];
   summary: DailyReport | null;
@@ -622,6 +658,7 @@ function LiveOverview({
   advancingId: string | null;
   onOpenOrders: () => void;
   onOpenReports: () => void;
+  onNewOrder: () => void;
 }) {
   const active = orders.filter(isActiveOrder);
   const pendingCount = orders.filter((order) => order.status === "Pending").length;
@@ -642,20 +679,23 @@ function LiveOverview({
       </div>
 
       {cashierOpen && shiftOpenedAt && (
-        <p className="mt-6 text-xs tabular-nums text-neutral-400">Kasir buka sejak {formatShiftOpenedAt(shiftOpenedAt)}</p>
+        <p className="mt-3 text-xs tabular-nums text-[#A8A29E] lg:mt-6">Kasir buka sejak {formatShiftOpenedAt(shiftOpenedAt)}</p>
       )}
 
+      <div className="lg:mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
       {isAdmin ? (
-        <div className="mt-6 grid grid-cols-2 gap-3 lg:gap-4">
-          <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5 lg:min-h-[132px]">
+        <div className="mt-4 grid grid-cols-2 gap-2.5 lg:col-start-2 lg:row-start-1 lg:mt-0 lg:grid-cols-1 lg:gap-4">
+          <div className="min-h-[108px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4 shadow-soft sm:p-5 lg:min-h-0">
             <Metric
+              icon={Wallet}
               label="Penjualan bersih"
               value={summary ? formatCompactIDR(summary.netRevenueIdr) : "—"}
               detail={`${paidCount} lunas hari ini`}
             />
           </div>
-          <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5 lg:min-h-[132px]">
+          <div className="min-h-[108px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4 shadow-soft sm:p-5 lg:min-h-0">
             <Metric
+              icon={ClipboardList}
               label="Pesanan aktif"
               value={String(active.length)}
               detail={pendingCount > 0 ? `${pendingCount} menunggu bayar` : active.length > 0 ? "Semua terbayar" : "Siap terima pesanan"}
@@ -663,16 +703,18 @@ function LiveOverview({
           </div>
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-2 gap-3 lg:gap-4">
-          <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5 lg:min-h-[132px]">
+        <div className="mt-4 grid grid-cols-2 gap-2.5 lg:col-start-2 lg:row-start-1 lg:mt-0 lg:grid-cols-1 lg:gap-4">
+          <div className="min-h-[108px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4 shadow-soft sm:p-5 lg:min-h-0">
             <Metric
+              icon={ClipboardList}
               label="Pesanan aktif"
               value={String(active.length)}
               detail={active.length > 0 ? "Perlu tindakan" : "Siap terima pesanan"}
             />
           </div>
-          <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5 lg:min-h-[132px]">
+          <div className="min-h-[108px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4 shadow-soft sm:p-5 lg:min-h-0">
             <Metric
+              icon={Hourglass}
               label="Menunggu bayar"
               value={String(pendingCount)}
               detail={pendingCount > 0 ? "Belum masuk dapur" : "Semua terbayar"}
@@ -681,14 +723,14 @@ function LiveOverview({
         </div>
       )}
 
-      <section className="mt-3 overflow-hidden rounded-2xl border border-neutral-100 bg-white p-5 shadow-soft lg:mt-6">
+      <section className="mt-2.5 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4 shadow-soft sm:p-5 lg:col-start-1 lg:row-start-1 lg:row-span-3 lg:mt-0">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#FDBD2C]" />
-            <h3 className="flex min-w-0 items-center text-sm font-medium text-neutral-900">
+            <h3 className="flex min-w-0 items-center text-sm font-medium text-[#1C1917]">
               <span className="truncate">Perlu tindakan</span>
               {active.length > 0 && (
-                <span className="ml-2 shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium tabular-nums text-neutral-500">
+                <span className="ml-2 shrink-0 rounded-full bg-[#F3EFE6] px-2 py-0.5 text-xs font-medium tabular-nums text-[#78716C]">
                   {active.length}
                 </span>
               )}
@@ -698,7 +740,7 @@ function LiveOverview({
             <button
               type="button"
               onClick={onOpenOrders}
-              className="shrink-0 text-[13px] font-medium text-neutral-900 active:scale-[0.98]"
+              className="shrink-0 text-[13px] font-medium text-[#1C1917] active:scale-[0.98]"
             >
               Lihat semua
             </button>
@@ -706,7 +748,7 @@ function LiveOverview({
         </div>
         <div className="mt-3 lg:mt-4">
           {loading ? (
-            <div className="divide-y divide-neutral-100" aria-hidden="true">
+            <div className="divide-y divide-[#E9E1D1]" aria-hidden="true">
               {[0, 1, 2].map((row) => (
                 <div key={row} className="flex items-center gap-3 py-3.5">
                   <div className="min-w-0 flex-1 space-y-2">
@@ -726,16 +768,16 @@ function LiveOverview({
                     key={order.id}
                     onClick={onOpenOrders}
                     aria-label={`Lihat ${order.number}`}
-                    className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-neutral-100 py-3.5 text-left last:border-b-0"
+                    className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[#EFE7D6] py-3.5 text-left last:border-b-0"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-medium leading-tight text-neutral-900">{order.number}</span>
-                      <span className="mt-0.5 block truncate text-xs leading-tight text-neutral-400">
+                      <span className="block truncate text-[13px] font-medium leading-tight text-[#1C1917]">{order.number}</span>
+                      <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]">
                         {order.table ?? order.type} · {order.items} item · {order.time}{order.paymentStatus !== "Paid" ? " · Belum bayar" : ""}
                       </span>
-                      <span className="mt-1 block text-[13px] leading-none tabular-nums text-neutral-500">{formatCompactIDR(order.total)}</span>
+                      <span className="mt-1 block text-[13px] leading-none tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</span>
                     </span>
-                    <span className="rounded-full bg-[#FDBD2C]/20 px-3 py-1.5 text-xs font-medium leading-none text-neutral-900">
+                    <span className="rounded-full bg-[#FDBD2C]/20 px-3 py-1.5 text-xs font-medium leading-none text-[#1C1917]">
                       {order.status === "Pending" ? "Menunggu" : STATUS_LABEL[order.status]}
                     </span>
                   </button>
@@ -744,14 +786,14 @@ function LiveOverview({
                   <button
                     type="button"
                     onClick={onOpenOrders}
-                    className="w-full py-3 text-center text-[13px] text-neutral-500 active:scale-[0.98]"
+                    className="w-full py-3 text-center text-[13px] text-[#78716C] active:scale-[0.98]"
                   >
                     Lihat {remainingMobile} lainnya
                   </button>
                 )}
               </div>
 
-              <div className="hidden divide-y divide-neutral-100 lg:block">
+              <div className="hidden divide-y divide-[#E9E1D1] lg:block">
                 {queueDesktop.map((order) => (
                   <div key={order.id} className="flex items-center gap-3 py-4">
                     <button
@@ -760,14 +802,14 @@ function LiveOverview({
                       className="min-w-0 flex-1 rounded-2xl px-2 py-2.5 text-left"
                       aria-label={`Lihat ${order.number}`}
                     >
-                      <p className="truncate text-[13px] font-medium text-neutral-900">
-                        {order.number} <span className="font-normal text-neutral-400">· {STATUS_LABEL[order.status]}</span>
+                      <p className="truncate text-[13px] font-medium text-[#1C1917]">
+                        {order.number} <span className="font-normal text-[#A8A29E]">· {STATUS_LABEL[order.status]}</span>
                       </p>
-                      <p className="mt-0.5 truncate text-xs text-neutral-400">
+                      <p className="mt-0.5 truncate text-xs text-[#A8A29E]">
                         {order.table ?? order.type} · {order.items} item · {order.time}
                         {order.paymentStatus !== "Paid" ? " · Belum bayar" : ""}
                       </p>
-                      <p className="mt-1 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(order.total)}</p>
+                      <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</p>
                     </button>
                     <button
                       type="button"
@@ -777,7 +819,7 @@ function LiveOverview({
                       aria-label={`Lanjut ${order.number}`}
                       className={cn(
                         "flex h-11 shrink-0 items-center rounded-full px-5 text-[13px] font-medium active:scale-[0.98] disabled:opacity-40",
-                        order.status === "Pending" ? "bg-neutral-100 text-neutral-500" : "bg-[#FDBD2C] text-neutral-900 hover:bg-[#ECA90F]",
+                        order.status === "Pending" ? "bg-[#F3EFE6] text-[#78716C]" : "bg-[#FDBD2C] text-[#1C1917] hover:bg-[#ECA90F]",
                       )}
                     >
                       {order.status === "Pending" ? "Menunggu" : order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}
@@ -787,63 +829,85 @@ function LiveOverview({
               </div>
             </>
           ) : (
-            <EmptyBlock title="Tidak ada pesanan aktif." sub="Pesanan baru akan muncul di sini." />
+            <div className="flex items-center gap-3 py-5">
+              <Ornament icon={ClipboardList} size={20} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-[#1C1917]">Tidak ada pesanan aktif.</p>
+                <p className="mt-1 text-[13px] leading-snug text-[#78716C]">Pesanan baru akan muncul di sini.</p>
+              </div>
+              <button
+                type="button"
+                onClick={onNewOrder}
+                className="h-11 shrink-0 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
+              >
+                {cashierOpen ? "Pesanan baru" : "Buka kasir"}
+              </button>
+            </div>
           )}
         </div>
       </section>
 
       {isAdmin && (
-        <section className="mt-8 lg:mt-10">
+        <section className="mt-6 lg:col-start-2 lg:mt-0">
           <div className="flex items-baseline justify-between gap-3">
-            <h3 className="text-sm font-medium text-neutral-900">Terlaris hari ini</h3>
+            <h3 className="text-sm font-medium text-[#1C1917]">Terlaris hari ini</h3>
             <button
               type="button"
               onClick={onOpenReports}
-              className="shrink-0 text-[13px] text-neutral-500 active:scale-[0.98]"
+              className="shrink-0 text-[13px] text-[#78716C] active:scale-[0.98]"
             >
               Laporan
             </button>
           </div>
           {summary?.bestSellers.length ? (
-            <div className="mt-1 divide-y divide-neutral-100">
+            <div className="mt-1 divide-y divide-[#E9E1D1]">
               {summary.bestSellers.slice(0, 5).map((item) => (
-                <div key={item.name} className="flex items-center justify-between gap-3 py-3.5">
+                <div key={item.name} className="flex items-center justify-between gap-3 py-3">
                   <div className="min-w-0">
-                    <p className="truncate text-[13px] font-medium text-neutral-900">{item.name}</p>
-                    <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{item.quantity} porsi</p>
+                    <p className="truncate text-[13px] font-medium text-[#1C1917]">{item.name}</p>
+                    <p className="mt-0.5 text-xs tabular-nums text-[#A8A29E]">{item.quantity} porsi</p>
                   </div>
-                  <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.revenueIdr)}</span>
+                  <span className="shrink-0 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.revenueIdr)}</span>
                 </div>
               ))}
             </div>
+          ) : loading ? (
+            <p className="py-6 text-[13px] text-[#78716C]">Memuat…</p>
           ) : (
-            <p className="py-10 text-center text-[13px] text-neutral-500">
-              {loading ? "Memuat…" : "Belum ada penjualan lunas."}
-            </p>
+            <div className="flex items-center gap-3 py-5">
+              <Ornament icon={ChartNoAxesColumn} />
+              <p className="min-w-0 flex-1 text-[13px] leading-snug text-[#78716C]">Belum ada penjualan lunas.</p>
+            </div>
           )}
         </section>
       )}
 
       {isAdmin && cashierOpen && (
-        <section className="mt-8 flex flex-col gap-3 rounded-2xl border border-neutral-100 bg-white p-5 shadow-soft sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h3 className="text-sm font-medium text-neutral-900">Tutup kasir</h3>
-            <p className="mt-1 text-[13px] text-neutral-500">Lihat rekap shift lalu tutup dan arsipkan.</p>
+        <section className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4 shadow-soft sm:flex-row sm:items-center sm:justify-between sm:p-5 lg:col-start-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <Ornament icon={ReceiptText} />
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-[#1C1917]">Tutup kasir</h3>
+              <p className="mt-1 text-[13px] text-[#78716C]">Lihat rekap shift lalu tutup dan arsipkan.</p>
+            </div>
           </div>
           <button
             type="button"
             onClick={onCloseShift}
-            className="h-10 shrink-0 rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98]"
+            className="h-11 w-full shrink-0 rounded-full bg-[#1C1917] px-5 text-[13px] font-medium text-white active:scale-[0.98] sm:w-auto"
           >
             Rekap & tutup
           </button>
         </section>
       )}
       {isAdmin && !cashierOpen && (
-        <section className="mt-8 flex flex-col gap-3 rounded-2xl border border-neutral-100 bg-white p-5 shadow-soft sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h3 className="text-sm font-medium text-neutral-900">Rekap harian</h3>
-            <p className="mt-1 text-[13px] text-neutral-500">Unduh rekap harian untuk arsip.</p>
+        <section className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4 shadow-soft sm:flex-row sm:items-center sm:justify-between sm:p-5 lg:col-start-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <Ornament icon={ReceiptText} />
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-[#1C1917]">Rekap harian</h3>
+              <p className="mt-1 text-[13px] text-[#78716C]">Unduh rekap harian untuk arsip.</p>
+            </div>
           </div>
           <button
             type="button"
@@ -853,12 +917,13 @@ function LiveOverview({
               confirmLabel: "Unduh PDF",
               onConfirm: () => { window.location.href = `/api/reports/daily.pdf?date=${dateLabel}`; },
             })}
-            className="h-10 shrink-0 rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white active:scale-[0.98]"
+            className="h-11 w-full shrink-0 rounded-full bg-[#1C1917] px-5 text-[13px] font-medium text-white active:scale-[0.98] sm:w-auto"
           >
             Unduh PDF
           </button>
         </section>
       )}
+      </div>
 
       <ConfirmSheet confirm={confirm} onClose={() => setConfirm(null)} />
     </div>
@@ -869,10 +934,13 @@ function LiveOverview({
 
 function MobileOrdersSummary({ completedCount, activeCount }: { completedCount: number; activeCount: number }) {
   return (
-    <section className="rounded-2xl border border-neutral-100 bg-white shadow-soft px-5 py-4 lg:hidden">
-      <p className="text-xs text-neutral-400">Selesai hari ini</p>
-      <p className="mt-1 text-[22px] font-medium leading-none tabular-nums tracking-tight text-neutral-900">{completedCount}</p>
-      <p className="mt-1 text-[13px] tabular-nums text-neutral-500">{activeCount} aktif perlu tindakan</p>
+    <section className="flex items-center gap-3 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft px-5 py-4 lg:hidden">
+      <Ornament icon={History} size={20} />
+      <div className="min-w-0">
+        <p className="text-xs text-[#A8A29E]">Selesai hari ini</p>
+        <p className="mt-1 text-[22px] font-medium leading-none tabular-nums tracking-tight text-[#1C1917]">{completedCount}</p>
+        <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">{activeCount} aktif perlu tindakan</p>
+      </div>
     </section>
   );
 }
@@ -897,57 +965,59 @@ function mobileOrderStatusLabel(status: Order["status"]) {
 }
 
 function mobileOrderStatusTone(status: Order["status"]) {
-  if (status === "Pending" || status === "New" || status === "Accepted" || status === "Preparing" || status === "Ready") return "bg-[#FDBD2C]/20 text-neutral-900";
-  return "bg-neutral-100 text-neutral-500";
+  if (status === "Pending" || status === "New" || status === "Accepted" || status === "Preparing" || status === "Ready") return "bg-[#FDBD2C]/20 text-[#1C1917]";
+  return "bg-[#F3EFE6] text-[#78716C]";
 }
 
 function orderStatusTone(status: Order["status"]) {
-  if (status === "Pending" || status === "New" || status === "Accepted" || status === "Preparing" || status === "Ready") return "bg-[#FDBD2C]/20 text-neutral-900";
-  return "bg-neutral-100 text-neutral-500";
+  if (status === "Pending" || status === "New" || status === "Accepted" || status === "Preparing" || status === "Ready") return "bg-[#FDBD2C]/20 text-[#1C1917]";
+  return "bg-[#F3EFE6] text-[#78716C]";
 }
 
-function MobileOrderCard({ order, opening, onOpen }: { order: Order; opening: boolean; onOpen: () => void }) {
+function MobileOrderRow({ order, opening, onOpen }: { order: Order; opening: boolean; onOpen: () => void }) {
   return (
-    <article className="rounded-2xl border border-neutral-100 bg-white shadow-soft p-4">
-      <button
-        type="button"
-        onClick={onOpen}
-        disabled={opening}
-        aria-busy={opening}
-        aria-label={`Detail ${order.number}`}
-        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left"
-      >
-        <span className="min-w-0">
-          <span className="block truncate text-[13px] font-medium leading-tight text-neutral-900">{order.number}</span>
-          <span className="mt-0.5 block truncate text-xs leading-tight text-neutral-400">{order.type} · {order.items} item · {order.time}</span>
-          <span className="mt-1 block text-[13px] leading-none tabular-nums text-neutral-500">{formatCompactIDR(order.total)}</span>
-        </span>
-        <span className={cn("rounded-full px-3 py-1.5 text-[11px] font-medium leading-none", mobileOrderStatusTone(order.status))}>
-          {mobileOrderStatusLabel(order.status)}
-        </span>
-      </button>
-    </article>
+    <button
+      type="button"
+      onClick={onOpen}
+      disabled={opening}
+      aria-busy={opening}
+      aria-label={`Detail ${order.number}`}
+      className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[#E9E1D1] py-3 text-left last:border-b-0 active:opacity-70"
+    >
+      <span className="min-w-0">
+        <span className="block truncate text-[13px] font-medium leading-tight text-[#1C1917]">{order.number}</span>
+        <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]">{order.type} · {order.items} item · {order.time}</span>
+        <span className="mt-1 block text-[13px] leading-none tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</span>
+      </span>
+      <span className={cn("rounded-full px-3 py-1.5 text-[11px] font-medium leading-none", mobileOrderStatusTone(order.status))}>
+        {mobileOrderStatusLabel(order.status)}
+      </span>
+    </button>
   );
 }
 
 function LiveOrders({
   orders,
   isAdmin,
+  cashierOpen,
   onAdvance,
   advancingId,
   loading,
   onShowNotice,
   onRefresh,
   onNewOrder,
+  onOpenShift,
 }: {
   orders: Order[];
   isAdmin: boolean;
+  cashierOpen: boolean;
   onAdvance: (order: Order) => void;
   advancingId: string | null;
   loading: boolean;
   onShowNotice: (message: string) => void;
   onRefresh: () => Promise<void>;
   onNewOrder: () => void;
+  onOpenShift: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
@@ -1025,81 +1095,92 @@ function LiveOrders({
 
   return (
     <div>
+      {!cashierOpen && (
+        <div className="mb-4">
+          <CashierClosedCard
+            title="Kasir tutup"
+            sub="Pesanan hanya baca. Buka kasir untuk terima pembayaran baru dan lanjutkan antrean."
+            onOpen={onOpenShift}
+          />
+        </div>
+      )}
       <div className="hidden grid-cols-1 gap-4 xl:grid-cols-4 lg:grid">
-        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Total pesanan" value={String(orders.length)} detail="Hari ini" /></div>
-        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Menunggu bayar" value={String(pendingCount)} detail="Perlu tindakan" /></div>
-        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Sedang diproses" value={String(processingCount)} detail="Di dapur" /></div>
-        <div className="min-h-[132px] rounded-2xl border border-neutral-100 bg-white shadow-soft p-5"><Metric label="Selesai" value={String(completedCount)} detail="Hari ini" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft p-5"><Metric icon={ClipboardList} label="Total pesanan" value={String(orders.length)} detail="Hari ini" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft p-5"><Metric icon={Hourglass} label="Menunggu bayar" value={String(pendingCount)} detail="Perlu tindakan" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft p-5"><Metric icon={ChefHat} label="Sedang diproses" value={String(processingCount)} detail="Di dapur" /></div>
+        <div className="min-h-[132px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft p-5"><Metric icon={History} label="Selesai" value={String(completedCount)} detail="Hari ini" /></div>
       </div>
 
       <MobileOrdersSummary completedCount={completedCount} activeCount={orders.filter(isActiveOrder).length} />
 
-      <div className="mt-6 flex items-center gap-3 lg:mt-6">
-        <div className="min-w-0 flex-1">
-          <SearchField value={query} onChange={setQuery} placeholder="Cari nomor pesanan atau meja…" />
+      <div className="sticky top-0 z-10 -mx-5 bg-[#FAF7F1]/95 px-5 pb-2 pt-2 backdrop-blur-md lg:static lg:mx-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+        <div className="mt-2 flex items-center gap-3 lg:mt-6">
+          <div className="min-w-0 flex-1">
+            <SearchField value={query} onChange={setQuery} placeholder="Cari nomor pesanan atau meja…" />
+          </div>
+          {isAdmin && <a href={`/api/reports/daily.pdf?date=${jakartaToday()}`} className="hidden h-11 shrink-0 items-center gap-2 rounded-full border border-[#E5DCC8] px-5 text-[13px] font-normal text-[#78716C] sm:flex"><Download size={15} strokeWidth={1.8} />Unduh PDF</a>}
         </div>
-        {isAdmin && <a href={`/api/reports/daily.pdf?date=${jakartaToday()}`} className="hidden h-11 shrink-0 items-center gap-2 rounded-full border border-neutral-200 px-5 text-[13px] font-normal text-neutral-500 sm:flex"><Download size={15} strokeWidth={1.8} />Unduh PDF</a>}
+
+        <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+          {MOBILE_FILTERS.map(({ key, label }) => {
+            const n = mobileOrderFilterCount(orders, key);
+            const isActive = filter === key;
+            return (
+              <button
+                type="button"
+                key={key}
+                onClick={() => setFilter(key)}
+                aria-pressed={isActive}
+                className={cn(
+                  "flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-[13px] leading-none transition active:scale-95",
+                  isActive ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]" : "bg-[#F3EFE6] font-normal text-[#78716C]",
+                )}
+              >
+                {label} <span className="tabular-nums">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="no-scrollbar -mx-5 mt-4 hidden gap-2 overflow-x-auto px-5 pb-1 lg:flex xl:mx-0 xl:px-0">
+          {FILTERS.map(({ key, label }) => {
+            const n = counts.find((c) => c.key === key)?.n ?? 0;
+            const isActive = filter === key;
+            return (
+              <button
+                type="button"
+                key={key}
+                onClick={() => setFilter(key)}
+                aria-pressed={isActive}
+                className={cn(
+                  "flex h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] transition active:scale-95",
+                  isActive ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]" : "bg-[#F3EFE6] font-normal text-[#78716C]",
+                )}
+              >
+                {label} <span className="tabular-nums">{n}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1 lg:hidden">
-        {MOBILE_FILTERS.map(({ key, label }) => {
-          const n = mobileOrderFilterCount(orders, key);
-          const isActive = filter === key;
-          return (
-            <button
-              type="button"
-              key={key}
-              onClick={() => setFilter(key)}
-              aria-pressed={isActive}
-              className={cn(
-                "flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-[13px] leading-none transition active:scale-95",
-                isActive ? "bg-[#FDBD2C]/20 font-medium text-neutral-900" : "bg-neutral-100 font-normal text-neutral-500",
-              )}
-            >
-              {label} <span className="tabular-nums">{n}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="no-scrollbar -mx-5 mt-4 hidden gap-2 overflow-x-auto px-5 pb-1 lg:flex xl:mx-0 xl:px-0">
-        {FILTERS.map(({ key, label }) => {
-          const n = counts.find((c) => c.key === key)?.n ?? 0;
-          const isActive = filter === key;
-          return (
-            <button
-              type="button"
-              key={key}
-              onClick={() => setFilter(key)}
-              aria-pressed={isActive}
-              className={cn(
-                "flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] transition active:scale-95",
-                isActive ? "bg-[#FDBD2C]/20 font-medium text-neutral-900" : "bg-neutral-100 font-normal text-neutral-500",
-              )}
-            >
-              {label} <span className="tabular-nums">{n}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-6 lg:mt-6">
+      <div className="mt-4 lg:mt-6">
         {loading ? (
           <ListSkeleton />
         ) : filtered.length ? (
           <>
-            <div className="space-y-3 lg:hidden">
-              {filtered.map((order) => <MobileOrderCard key={order.id} order={order} opening={openingId === order.id} onOpen={() => void openDetail(order)} />)}
+            <div className="rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] px-4 shadow-soft lg:hidden">
+              {filtered.map((order) => <MobileOrderRow key={order.id} order={order} opening={openingId === order.id} onOpen={() => void openDetail(order)} />)}
             </div>
-            <div className="hidden overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft lg:block">
-              <div className="hidden grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_auto] gap-4 bg-white px-6 py-3 text-xs text-neutral-400 lg:grid">
+            <div className="hidden overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft lg:block">
+              <div className="hidden grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_auto] gap-4 bg-[#FFFEFB] px-6 py-3 text-xs text-[#A8A29E] lg:grid">
                 <span>Pesanan</span>
                 <span>Detail</span>
                 <span>Total</span>
                 <span>Status</span>
                 <span className="text-right">Aksi</span>
               </div>
-              <div className="divide-y divide-neutral-100">
+              <div className="divide-y divide-[#E9E1D1]">
                 {filtered.map((order) => {
                   const statusTone = orderStatusTone(order.status);
                   return (
@@ -1112,24 +1193,24 @@ function LiveOrders({
                         className="min-w-0 rounded-xl text-left transition lg:rounded-none"
                         aria-label={`Detail ${order.number}`}
                       >
-                        <p className="truncate text-[14px] font-medium text-neutral-900">{order.number}</p>
-                        <p className="mt-1 truncate text-xs text-neutral-400">{formatShortDate(jakartaToday())} · {order.time}</p>
+                        <p className="truncate text-[14px] font-medium text-[#1C1917]">{order.number}</p>
+                        <p className="mt-1 truncate text-xs text-[#A8A29E]">{formatShortDate(jakartaToday())} · {order.time}</p>
                       </button>
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-[13px] font-medium text-neutral-900">{order.type}</p>
-                          <p className="mt-0.5 truncate text-xs text-neutral-400">{order.table ? `${order.table} · ` : ""}{order.items} item</p>
+                          <p className="truncate text-[13px] font-medium text-[#1C1917]">{order.type}</p>
+                          <p className="mt-0.5 truncate text-xs text-[#A8A29E]">{order.table ? `${order.table} · ` : ""}{order.items} item</p>
                         </div>
                       </div>
-                      <p className="self-center text-[13px] font-medium tabular-nums text-neutral-900">{formatCompactIDR(order.total)}</p>
+                      <p className="self-center text-[13px] font-medium tabular-nums text-[#1C1917]">{formatCompactIDR(order.total)}</p>
                       <span className={cn("inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-medium", statusTone)}><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />{STATUS_LABEL[order.status]}</span>
                       <div className="flex justify-end">
-                        {order.status === "Pending" ? (
-                          <button type="button" onClick={() => void openDetail(order)} className="h-10 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 hover:bg-[#ECA90F] active:scale-[0.98]">Lihat</button>
+                        {!cashierOpen || order.status === "Pending" ? (
+                          <button type="button" onClick={() => void openDetail(order)} className="h-11 rounded-full bg-[#F3EFE6] px-5 text-[13px] font-medium text-[#78716C] active:scale-[0.98]">Lihat</button>
                         ) : isActiveOrder(order) ? (
-                          <button type="button" onClick={() => onAdvance(order)} disabled={advancingId === order.id} aria-busy={advancingId === order.id} aria-label={`Lanjut ${order.number}`} className="h-10 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40">{order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}</button>
+                          <button type="button" onClick={() => onAdvance(order)} disabled={advancingId === order.id} aria-busy={advancingId === order.id} aria-label={`Lanjut ${order.number}`} className="h-11 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-[#1C1917] hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40">{order.status === "New" ? "Terima" : order.status === "Accepted" ? "Mulai" : order.status === "Preparing" ? "Siap" : "Selesai"}</button>
                         ) : (
-                          <button type="button" onClick={() => void openDetail(order)} aria-label={`Buka detail ${order.number}`} className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95">···</button>
+                          <button type="button" onClick={() => void openDetail(order)} aria-label={`Buka detail ${order.number}`} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F3EFE6] text-[#78716C] active:scale-95">···</button>
                         )}
                       </div>
                     </div>
@@ -1139,7 +1220,7 @@ function LiveOrders({
             </div>
           </>
         ) : (
-          <EmptyBlock title="Tidak ada pesanan cocok." sub="Pesanan yang lunas akan muncul di sini." />
+          <EmptyBlock icon={ClipboardList} title="Tidak ada pesanan cocok." sub="Pesanan yang lunas akan muncul di sini." />
         )}
       </div>
 
@@ -1147,6 +1228,7 @@ function LiveOrders({
         <OrderDetail
           detail={detail}
           detailId={detailId}
+          readOnly={!cashierOpen}
           onClose={() => {
             setDetail(null);
             setDetailId(null);
@@ -1230,7 +1312,7 @@ function formatShortDate(date: string) {
   return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(parsed);
 }
 
-function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled, onShowNotice, onNewOrder }: { detail: Detail; detailId: string; onClose: () => void; onAdvance: () => void; onCancel: () => void; onSettled?: (orderId: string) => void; onShowNotice: (message: string) => void; onNewOrder: () => void }) {
+function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel, onSettled, onShowNotice, onNewOrder }: { detail: Detail; detailId: string; readOnly?: boolean; onClose: () => void; onAdvance: () => void; onCancel: () => void; onSettled?: (orderId: string) => void; onShowNotice: (message: string) => void; onNewOrder: () => void }) {
   const table = Array.isArray(detail.order.restaurant_tables) ? detail.order.restaurant_tables[0]?.label : detail.order.restaurant_tables?.label;
   const payment = Array.isArray(detail.order.payments) ? detail.order.payments[0] : detail.order.payments;
   const totalItems = detail.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -1240,13 +1322,13 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
   const payRemainingMs = payExpiresMs !== null ? payExpiresMs - nowMs : null;
   const isStale = detail.order.status === "cancelled" || detail.order.status === "refunded" || payment?.status === "expired";
   const statusTone = detail.order.status === "cancelled" || detail.order.status === "refunded"
-    ? "bg-neutral-100 text-neutral-500"
+    ? "bg-[#F3EFE6] text-[#78716C]"
     : detail.order.status === "awaiting_payment"
-      ? "bg-[#FDBD2C]/20 text-neutral-900"
-      : "bg-neutral-100 text-neutral-500";
+      ? "bg-[#FDBD2C]/20 text-[#1C1917]"
+      : "bg-[#F3EFE6] text-[#78716C]";
   const paymentTone = payment?.status === "settled"
-    ? "bg-neutral-100 text-neutral-500"
-    : "bg-[#FDBD2C]/20 text-neutral-900";
+    ? "bg-[#F3EFE6] text-[#78716C]"
+    : "bg-[#FDBD2C]/20 text-[#1C1917]";
   const noticeTitle = payment?.status === "expired" ? "QR kedaluwarsa" : detail.order.status === "cancelled" ? "Pesanan dibatalkan" : "Pembayaran belum selesai";
   const noticeDescription = payment?.status === "expired" || detail.order.status === "cancelled"
     ? "Buat pesanan baru untuk melanjutkan."
@@ -1318,30 +1400,30 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
   }, []);
 
   return createPortal(
-    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 p-0 sm:items-center sm:p-6" onClick={onClose}>
+    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30 p-0 sm:items-center sm:p-6" onClick={onClose}>
       <aside
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet relative flex max-h-[94dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-white text-neutral-900 sm:max-h-[90dvh] sm:rounded-[28px] lg:max-w-[560px]"
+        className="ord-sheet relative flex max-h-[94dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-[#FFFEFB] text-[#1C1917] sm:max-h-[90dvh] sm:rounded-[28px] lg:max-w-[560px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="order-detail-title"
       >
-        <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-neutral-200 sm:mt-5" />
+        <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-[#E5DCC8] sm:mt-5" />
         <div className="flex shrink-0 items-start justify-between gap-4 px-5 pb-5 pt-4 sm:px-8 sm:pb-7 sm:pt-6">
           <div className="min-w-0">
             <div className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-medium", statusTone)}>
               <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
               {rawStatusLabel(detail.order.status)}
             </div>
-            <h2 id="order-detail-title" className="mt-4 truncate text-lg font-medium leading-tight tracking-tight text-neutral-900">{detail.order.order_number}</h2>
-            <p className="mt-1 text-[13px] text-neutral-500">{formatCreatedAt(detail.order.created_at)}</p>
+            <h2 id="order-detail-title" className="mt-4 truncate text-lg font-medium leading-tight tracking-tight text-[#1C1917]">{detail.order.order_number}</h2>
+            <p className="mt-1 text-[13px] text-[#78716C]">{formatCreatedAt(detail.order.created_at)}</p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2 text-[13px] text-neutral-500">
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#F3EFE6] px-4 py-2 text-[13px] text-[#78716C]">
                 {detail.order.order_type === "dine_in" ? (table ?? "Dine in") : "Takeaway"}
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2 text-[13px] text-neutral-500">
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#F3EFE6] px-4 py-2 text-[13px] text-[#78716C]">
                 {totalItems} porsi
               </span>
             </div>
@@ -1351,7 +1433,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
             onClick={onClose}
             aria-label="Tutup detail"
             autoFocus
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F3EFE6] text-[#78716C] active:scale-95"
           >
             <X size={15} strokeWidth={1.8} />
           </button>
@@ -1360,10 +1442,10 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
         <div className="flex-1 overflow-y-auto px-5 pb-6 sm:px-8 sm:pb-8">
           <section>
             <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-sm font-medium text-neutral-900">Item Pesanan</h3>
-              <span className="shrink-0 text-xs text-neutral-400">{detail.items.length} item · {totalItems} baris</span>
+              <h3 className="text-sm font-medium text-[#1C1917]">Item Pesanan</h3>
+              <span className="shrink-0 text-xs text-[#A8A29E]">{detail.items.length} item · {totalItems} baris</span>
             </div>
-            <div className="mt-1 divide-y divide-neutral-100">
+            <div className="mt-1 divide-y divide-[#E9E1D1]">
               {detail.items.map((item) => {
                 const modifierCounts = new Map<string, number>();
                 for (const modifier of item.order_item_modifiers ?? []) {
@@ -1373,38 +1455,38 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
                 return (
                   <div key={item.id} className="flex gap-3 py-3.5">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-neutral-900">{item.product_name_snapshot}</p>
-                      <p className="mt-0.5 truncate text-xs text-neutral-400">
+                      <p className="truncate text-[13px] font-medium text-[#1C1917]">{item.product_name_snapshot}</p>
+                      <p className="mt-0.5 truncate text-xs text-[#A8A29E]">
                         {item.quantity} × {formatCompactIDR(item.unit_price_idr)} · {modifiers.length > 0 ? modifiers.join(" · ") : "Original"}
                         {item.note ? ` · “${item.note}”` : ""}
                       </p>
                     </div>
-                    <span className="shrink-0 self-start text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.line_total_idr)}</span>
+                    <span className="shrink-0 self-start text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.line_total_idr)}</span>
                   </div>
                 );
               })}
             </div>
           </section>
 
-          <section className="mt-2 border-t border-neutral-100 pt-5">
+          <section className="mt-2 border-t border-[#EFE7D6] pt-5">
             <div className="flex items-baseline justify-between gap-4">
-              <span className="text-[13px] text-neutral-500">Total</span>
-              <span className="text-[15px] font-medium tabular-nums text-neutral-900">{formatCompactIDR(detail.order.total_idr)}</span>
+              <span className="text-[13px] text-[#78716C]">Total</span>
+              <span className="text-[15px] font-medium tabular-nums text-[#1C1917]">{formatCompactIDR(detail.order.total_idr)}</span>
             </div>
           </section>
 
-          <section className="mt-5 border-t border-neutral-100 pt-5">
-            <h3 className="text-[13px] font-medium text-neutral-900">Pembayaran</h3>
+          <section className="mt-5 border-t border-[#EFE7D6] pt-5">
+            <h3 className="text-[13px] font-medium text-[#1C1917]">Pembayaran</h3>
             <div className="mt-3 space-y-3">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-[13px] text-neutral-400">Metode</span>
-                <span className="text-right text-[13px] text-neutral-900">
+                <span className="text-[13px] text-[#A8A29E]">Metode</span>
+                <span className="text-right text-[13px] text-[#1C1917]">
                   {payMethodLabel(payment?.method)}
                   {payment?.provider ? ` · ${payment.provider}` : ""}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <span className="text-[13px] text-neutral-400">Status</span>
+                <span className="text-[13px] text-[#A8A29E]">Status</span>
                 <span className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-medium", paymentTone)}>
                   <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
                   {payStateLabel(payment?.status)}
@@ -1412,46 +1494,54 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
               </div>
               {payment?.status === "pending" && payRemainingMs !== null && payRemainingMs > 0 && (
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-[13px] text-neutral-400">QR berlaku</span>
-                  <span className="text-[13px] tabular-nums text-neutral-500">{formatCountdown(payRemainingMs)}</span>
+                  <span className="text-[13px] text-[#A8A29E]">QR berlaku</span>
+                  <span className="text-[13px] tabular-nums text-[#78716C]">{formatCountdown(payRemainingMs)}</span>
                 </div>
               )}
             </div>
           </section>
 
           {isStale && (
-            <div className="mt-6 rounded-2xl bg-neutral-100 p-4">
-              <p className="text-[13px] font-medium text-neutral-900">{noticeTitle}</p>
-              <p className="mt-1 text-[13px] leading-relaxed text-neutral-500">{noticeDescription}</p>
+            <div className="mt-6 rounded-2xl bg-[#F3EFE6] p-4">
+              <p className="text-[13px] font-medium text-[#1C1917]">{noticeTitle}</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#78716C]">{noticeDescription}</p>
             </div>
           )}
         </div>
 
-        <div className="shrink-0 border-t border-neutral-100 bg-[#FAFAFA]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur sm:px-8 sm:pt-5">
+        <div className="shrink-0 border-t border-[#EFE7D6] bg-[#FAF7F1]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur sm:px-8 sm:pt-5">
           {isStale ? (
             <>
               <button
                 type="button"
                 onClick={onNewOrder}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
               >
                 Buat pesanan baru
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-2 h-12 w-full rounded-full text-sm text-neutral-500 active:scale-[0.98]"
+                className="mt-2 h-12 w-full rounded-full text-sm text-[#78716C] active:scale-[0.98]"
               >
                 Tutup
               </button>
             </>
+          ) : readOnly ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-12 w-full rounded-full bg-[#F3EFE6] text-sm font-medium text-[#78716C] active:scale-[0.98]"
+            >
+              Tutup
+            </button>
           ) : (
             <>
               <button
                 type="button"
                 onClick={onAdvance}
                 disabled={done}
-                className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+                className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
               >
                 {nextActionLabel(detail.order.status)}
               </button>
@@ -1461,7 +1551,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
                     type="button"
                     onClick={() => void checkPaymentNow()}
                     disabled={checkingPay}
-                    className="h-11 w-full rounded-full text-[13px] text-neutral-500 disabled:opacity-60"
+                    className="h-11 w-full rounded-full text-[13px] text-[#78716C] disabled:opacity-60"
                   >
                     {checkingPay ? "Mengecek…" : "Cek pembayaran"}
                   </button>
@@ -1469,7 +1559,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
                     type="button"
                     onClick={() => void resumeQrCode()}
                     disabled={checkingPay}
-                    className="h-11 w-full rounded-full text-[13px] text-neutral-500 disabled:opacity-60"
+                    className="h-11 w-full rounded-full text-[13px] text-[#78716C] disabled:opacity-60"
                   >
                     Tampilkan QR
                   </button>
@@ -1479,7 +1569,7 @@ function OrderDetail({ detail, detailId, onClose, onAdvance, onCancel, onSettled
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="mt-1 h-11 w-full rounded-full text-[13px] text-neutral-500"
+                  className="mt-1 h-11 w-full rounded-full text-[13px] text-[#78716C]"
                 >
                   Batalkan pesanan
                 </button>
@@ -1515,7 +1605,7 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
       setQr("");
       return;
     }
-    QRCode.toDataURL(qrString, { width: 320, margin: 2, color: { dark: "#18181B", light: "#ffffff" } })
+    QRCode.toDataURL(qrString, { width: 320, margin: 2, color: { dark: "#1C1917", light: "#ffffff" } })
       .then(setQr)
       .catch(() => setQr(""));
   }, [qrString]);
@@ -1525,29 +1615,29 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
   }, []);
   const remainingMs = new Date(expiresAt).getTime() - now;
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-900/30 p-4" onClick={onClose}>
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#1C1917]/30 p-4" onClick={onClose}>
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="w-full max-w-[300px] rounded-3xl border border-neutral-100 bg-white shadow-soft p-5 text-center text-neutral-900"
+        className="w-full max-w-[300px] rounded-3xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft p-5 text-center text-[#1C1917]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="resume-qr-title"
       >
-        <p id="resume-qr-title" className="text-xs text-neutral-400">QRIS · {orderNumber}</p>
+        <p id="resume-qr-title" className="text-xs text-[#A8A29E]">QRIS · {orderNumber}</p>
         {qrImageUrl ? (
-          <img src={qrImageUrl} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-neutral-100 bg-white shadow-soft p-2" />
+          <img src={qrImageUrl} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft p-2" />
         ) : qr ? (
-          <img src={qr} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-neutral-100 bg-white shadow-soft p-2" />
+          <img src={qr} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft p-2" />
         ) : (
           <div className="ord-skeleton mx-auto mt-4 h-48 w-48 rounded-2xl" />
         )}
         <p className="mt-3 text-[15px] font-medium tabular-nums">{formatIDR(totalIdr)}</p>
-        <p className="mt-1 text-[13px] text-neutral-400">
+        <p className="mt-1 text-[13px] text-[#A8A29E]">
           {remainingMs > 0 ? <span>Berlaku {formatCountdown(remainingMs)}</span> : <span>Kedaluwarsa</span>}
         </p>
-        <button type="button" onClick={onClose} className="mt-4 h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 active:scale-[0.98]">
+        <button type="button" onClick={onClose} className="mt-4 h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] active:scale-[0.98]">
           Tutup
         </button>
       </section>
@@ -1557,7 +1647,7 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
 
 type CartLine = CartItem;
 
-function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated }: { cashierOpen: boolean; onShowNotice: (message: string) => void; onOrderCreated?: () => Promise<void> }) {
+function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }: { cashierOpen: boolean; onShowNotice: (message: string) => void; onOrderCreated?: () => Promise<void>; onOpenShift: () => void }) {
   const [menu, setMenu] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"qris" | "cash">("qris");
@@ -1699,7 +1789,13 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated }: { cashierOpe
   }
 
   if (!cashierOpen) {
-    return null;
+    return (
+      <CashierClosedCard
+        title="Kasir tutup"
+        sub="Isi stok awal untuk buka kasir. Pesanan dan pembayaran terkunci sampai shift dibuka."
+        onOpen={onOpenShift}
+      />
+    );
   }
 
   return (
@@ -1709,9 +1805,10 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated }: { cashierOpe
       </div>
 
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="min-w-0 rounded-2xl border border-neutral-100 bg-white shadow-soft p-5 sm:p-6">
+        <section className="min-w-0 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
+          <div className="p-5 sm:p-6">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.08fr]">
-            <div className="flex rounded-full bg-neutral-100 p-1" role="group" aria-label="Jenis pesanan">
+            <div className="flex rounded-full bg-[#F3EFE6] p-1" role="group" aria-label="Jenis pesanan">
               {(
                 [
                   { key: "dine_in", label: "Dine in" },
@@ -1725,19 +1822,19 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated }: { cashierOpe
                   aria-pressed={orderType === key}
                   className={cn(
                     "h-11 flex-1 rounded-full text-center text-[13px] transition active:scale-[0.98]",
-                    orderType === key ? "bg-white font-medium text-neutral-900 shadow-xs" : "font-normal text-neutral-500",
+                    orderType === key ? "bg-[#FFFEFB] font-medium text-[#1C1917] shadow-xs" : "font-normal text-[#78716C]",
                   )}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <div className="flex rounded-full bg-neutral-100 p-1" role="group" aria-label="Metode pembayaran">
-              {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-11 flex-1 rounded-full text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "bg-white font-medium text-neutral-900 shadow-xs" : "text-neutral-500")}>{method.label}</button>)}
+            <div className="flex rounded-full bg-[#F3EFE6] p-1" role="group" aria-label="Metode pembayaran">
+              {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-11 flex-1 rounded-full text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "bg-[#FFFEFB] font-medium text-[#1C1917] shadow-xs" : "text-[#78716C]")}>{method.label}</button>)}
             </div>
             {orderType === "dine_in" && (
-              <label htmlFor="cashier-table" className="block text-[13px] font-medium text-neutral-900 sm:col-span-2 xl:col-span-1">
-                Meja <span className="font-normal text-neutral-400">· opsional</span>
+              <label htmlFor="cashier-table" className="block text-[13px] font-medium text-[#1C1917] sm:col-span-2 xl:col-span-1">
+                Meja <span className="font-normal text-[#A8A29E]">· opsional</span>
                 <select id="cashier-table" value={tableId ?? ""} onChange={(event) => setTableId(event.target.value || null)} className="select mt-2 h-12 rounded-2xl">
                   <option value="">Tanpa meja / walk-in</option>
                   {tables.map((table) => <option key={table.id} value={table.id}>{table.label}</option>)}
@@ -1746,31 +1843,33 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated }: { cashierOpe
             )}
           </div>
 
-          <div className="mt-6">
-            <SearchField value={query} onChange={setQuery} placeholder="Cari menu… (contoh: sate taichan)" />
-          </div>
-          <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto pb-1">
-            {categories.map((item) => (
-              <button
-                type="button"
-                key={item}
-                onClick={() => setCategory(item)}
-                aria-pressed={category === item}
-                className={cn(
-                  "shrink-0 rounded-full px-3.5 py-2 text-[13px] transition active:scale-95",
-                  category === item ? "bg-[#FDBD2C]/20 font-medium text-neutral-900" : "bg-neutral-100 text-neutral-500",
-                )}
-              >
-                {item}
-              </button>
-            ))}
+          <div className="sticky top-0 z-10 -mx-5 bg-[#FFFEFB]/95 px-5 pb-2 pt-2 backdrop-blur-md sm:-mx-6 sm:px-6">
+            <div className="mt-1">
+              <SearchField value={query} onChange={setQuery} placeholder="Cari menu… (contoh: sate taichan)" />
+            </div>
+            <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
+              {categories.map((item) => (
+                <button
+                  type="button"
+                  key={item}
+                  onClick={() => setCategory(item)}
+                  aria-pressed={category === item}
+                  className={cn(
+                    "flex h-11 shrink-0 items-center rounded-full px-4 text-[13px] transition active:scale-95",
+                    category === item ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]" : "bg-[#F3EFE6] text-[#78716C]",
+                  )}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
 
           {filtered.length ? (
             <div className="mt-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium tracking-tight text-neutral-900">Menu</h3>
-                <span className="text-xs tabular-nums text-neutral-400">{filtered.length} item</span>
+                <h3 className="text-sm font-medium tracking-tight text-[#1C1917]">Menu</h3>
+                <span className="text-xs tabular-nums text-[#A8A29E]">{filtered.length} item</span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
                 {filtered.map((product) => {
@@ -1782,81 +1881,86 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated }: { cashierOpe
                       onClick={() => add(product)}
                       disabled={!product.available}
                       aria-label={product.available ? `Tambah ${product.name}` : `${product.name} habis`}
-                      className="relative min-w-0 rounded-2xl bg-white p-2.5 text-left shadow-soft transition active:scale-[0.98] disabled:opacity-60"
+                      className="relative min-w-0 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-2.5 text-left shadow-soft transition active:scale-[0.98] disabled:opacity-60"
                     >
-                      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-neutral-100">
+                      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-[#F3EFE6]">
                         {product.imageUrl ? (
                           <img src={product.imageUrl} alt={product.name} loading="lazy" className="h-full w-full object-cover" />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-lg font-medium text-neutral-400">
+                          <div className="flex h-full w-full items-center justify-center text-lg font-medium text-[#A8A29E]">
                             {product.name.slice(0, 1)}
                           </div>
                         )}
                         {qty > 0 && (
-                          <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-neutral-900 px-2 text-xs font-medium tabular-nums text-white">
+                          <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-[#1C1917] px-2 text-xs font-medium tabular-nums text-white">
                             ×{qty}
                           </span>
                         )}
                         {!product.available && (
-                          <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-neutral-500 backdrop-blur">
+                          <span className="absolute left-2 top-2 rounded-full bg-[#FFFEFB]/90 px-2 py-0.5 text-[11px] font-medium text-[#78716C] backdrop-blur">
                             Habis
                           </span>
                         )}
                       </div>
-                      <p className="mt-2 truncate px-1 text-[13px] font-medium leading-snug text-neutral-900">{product.name}</p>
-                      <p className="mt-0.5 hidden truncate px-1 text-xs text-neutral-400 sm:block">{product.description || "Menu pilihan"}</p>
-                      <p className="mt-1 px-1 pb-1 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(product.price)}</p>
-                      {product.stockTracked && product.available && (product.stockQuantity ?? 0) <= 5 && <p className="px-1 pb-1 text-xs tabular-nums text-neutral-400">{product.stockQuantity ?? 0} tersisa</p>}
-                      <span aria-hidden="true" className="absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-900"><Plus size={13} strokeWidth={2} /></span>
+                      <p className="mt-2 truncate px-1 text-[13px] font-medium leading-snug text-[#1C1917]">{product.name}</p>
+                      <p className="mt-0.5 hidden truncate px-1 text-xs text-[#A8A29E] sm:block">{product.description || "Menu pilihan"}</p>
+                      <p className="mt-1 px-1 pb-1 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(product.price)}</p>
+                      {product.stockTracked && product.available && (product.stockQuantity ?? 0) <= 5 && <p className="px-1 pb-1 text-xs tabular-nums text-[#A8A29E]">{product.stockQuantity ?? 0} tersisa</p>}
+                      <span aria-hidden="true" className="absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full border border-[#E5DCC8] bg-[#FFFEFB] text-[#1C1917]"><Plus size={13} strokeWidth={2} /></span>
                     </button>
                   );
                 })}
               </div>
             </div>
           ) : (
-            <EmptyBlock title="Menu tidak ditemukan." sub="Coba kata kunci atau kategori lain." />
+            <EmptyBlock icon={Package} title="Menu tidak ditemukan." sub="Coba kata kunci atau kategori lain." />
           )}
+          </div>
         </section>
 
         {/* Cart — desktop */}
-        <aside className="sticky top-6 hidden max-h-[calc(100dvh-7.5rem)] overflow-y-auto rounded-2xl border border-neutral-100 bg-white shadow-soft p-6 lg:block">
+        <aside className="sticky top-6 hidden max-h-[calc(100dvh-7.5rem)] overflow-y-auto rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft p-6 lg:block">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-medium tracking-tight text-neutral-900">Pesanan saat ini</h3>
-            {cart.length > 0 && <button type="button" onClick={clearCart} className="text-[13px] text-neutral-500">Hapus Semua</button>}
+            <h3 className="text-sm font-medium tracking-tight text-[#1C1917]">Pesanan saat ini</h3>
+            {cart.length > 0 && <button type="button" onClick={clearCart} className="text-[13px] text-[#78716C]">Hapus Semua</button>}
           </div>
-          <p className="mt-1 text-[13px] text-neutral-500">
+          <p className="mt-1 text-[13px] text-[#78716C]">
             {orderType === "dine_in" ? "Dine in" : "Takeaway"} · {paymentMethod === "cash" ? "Tunai" : "QRIS"}
           </p>
           <div className="mt-4">
             {cart.length ? (
-              <div className="divide-y divide-neutral-100">
+              <div className="divide-y divide-[#E9E1D1]">
                 {cart.map((item) => (
                   <div key={item.key} className="flex gap-3 py-4">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-neutral-900">{item.product.name}</p>
-                      <p className="mt-0.5 truncate text-xs text-neutral-400">{[...item.variantLabels, ...item.addonLabels].join(" · ") || "Original"}</p>
-                      <p className="mt-1 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.unitPrice * item.quantity)}</p>
+                      <p className="truncate text-[13px] font-medium text-[#1C1917]">{item.product.name}</p>
+                      <p className="mt-0.5 truncate text-xs text-[#A8A29E]">{[...item.variantLabels, ...item.addonLabels].join(" · ") || "Original"}</p>
+                      <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.unitPrice * item.quantity)}</p>
                       <div className="mt-2">
                         <QtyStepper itemName={item.product.name} count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
                       </div>
                     </div>
-                    <button type="button" onClick={() => setQty(item.key, -item.quantity)} aria-label={`Hapus ${item.product.name}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-400 active:scale-95"><X size={15} /></button>
+                    <button type="button" onClick={() => setQty(item.key, -item.quantity)} aria-label={`Hapus ${item.product.name}`} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#A8A29E] active:scale-95"><X size={15} /></button>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="py-10 text-[13px] text-neutral-500">Ketuk menu untuk mulai.</p>
+              <div className="flex flex-col items-center py-8 text-center">
+                <Ornament icon={ShoppingBag} />
+                <p className="mt-3 text-sm font-medium text-[#1C1917]">Keranjang kosong.</p>
+                <p className="mt-1 text-[13px] text-[#78716C]">Ketuk menu untuk mulai.</p>
+              </div>
             )}
           </div>
-          <div className="mt-3 flex items-baseline justify-between border-t border-neutral-100 pt-5">
-            <span className="text-[13px] text-neutral-500">Total <span className="text-neutral-400">({count} item)</span></span>
-            <span className="text-[15px] font-medium tabular-nums text-neutral-900">{formatIDR(total)}</span>
+          <div className="mt-3 flex items-baseline justify-between border-t border-[#EFE7D6] pt-5">
+            <span className="text-[13px] text-[#78716C]">Total <span className="text-[#A8A29E]">({count} item)</span></span>
+            <span className="text-[15px] font-medium tabular-nums text-[#1C1917]">{formatIDR(total)}</span>
           </div>
           <button
             type="button"
             disabled={!cart.length || saving}
             onClick={() => void createOrder()}
-            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
           >
             {saving ? "Membuat…" : "Buat pembayaran"}
           </button>
@@ -1870,13 +1974,13 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated }: { cashierOpe
                   type="button"
                   onClick={() => setCartOpen(true)}
             aria-label={`Buka keranjang, ${count} item, ${formatIDR(total)}`}
-            className="shadow-soft flex w-full items-center justify-between gap-3 rounded-2xl border border-neutral-900 bg-neutral-900 py-3 pl-4 pr-3 text-white active:scale-[0.99]"
+            className="shadow-soft flex w-full items-center justify-between gap-3 rounded-2xl border border-[#1C1917] bg-[#1C1917] py-3 pl-4 pr-3 text-white active:scale-[0.99]"
           >
             <span className="min-w-0 flex-1 text-left">
-              <span className="block text-xs tabular-nums text-neutral-400">{count} item</span>
+              <span className="block text-xs tabular-nums text-[#A8A29E]">{count} item</span>
               <span className="block truncate text-[15px] font-medium tabular-nums">{formatIDR(total)}</span>
             </span>
-            <span className="flex h-10 shrink-0 items-center rounded-xl bg-[#FDBD2C] px-5 text-sm font-medium text-neutral-900">
+            <span className="flex h-11 shrink-0 items-center rounded-xl bg-[#FDBD2C] px-5 text-sm font-medium text-[#1C1917]">
               Lihat
             </span>
           </button>
@@ -1885,21 +1989,21 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated }: { cashierOpe
 
       {/* Cart — mobile sheet */}
       {cartOpen && (
-        <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 lg:hidden" onClick={() => setCartOpen(false)}>
+        <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30 lg:hidden" onClick={() => setCartOpen(false)}>
             <section
             ref={cartDialogRef}
             tabIndex={-1}
-            className="ord-sheet flex max-h-[88vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-white"
+            className="ord-sheet flex max-h-[88vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-[#FFFEFB]"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-labelledby="cashier-cart-title"
             aria-label="Keranjang"
           >
-            <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-neutral-200" />
+            <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-[#E5DCC8]" />
             <div className="flex items-start justify-between px-5 pb-3 pt-2">
               <div>
-                <p className="text-xs text-neutral-400">
+                <p className="text-xs text-[#A8A29E]">
                   Pesanan berjalan · {orderType === "dine_in" ? "Dine in" : "Takeaway"}
                 </p>
                 <h2 id="cashier-cart-title" className="mt-1 text-lg font-medium tabular-nums tracking-tight">
@@ -1910,39 +2014,39 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated }: { cashierOpe
                 type="button"
                 onClick={() => setCartOpen(false)}
                 aria-label="Tutup keranjang"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3EFE6] text-[#78716C] active:scale-95"
               >
                 <X size={16} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-5">
               {cart.length ? (
-                <div className="divide-y divide-neutral-100">
+                <div className="divide-y divide-[#E9E1D1]">
                   {cart.map((item) => (
                     <div key={item.key} className="flex items-center gap-3 py-4">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14px] font-medium">{item.product.name}</p>
-                        <p className="mt-0.5 truncate text-xs text-neutral-400">{[...item.variantLabels, ...item.addonLabels].join(" · ") || "Original"}</p>
-                        <p className="mt-0.5 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.unitPrice * item.quantity)}</p>
+                        <p className="mt-0.5 truncate text-xs text-[#A8A29E]">{[...item.variantLabels, ...item.addonLabels].join(" · ") || "Original"}</p>
+                        <p className="mt-0.5 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.unitPrice * item.quantity)}</p>
                       </div>
                       <QtyStepper itemName={item.product.name} count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="py-10 text-center text-[13px] text-neutral-500">Keranjang kosong.</p>
+                <p className="py-10 text-center text-[13px] text-[#78716C]">Keranjang kosong.</p>
               )}
             </div>
-            <div className="border-t border-neutral-100 bg-white px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+            <div className="border-t border-[#EFE7D6] bg-[#FFFEFB] px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
               <div className="mb-3 flex items-baseline justify-between">
-                <span className="text-[13px] text-neutral-500">Total · {count} item</span>
+                <span className="text-[13px] text-[#78716C]">Total · {count} item</span>
                 <span className="text-base font-medium tabular-nums">{formatIDR(total)}</span>
               </div>
               <button
                 type="button"
                 disabled={!cart.length || saving}
                 onClick={() => void createOrder()}
-                className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+                className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
               >
                 {saving ? "Membuat…" : `Buat pembayaran · ${formatCompactIDR(total)}`}
               </button>
@@ -1950,7 +2054,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated }: { cashierOpe
                 <button
                   type="button"
                   onClick={clearCart}
-                  className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-400 active:bg-neutral-50"
+                  className="h-11 w-full rounded-full text-[13px] font-normal text-[#A8A29E] active:bg-[#EDE8DB]"
                 >
                   Kosongkan
                 </button>
@@ -2013,7 +2117,7 @@ function CashierPayment({
       setQr("");
       return;
     }
-    QRCode.toDataURL(payment.qrString, { width: 320, margin: 2, color: { dark: "#18181B", light: "#ffffff" } })
+    QRCode.toDataURL(payment.qrString, { width: 320, margin: 2, color: { dark: "#1C1917", light: "#ffffff" } })
       .then(setQr)
       .catch(() => setQr(""));
   }, [payment.qrString]);
@@ -2061,11 +2165,11 @@ function CashierPayment({
   const state = timedOut && phase === "pending" ? "expired" : phase;
 
   return createPortal(
-    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 p-0 sm:items-center sm:p-4" onClick={onClose}>
+    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30 p-0 sm:items-center sm:p-4" onClick={onClose}>
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet w-full max-w-[320px] rounded-t-[28px] bg-white p-5 text-center text-neutral-900 sm:rounded-[28px]"
+        className="ord-sheet w-full max-w-[320px] rounded-t-[28px] bg-[#FFFEFB] p-5 text-center text-[#1C1917] sm:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -2073,28 +2177,28 @@ function CashierPayment({
       >
         <div className="flex items-start justify-between text-left">
           <div>
-            <p id="cashier-payment-title" className="text-xs text-neutral-400">QRIS · {payment.orderNumber}</p>
-            <p className="mt-3 text-3xl font-medium tabular-nums tracking-tight text-neutral-900">{formatIDR(payment.totalIdr)}</p>
+            <p id="cashier-payment-title" className="text-xs text-[#A8A29E]">QRIS · {payment.orderNumber}</p>
+            <p className="mt-3 text-3xl font-medium tabular-nums tracking-tight text-[#1C1917]">{formatIDR(payment.totalIdr)}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Tutup pembayaran"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3EFE6] text-[#78716C] active:scale-95"
           >
             <X size={15} />
           </button>
         </div>
 
-        <div className="mx-auto mt-8 w-fit rounded-3xl border border-neutral-100 bg-white shadow-soft p-4">
+        <div className="mx-auto mt-8 w-fit rounded-3xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft p-4">
           {state === "settled" ? (
             <p className="flex h-[220px] w-[220px] items-center justify-center px-6 text-center text-sm font-medium">Pembayaran lunas.</p>
           ) : state === "expired" ? (
-            <p className="flex h-[220px] w-[220px] items-center justify-center px-6 text-center text-[13px] text-neutral-500">
+            <p className="flex h-[220px] w-[220px] items-center justify-center px-6 text-center text-[13px] text-[#78716C]">
               Kode kedaluwarsa. Buat pesanan baru.
             </p>
           ) : state === "failed" ? (
-            <p className="flex h-[220px] w-[220px] items-center justify-center px-6 text-center text-[13px] text-neutral-500">Pembayaran gagal. Coba lagi.</p>
+            <p className="flex h-[220px] w-[220px] items-center justify-center px-6 text-center text-[13px] text-[#78716C]">Pembayaran gagal. Coba lagi.</p>
           ) : payment.qrImageUrl ? (
             <img src={payment.qrImageUrl} alt="QRIS pembayaran" width={220} height={220} decoding="async" className="h-[220px] w-[220px] rounded-2xl" />
           ) : qr ? (
@@ -2103,7 +2207,7 @@ function CashierPayment({
             <div className="ord-skeleton h-[220px] w-[220px] rounded-2xl" />
           )}
         </div>
-        <p className="mt-6 text-[13px] text-neutral-400">          {state === "settled" ? (
+        <p className="mt-6 text-[13px] text-[#A8A29E]">          {state === "settled" ? (
             "Terverifikasi · masuk antrean dapur"
           ) : state === "pending" ? (
             <span>
@@ -2115,11 +2219,11 @@ function CashierPayment({
             "Ditolak provider"
           )}
         </p>
-        {statusMessage && <p role="status" aria-live="polite" className="mt-2 text-xs leading-relaxed text-neutral-500">{statusMessage}</p>}
+        {statusMessage && <p role="status" aria-live="polite" className="mt-2 text-xs leading-relaxed text-[#78716C]">{statusMessage}</p>}
         <button
           type="button"
           onClick={onClose}
-          className="mt-8 h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+          className="mt-8 h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
         >
           {state === "settled" ? "Lanjut kasir" : "Tutup"}
         </button>
@@ -2224,30 +2328,30 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
                     aria-pressed={selected}
                     className={cn(
                       "h-11 rounded-full px-4 text-[13px] transition active:scale-[0.98]",
-                      selected ? "bg-[#FDBD2C]/20 font-medium text-neutral-900" : "bg-neutral-100 font-normal text-neutral-500",
+                      selected ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]" : "bg-[#F3EFE6] font-normal text-[#78716C]",
                     )}
                   >
                     {label}
                   </button>
                 );
               })}
-              <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-full bg-neutral-100 px-3 sm:flex-none">
-                <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label="Tanggal mulai laporan" className="min-w-0 flex-1 bg-transparent px-1 text-xs text-neutral-900 outline-none sm:w-[104px] sm:flex-none" />
-                <span aria-hidden="true" className="shrink-0 text-neutral-400">–</span>
-                <input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label="Tanggal akhir laporan" className="min-w-0 flex-1 bg-transparent px-1 text-xs text-neutral-900 outline-none sm:w-[104px] sm:flex-none" />
+              <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-full bg-[#F3EFE6] px-3 sm:flex-none">
+                <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label="Tanggal mulai laporan" className="min-w-0 flex-1 bg-transparent px-1 text-xs text-[#1C1917] outline-none sm:w-[104px] sm:flex-none" />
+                <span aria-hidden="true" className="shrink-0 text-[#A8A29E]">–</span>
+                <input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label="Tanggal akhir laporan" className="min-w-0 flex-1 bg-transparent px-1 text-xs text-[#1C1917] outline-none sm:w-[104px] sm:flex-none" />
               </div>
               <button
                 type="button"
                 onClick={() => void load()}
                 disabled={loading}
-                className="flex h-11 items-center justify-center rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-50"
+                className="flex h-11 items-center justify-center rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-50"
               >
                 {loading ? "Memuat…" : "Muat"}
               </button>
             </div>
             <a
               href={`/api/reports/daily.pdf?from=${from}&to=${to}`}
-              className="flex h-11 items-center justify-center gap-2 rounded-full border border-neutral-200 px-4 text-[13px] text-neutral-500 active:scale-[0.98]"
+              className="flex h-11 items-center justify-center gap-2 rounded-full border border-[#E5DCC8] px-4 text-[13px] text-[#78716C] active:scale-[0.98]"
             >
               <Download size={15} strokeWidth={1.8} />
               Unduh PDF
@@ -2257,34 +2361,30 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
       />
 
       {!shiftRecapLoading && shiftRecap && (
-        <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
-          <div className="px-5 pb-4 pt-5 sm:px-6">
-            <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-sm font-medium text-neutral-900">Shift berjalan</h3>
-              <span className="text-xs tabular-nums text-neutral-400">Buka {formatShiftOpenedAt(shiftRecap.openedAt)}</span>
-            </div>
-            <p className="mt-1 text-[13px] text-neutral-500">Rekap live sejak kasir dibuka</p>
+        <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-5 shadow-soft sm:p-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <Ornament icon={ChartNoAxesColumn} size={20} />
+            <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-[#1C1917]">Shift berjalan</h3>
+            <span className="shrink-0 text-xs tabular-nums text-[#A8A29E]">Buka {formatShiftOpenedAt(shiftRecap.openedAt)}</span>
           </div>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-5 py-3.5 sm:px-6">
-            <span className="truncate text-[13px] font-medium text-neutral-900">Bersih · {shiftRecap.orderCount} lunas</span>
-            <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(shiftRecap.netRevenueIdr)}</span>
-          </div>
-          <div className="divide-y divide-neutral-100 border-t border-neutral-100">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
-              <span className="truncate text-[13px] text-neutral-500">Tunai</span>
-              <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(shiftRecap.cashRevenueIdr)}</span>
+          <p className="mt-1 text-[13px] text-[#78716C]">Rekap live sejak kasir dibuka</p>
+          <p className="mt-3 text-[22px] font-medium tabular-nums leading-none tracking-tight text-[#1C1917]">{formatCompactIDR(shiftRecap.netRevenueIdr)}</p>
+          <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">{shiftRecap.orderCount} lunas · {shiftRecap.itemsSold} porsi</p>
+          <div className="mt-3 divide-y divide-[#E9E1D1] border-t border-[#EFE7D6]">
+            <div className="flex items-center gap-2 py-3">
+              <Banknote size={15} strokeWidth={1.6} aria-hidden="true" className="shrink-0 text-[#A8A29E]" />
+              <span className="min-w-0 flex-1 truncate text-[13px] text-[#78716C]">Tunai</span>
+              <span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(shiftRecap.cashRevenueIdr)}</span>
             </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
-              <span className="truncate text-[13px] text-neutral-500">QRIS</span>
-              <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(shiftRecap.qrisRevenueIdr)}</span>
+            <div className="flex items-center gap-2 py-3">
+              <QrCode size={15} strokeWidth={1.6} aria-hidden="true" className="shrink-0 text-[#A8A29E]" />
+              <span className="min-w-0 flex-1 truncate text-[13px] text-[#78716C]">QRIS</span>
+              <span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(shiftRecap.qrisRevenueIdr)}</span>
             </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
-              <span className="truncate text-[13px] text-neutral-500">Refund</span>
-              <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(shiftRecap.refundsIdr)}</span>
-            </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
-              <span className="truncate text-[13px] text-neutral-500">Item terjual</span>
-              <span className="text-[13px] tabular-nums text-neutral-500">{shiftRecap.itemsSold} porsi</span>
+            <div className="flex items-center gap-2 py-3">
+              <History size={15} strokeWidth={1.6} aria-hidden="true" className="shrink-0 text-[#A8A29E]" />
+              <span className="min-w-0 flex-1 truncate text-[13px] text-[#78716C]">Refund</span>
+              <span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(shiftRecap.refundsIdr)}</span>
             </div>
           </div>
         </section>
@@ -2293,7 +2393,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
       {loading && !report ? (
         <div className="mt-6 grid grid-cols-2 gap-3 lg:gap-4">
           {[0, 1, 2, 3].map((row) => (
-            <div key={row} className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-soft sm:p-5" aria-hidden="true">
+            <div key={row} className="min-h-[108px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4 shadow-soft sm:p-5" aria-hidden="true">
               <div className="ord-skeleton h-3 w-2/3 rounded-full" />
               <div className="ord-skeleton mt-2 h-6 w-1/2 rounded-full" />
               <div className="ord-skeleton mt-2 h-3 w-3/4 rounded-full" />
@@ -2303,96 +2403,92 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
       ) : report ? (
         <>
           <div className="mt-6 grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-3">
-            <ReportMetric label="Penjualan bersih" value={formatCompactIDR(report.netRevenueIdr)} detail={`${report.orderCount} pesanan lunas`} />
-            <ReportMetric label="Penjualan kotor" value={formatCompactIDR(report.grossRevenueIdr)} detail="Settlement periode ini" />
-            <ReportMetric label="Refund" value={formatCompactIDR(report.refundsIdr)} detail="Diproses periode ini" />
+            <ReportMetric icon={Wallet} label="Penjualan bersih" value={formatCompactIDR(report.netRevenueIdr)} detail={`${report.orderCount} pesanan lunas`} />
+            <ReportMetric icon={Banknote} label="Penjualan kotor" value={formatCompactIDR(report.grossRevenueIdr)} detail="Settlement periode ini" />
+            <ReportMetric icon={History} label="Refund" value={formatCompactIDR(report.refundsIdr)} detail="Diproses periode ini" />
           </div>
 
-          <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
+          <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
             <div className="px-5 pb-4 pt-5 sm:px-6">
-              <h3 className="text-sm font-medium text-neutral-900">Rincian Laporan</h3>
-              <p className="mt-1 text-[13px] text-neutral-500">Berdasarkan sumber penjualan</p>
+              <h3 className="text-sm font-medium text-[#1C1917]">Rincian Laporan</h3>
+              <p className="mt-1 text-[13px] text-[#78716C]">Berdasarkan sumber penjualan</p>
             </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-white px-5 py-3 text-xs text-neutral-400 sm:px-6">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-[#FFFEFB] px-5 py-3 text-xs text-[#A8A29E] sm:px-6">
               <span>Komposisi</span>
               <span>Total</span>
             </div>
-            <div className="divide-y divide-neutral-100">
+            <div className="divide-y divide-[#E9E1D1]">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
-                <span className="truncate text-[13px] font-medium text-neutral-900">Dine in</span>
-                <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.dineInRevenueIdr)}</span>
+                <span className="truncate text-[13px] font-medium text-[#1C1917]">Dine in</span>
+                <span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(report.dineInRevenueIdr)}</span>
               </div>
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
-                <span className="truncate text-[13px] font-medium text-neutral-900">Takeaway</span>
-                <span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(report.takeawayRevenueIdr)}</span>
+                <span className="truncate text-[13px] font-medium text-[#1C1917]">Takeaway</span>
+                <span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(report.takeawayRevenueIdr)}</span>
               </div>
             </div>
           </section>
 
-          {report.dailyBreakdown.length > 1 && <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft"><div className="px-5 pb-4 pt-5 sm:px-6"><h3 className="text-sm font-medium text-neutral-900">Per hari</h3><p className="mt-1 text-[13px] text-neutral-500">Ringkasan settlement per tanggal</p></div><div className="divide-y divide-neutral-100">{report.dailyBreakdown.map((day) => <div key={day.date} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6"><div><p className="text-[13px] font-medium text-neutral-900">{day.date}</p><p className="mt-0.5 text-xs text-neutral-400">{day.paidOrderCount} pesanan · refund {formatCompactIDR(day.refundsIdr)}</p></div><span className="text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(day.netRevenueIdr)}</span></div>)}</div></section>}
+          {report.dailyBreakdown.length > 1 && <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft"><div className="px-5 pb-4 pt-5 sm:px-6"><h3 className="text-sm font-medium text-[#1C1917]">Per hari</h3><p className="mt-1 text-[13px] text-[#78716C]">Ringkasan settlement per tanggal</p></div><div className="divide-y divide-[#E9E1D1]">{report.dailyBreakdown.map((day) => <div key={day.date} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6"><div><p className="text-[13px] font-medium text-[#1C1917]">{day.date}</p><p className="mt-0.5 text-xs text-[#A8A29E]">{day.paidOrderCount} pesanan · refund {formatCompactIDR(day.refundsIdr)}</p></div><span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(day.netRevenueIdr)}</span></div>)}</div></section>}
 
-          <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
+          <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
             <div className="px-5 pb-4 pt-5 sm:px-6">
-              <h3 className="text-sm font-medium text-neutral-900">Transaksi Terlaris</h3>
-              <p className="mt-1 text-[13px] text-neutral-500">Produk dengan penjualan terbanyak pada periode ini</p>
+              <h3 className="text-sm font-medium text-[#1C1917]">Transaksi Terlaris</h3>
+              <p className="mt-1 text-[13px] text-[#78716C]">Produk dengan penjualan terbanyak pada periode ini</p>
             </div>
             {report.bestSellers.length ? (
-              <div className="divide-y divide-neutral-100">
+              <div className="divide-y divide-[#E9E1D1]">
                 {report.bestSellers.map((item) => (
                   <div key={item.name} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
                     <div className="min-w-0">
-                      <p className="truncate text-[13px] font-medium text-neutral-900">{item.name}</p>
-                      <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{item.quantity} porsi</p>
+                      <p className="truncate text-[13px] font-medium text-[#1C1917]">{item.name}</p>
+                      <p className="mt-0.5 text-xs tabular-nums text-[#A8A29E]">{item.quantity} porsi</p>
                     </div>
-                    <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.revenueIdr)}</span>
+                    <span className="shrink-0 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.revenueIdr)}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="px-5 py-14 text-center">
-                <p className="text-sm font-medium text-neutral-900">Belum ada penjualan lunas.</p>
-                <p className="mt-1 text-[13px] text-neutral-500">Data akan muncul setelah ada transaksi yang selesai.</p>
-              </div>
+              <EmptyBlock icon={ChartNoAxesColumn} title="Belum ada penjualan lunas." sub="Data akan muncul setelah ada transaksi yang selesai." />
             )}
           </section>
 
-          <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
+          <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
             <div className="px-5 pb-4 pt-5 sm:px-6">
               <div className="flex items-baseline justify-between gap-3">
-                <h3 className="text-sm font-medium text-neutral-900">Pesanan lunas</h3>
-                <span className="text-xs text-neutral-400">{report.orders.length} baris</span>
+                <h3 className="text-sm font-medium text-[#1C1917]">Pesanan lunas</h3>
+                <span className="text-xs text-[#A8A29E]">{report.orders.length} baris</span>
               </div>
-              <p className="text-[13px] text-neutral-500">Transaksi yang masuk ke settlement periode ini</p>
+              <p className="text-[13px] text-[#78716C]">Transaksi yang masuk ke settlement periode ini</p>
             </div>
             {report.orders.length ? (
-              <div className="divide-y divide-neutral-100">
+              <div className="divide-y divide-[#E9E1D1]">
                 {report.orders
                   .slice(-12)
                   .reverse()
                   .map((item) => (
                     <div key={item.orderNumber} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-medium text-neutral-900">{item.orderNumber}</p>
-                        <p className="mt-0.5 text-xs text-neutral-400">
+                        <p className="truncate text-[13px] font-medium text-[#1C1917]">{item.orderNumber}</p>
+                        <p className="mt-0.5 text-xs text-[#A8A29E]">
                           {item.type === "dine_in" ? "Dine in" : "Takeaway"} ·{" "}
                           {new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(
                             new Date(item.settledAt),
                           )}
                         </p>
                       </div>
-                      <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.totalIdr)}</span>
+                      <span className="shrink-0 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.totalIdr)}</span>
                     </div>
                   ))}
               </div>
             ) : (
-              <p className="px-5 pb-8 text-[13px] text-neutral-500 sm:px-6">Belum ada pesanan lunas pada periode ini.</p>
+              <p className="px-5 pb-8 text-[13px] text-[#78716C] sm:px-6">Belum ada pesanan lunas pada periode ini.</p>
             )}
           </section>
         </>
       ) : (
-        <div className="mt-6 rounded-2xl border border-neutral-100 bg-white shadow-soft px-5 py-14 text-center">
-          <p className="text-sm font-medium text-neutral-900">Tidak ada data tanggal ini.</p>
-          <p className="mt-1 text-[13px] text-neutral-500">Pilih tanggal lain atau preset di atas.</p>
+        <div className="mt-6 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
+          <EmptyBlock icon={ChartNoAxesColumn} title="Tidak ada data tanggal ini." sub="Pilih tanggal lain atau preset di atas." />
         </div>
       )}
     </div>

@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #18181b;
-  --muted: #737373;
-  --paper: #fafafa;
-  --surface: #ffffff;
-  --line: #f5f5f5;
+  --ink: #1c1917;
+  --muted: #78716c;
+  --paper: #faf7f1;
+  --surface: #fffefb;
+  --line: #e9e1d1;
   --accent: #fdbd2c;
   --accent-dark: #eca90f;
-  --warm: #ffffff;
+  --warm: #fffefb;
 }
 
 @layer base {
@@ -39,7 +39,7 @@
     outline: 3px solid rgba(236, 169, 15, 0.95);
     outline-offset: 3px;
   }
-  ::selection { background: #FDBD2C; color: #18181b; }
+  ::selection { background: #FDBD2C; color: #1c1917; }
 
   @media (max-width: 640px) {
     body { min-width: 320px; }
@@ -62,19 +62,19 @@
   .scrollbar-hidden { scrollbar-width: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  .shadow-soft { box-shadow: 0 8px 24px rgba(24, 24, 27, 0.06); }
-  .shadow-sheet { box-shadow: 0 -12px 32px rgba(24, 24, 27, 0.1); }
-  .input { width: 100%; border: none; border-radius: 16px; background: #f5f5f5; padding: 12px 16px; font-size: 14px; font-weight: 400; letter-spacing: 0.011em; outline: none; }
-  .input:focus { background: #ffffff; box-shadow: 0 0 0 2px rgba(253, 189, 44, 0.5); }
-  .input::placeholder { color: #a3a3a3; }
+  .shadow-soft { box-shadow: 0 1px 2px rgba(28, 25, 23, 0.05), 0 8px 24px rgba(28, 25, 23, 0.06); }
+  .shadow-sheet { box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.6) inset, 0 -12px 32px rgba(28, 25, 23, 0.12); }
+  .input { width: 100%; border: none; border-radius: 16px; background: #f3efe6; padding: 12px 16px; font-size: 14px; font-weight: 400; letter-spacing: 0.011em; outline: none; }
+  .input:focus { background: #fffefb; box-shadow: 0 0 0 2px rgba(253, 189, 44, 0.5); }
+  .input::placeholder { color: #a8a29e; }
   .select {
-    width: 100%; border: none; border-radius: 16px; background-color: #f5f5f5;
+    width: 100%; border: none; border-radius: 16px; background-color: #f3efe6;
     padding: 12px 2.75rem 12px 16px; font-size: 14px; font-weight: 400; letter-spacing: 0.011em;
-    outline: none; appearance: none; -webkit-appearance: none; color: #18181b;
-    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23a3a3a3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    outline: none; appearance: none; -webkit-appearance: none; color: #1c1917;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23A8A29E' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 1rem center; background-size: 12px 8px;
   }
-  .select:focus { background-color: #ffffff; box-shadow: 0 0 0 2px rgba(253, 189, 44, 0.5); }
+  .select:focus { background-color: #fffefb; box-shadow: 0 0 0 2px rgba(253, 189, 44, 0.5); }
 
   /* ---- POS workspace: calm minimal motion (same as order UI) ---- */
   .ord-rise { animation: ord-rise 0.3s cubic-bezier(0.22, 0.8, 0.32, 1) both; }
@@ -84,7 +84,7 @@
   .ord-bar { animation: ord-rise 0.25s ease-out both; }
 
   .ord-skeleton {
-    background: linear-gradient(90deg, #f5f5f5 25%, #ffffff 40%, #f5f5f5 55%);
+    background: linear-gradient(90deg, #f3efe6 25%, #fffefb 40%, #f3efe6 55%);
     background-size: 800px 100%;
     animation: ord-shimmer 1.4s linear infinite;
   }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Search, X } from "lucide-react";
+import { Archive, Package, Plus, Search, X } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ConfirmSheet, type ConfirmState } from "@/components/pos-confirm-sheet";
@@ -168,13 +168,13 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
     <div>
       <div>
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <p className="text-[13px] text-neutral-500">
+          <p className="text-[13px] text-[#78716C]">
             {showArchived ? `${products.filter((product) => !product.active).length} produk diarsipkan` : `${activeCount} produk aktif · perubahan berlaku saat checkout`}
           </p>
           <button
             type="button"
             onClick={openCreate}
-            className="flex h-12 items-center justify-center gap-2 rounded-full bg-[#FDBD2C] px-6 text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+            className="flex h-12 items-center justify-center gap-2 rounded-full bg-[#FDBD2C] px-6 text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
           >
             <Plus size={17} strokeWidth={2} /> Tambah
           </button>
@@ -182,20 +182,20 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
 
         <div className="relative mt-6">
           <label htmlFor="menu-manager-search" className="sr-only">Cari menu</label>
-          <Search size={16} strokeWidth={1.8} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Search size={16} strokeWidth={1.8} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A8A29E]" />
           <input
             id="menu-manager-search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Cari menu…"
-            className="h-12 w-full rounded-2xl bg-neutral-100 pl-11 pr-11 text-[13px] text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
+            className="h-12 w-full rounded-2xl bg-[#F3EFE6] pl-11 pr-11 text-[13px] text-[#1C1917] outline-none transition placeholder:text-[#A8A29E] focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#FDBD2C]/50"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery("")}
               aria-label="Hapus pencarian"
-              className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400 active:scale-95"
+              className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#A8A29E] active:scale-95"
             >
               <X size={15} />
             </button>
@@ -216,7 +216,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
               aria-pressed={showArchived === key}
               className={cn(
                 "flex h-11 min-w-[108px] items-center justify-center rounded-full px-5 text-[13px] transition active:scale-[0.98]",
-                showArchived === key ? "bg-[#FDBD2C]/20 font-medium text-neutral-900" : "bg-neutral-100 font-normal text-neutral-500",
+                showArchived === key ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]" : "bg-[#F3EFE6] font-normal text-[#78716C]",
               )}
             >
               {label}
@@ -224,11 +224,11 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           ))}
         </div>
 
-        {error && <div role="alert" className="mt-5 text-center"><p className="text-[13px] text-neutral-500">{error}</p><button type="button" onClick={() => void loadMenu()} className="mx-auto mt-3 block h-11 rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white">Coba lagi</button></div>}
+        {error && <div role="alert" className="mt-5 text-center"><p className="text-[13px] text-[#78716C]">{error}</p><button type="button" onClick={() => void loadMenu()} className="mx-auto mt-3 block h-11 rounded-full bg-[#1C1917] px-5 text-[13px] font-medium text-white">Coba lagi</button></div>}
 
-        <div className="mt-5 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-soft">
+        <div className="mt-5 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
           {loading ? (
-            <div className="divide-y divide-neutral-100 px-4 sm:px-5" aria-hidden="true">
+            <div className="divide-y divide-[#E9E1D1] px-4 sm:px-5" aria-hidden="true">
               {[0, 1, 2].map((row) => (
                 <div key={row} className="flex items-center gap-3 py-3.5">
                   <div className="ord-skeleton h-14 w-14 shrink-0 rounded-xl" />
@@ -242,18 +242,18 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
             </div>
           ) : visibleProducts.length ? (
             <>
-              <div className="hidden grid-cols-[minmax(0,1fr)_170px] gap-4 bg-white px-5 py-3 text-xs text-neutral-400 sm:grid">
+              <div className="hidden grid-cols-[minmax(0,1fr)_170px] gap-4 bg-[#FFFEFB] px-5 py-3 text-xs text-[#A8A29E] sm:grid">
                 <span>Menu</span>
                 <span>Status</span>
               </div>
-              <div className="divide-y divide-neutral-100">
+              <div className="divide-y divide-[#E9E1D1]">
                 {visibleProducts.map((product) => {
                   const statusLabel = product.active ? (product.available ? (product.sellable ? "Manual aktif" : "Stok habis") : "Manual off") : "Diarsipkan";
                   const statusClass = product.active && product.available && product.sellable
-                    ? "bg-neutral-100 text-neutral-500"
+                    ? "bg-[#F3EFE6] text-[#78716C]"
                     : product.active && product.available
-                      ? "bg-[#FDBD2C]/20 text-neutral-900"
-                      : "bg-neutral-100 text-neutral-500";
+                      ? "bg-[#FDBD2C]/20 text-[#1C1917]"
+                      : "bg-[#F3EFE6] text-[#78716C]";
                   return (
                     <div key={product.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-4 py-3.5 sm:grid-cols-[minmax(0,1fr)_170px] sm:items-center sm:gap-4 sm:px-5 sm:py-3">
                       <button
@@ -262,12 +262,12 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                         className="row-start-1 flex min-w-0 items-center gap-3 rounded-xl text-left sm:col-start-1"
                         aria-label={`Ubah ${product.name}`}
                       >
-                        <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-neutral-100 text-base font-medium text-neutral-400">
+                        <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F3EFE6] text-base font-medium text-[#A8A29E]">
                           {product.imageUrl ? <img src={product.imageUrl} alt="" className="h-full w-full object-cover" /> : product.name.slice(0, 1)}
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate text-[13px] font-medium text-neutral-900">{product.name}</span>
-                          <span className="mt-1 block truncate text-xs tabular-nums text-neutral-400">
+                          <span className="block truncate text-[13px] font-medium text-[#1C1917]">{product.name}</span>
+                          <span className="mt-1 block truncate text-xs tabular-nums text-[#A8A29E]">
                             {product.categoryName} · {formatCompactIDR(product.priceIdr)}{product.stockTracked ? ` · ${product.stockQuantity} tersisa` : ""}
                           </span>
                         </span>
@@ -293,14 +293,19 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                   );
                 })}
               </div>
-              <p className="border-t border-neutral-100 px-5 py-4 text-[13px] text-neutral-400">
+              <p className="border-t border-[#EFE7D6] px-5 py-4 text-[13px] text-[#A8A29E]">
                 Menampilkan {visibleProducts.length} dari {showArchived ? products.filter((product) => !product.active).length : activeCount} menu {showArchived ? "arsip" : "aktif"}
               </p>
             </>
           ) : (
-            <div className="px-5 py-14 text-center">
-              <p className="text-sm font-medium text-neutral-900">Tidak ada produk cocok.</p>
-              <p className="mt-1 text-[13px] text-neutral-500">Coba kata kunci lain.</p>
+            <div className="flex flex-col items-center px-5 py-8 text-center">
+              <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F3EFE6]">
+                {showArchived
+                  ? <Archive size={18} strokeWidth={1.6} className="text-[#A8A29E]" />
+                  : <Package size={18} strokeWidth={1.6} className="text-[#A8A29E]" />}
+              </span>
+              <p className="mt-3 text-sm font-medium text-[#1C1917]">Tidak ada produk cocok.</p>
+              <p className="mt-1 text-[13px] text-[#78716C]">Coba kata kunci lain.</p>
             </div>
           )}
         </div>
@@ -345,27 +350,27 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
   const dialogRef = useRef<HTMLElement>(null);
   useDialogFocus(dialogRef, onClose);
   return createPortal(
-    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 p-0 sm:items-center sm:p-5" onClick={onClose}>
+    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30 p-0 sm:items-center sm:p-5" onClick={onClose}>
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet max-h-[92dvh] w-full max-w-[440px] overflow-y-auto rounded-t-[28px] bg-white p-5 text-neutral-900 sm:rounded-[28px] sm:p-6"
+        className="ord-sheet max-h-[92dvh] w-full max-w-[440px] overflow-y-auto rounded-t-[28px] bg-[#FFFEFB] p-5 text-[#1C1917] sm:rounded-[28px] sm:p-6"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="product-editor-title"
       >
-        <div className="mx-auto h-1 w-9 rounded-full bg-neutral-200 sm:hidden" />
+        <div className="mx-auto h-1 w-9 rounded-full bg-[#E5DCC8] sm:hidden" />
         <div className="mt-2 flex items-start justify-between sm:mt-0">
           <div>
-            <p className="text-xs text-neutral-400">{isCreate ? "Produk baru" : "Ubah produk"}</p>
+            <p className="text-xs text-[#A8A29E]">{isCreate ? "Produk baru" : "Ubah produk"}</p>
             <h2 id="product-editor-title" className="mt-1 text-lg font-medium tracking-tight">{isCreate ? "Tambah ke menu" : (editor as AdminProduct).name}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95">
+          <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3EFE6] text-[#78716C] active:scale-95">
             <X size={15} />
           </button>
         </div>
-        {error && <p role="alert" className="mt-5 text-center text-[13px] text-neutral-500">{error}</p>}
+        {error && <p role="alert" className="mt-5 text-center text-[13px] text-[#78716C]">{error}</p>}
 
         <form onSubmit={(event) => { event.preventDefault(); onSave(); }}>
         <div className="mt-6 space-y-7">
@@ -379,12 +384,12 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
           </Field>
           <Field label="Foto menu · opsional">
             <div className="space-y-3">
-              {form.imagePath ? <div className="relative overflow-hidden rounded-2xl bg-neutral-100"><img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/10] w-full object-cover" /><button type="button" onClick={() => setForm({ ...form, imagePath: "" })} className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-500">Hapus foto</button></div> : <div className="flex aspect-[16/10] items-center justify-center rounded-2xl bg-neutral-100 text-[13px] text-neutral-400">Belum ada foto</div>}
-              <label className="flex h-11 cursor-pointer items-center justify-center rounded-full border border-neutral-200 text-[13px] font-medium text-neutral-500">
+              {form.imagePath ? <div className="relative overflow-hidden rounded-2xl bg-[#F3EFE6]"><img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/10] w-full object-cover" /><button type="button" onClick={() => setForm({ ...form, imagePath: "" })} className="absolute right-3 top-3 rounded-full bg-[#FFFEFB]/90 px-3 py-1.5 text-xs font-medium text-[#78716C]">Hapus foto</button></div> : <div className="flex aspect-[16/10] items-center justify-center rounded-2xl bg-[#F3EFE6] text-[13px] text-[#A8A29E]">Belum ada foto</div>}
+              <label className="flex h-11 cursor-pointer items-center justify-center rounded-full border border-[#E5DCC8] text-[13px] font-medium text-[#78716C]">
                 {uploading ? "Mengunggah…" : form.imagePath ? "Ganti foto" : "Upload foto"}
                 <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = ""; }} className="sr-only" />
               </label>
-              <p className="text-xs text-neutral-400">JPEG, PNG, atau WebP · maksimal 5 MB. File disimpan di server aplikasi.</p>
+              <p className="text-xs text-[#A8A29E]">JPEG, PNG, atau WebP · maksimal 5 MB. File disimpan di server aplikasi.</p>
             </div>
           </Field>
           <Field label="Deskripsi">
@@ -400,7 +405,7 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
           </div>
           <fieldset className="border-0 p-0">
             <legend className="mb-3 text-[13px] font-medium">Stok</legend>
-            <div className="flex rounded-full bg-neutral-100 p-1" role="group" aria-label="Mode stok">
+            <div className="flex rounded-full bg-[#F3EFE6] p-1" role="group" aria-label="Mode stok">
               {(
                 [
                   { key: false, label: "Unlimited" },
@@ -414,7 +419,7 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
                   aria-pressed={form.stockTracked === key}
                   className={cn(
                     "h-11 flex-1 rounded-full text-center text-[13px] transition active:scale-[0.98]",
-                    form.stockTracked === key ? "bg-white font-medium text-neutral-900 shadow-xs" : "font-normal text-neutral-500",
+                    form.stockTracked === key ? "bg-[#FFFEFB] font-medium text-[#1C1917] shadow-xs" : "font-normal text-[#78716C]",
                   )}
                 >
                   {label}
@@ -429,7 +434,7 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
             className="flex w-full items-center justify-between py-1 text-left"
           >
             <span className="text-[13px] font-medium">Tersedia dipesan</span>
-            <span className="text-[13px] font-normal text-neutral-400">{form.available ? "Ya" : "Tidak"}</span>
+            <span className="text-[13px] font-normal text-[#A8A29E]">{form.available ? "Ya" : "Tidak"}</span>
           </button>
         </div>
 
@@ -437,7 +442,7 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
           <button
             type="submit"
             disabled={saving || uploading || !form.name || !form.categoryId || form.priceIdr === "" || (form.stockTracked && form.stockQuantity === "")}
-            className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+            className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
           >
             {saving ? "Menyimpan…" : isCreate ? "Tambah" : "Simpan"}
           </button>
@@ -445,13 +450,13 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
             <button
               type="button"
               onClick={() => onArchive(editor as AdminProduct)}
-              className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500"
+              className="h-11 w-full rounded-full text-[13px] font-normal text-[#78716C]"
             >
               Arsipkan produk
             </button>
           )}
-          {!isCreate && onRestore && <button type="button" onClick={() => onRestore(editor as AdminProduct)} className="h-11 w-full rounded-full bg-[#FDBD2C] text-[13px] font-medium text-neutral-900 active:scale-[0.98]">Pulihkan produk</button>}
-          <button type="button" onClick={onClose} className="h-11 w-full rounded-full text-[13px] font-normal text-neutral-500">
+          {!isCreate && onRestore && <button type="button" onClick={() => onRestore(editor as AdminProduct)} className="h-11 w-full rounded-full bg-[#FDBD2C] text-[13px] font-medium text-[#1C1917] active:scale-[0.98]">Pulihkan produk</button>}
+          <button type="button" onClick={onClose} className="h-11 w-full rounded-full text-[13px] font-normal text-[#78716C]">
             Batal
           </button>
         </div>

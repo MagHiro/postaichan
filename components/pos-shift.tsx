@@ -123,31 +123,31 @@ export function ShiftOpenSheet({ onClose, onOpened }: { onClose: () => void; onO
   }
 
   return createPortal(
-    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 p-0 sm:items-center sm:p-5" onClick={onClose}>
+    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30 p-0 sm:items-center sm:p-5" onClick={onClose}>
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet flex max-h-[92dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-white text-neutral-900 sm:rounded-[28px]"
+        className="ord-sheet flex max-h-[92dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-[#FFFEFB] text-[#1C1917] sm:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="shift-open-title"
       >
-        <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-neutral-200" />
+        <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-[#E5DCC8]" />
         <div className="flex shrink-0 items-start justify-between gap-4 px-5 pb-4 pt-3">
           <div className="min-w-0">
-            <p className="text-xs text-neutral-400">Kasir tutup</p>
+            <p className="text-xs text-[#A8A29E]">Kasir tutup</p>
             <h2 id="shift-open-title" className="mt-1 text-lg font-medium tracking-tight">Buka kasir</h2>
-            <p className="mt-1 text-[13px] leading-relaxed text-neutral-500">Isi stok awal semua produk terpantau. Stok selalu diisi saat buka.</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-[#78716C]">Isi stok awal semua produk terpantau. Stok selalu diisi saat buka.</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95">
+          <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F3EFE6] text-[#78716C] active:scale-95">
             <X size={15} />
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
-          {error && <p role="alert" className="mb-4 text-center text-[13px] text-neutral-500">{error}</p>}
+          {error && <p role="alert" className="mb-4 text-center text-[13px] text-[#78716C]">{error}</p>}
           {products === null ? (
-            <div className="divide-y divide-neutral-100" aria-hidden="true">
+            <div className="divide-y divide-[#E9E1D1]" aria-hidden="true">
               {[0, 1, 2].map((row) => (
                 <div key={row} className="flex items-center gap-3 py-3.5">
                   <div className="min-w-0 flex-1 space-y-2">
@@ -159,15 +159,15 @@ export function ShiftOpenSheet({ onClose, onOpened }: { onClose: () => void; onO
               ))}
             </div>
           ) : products.length ? (
-            <div className="divide-y divide-neutral-100">
+            <div className="divide-y divide-[#E9E1D1]">
               {products.map((product) => (
                 <div key={product.id} className="flex items-center gap-3 py-3.5">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium text-neutral-900">{product.name}</p>
-                    <p className="mt-0.5 text-xs tabular-nums text-neutral-400">Terakhir {product.stock_quantity} tersisa</p>
+                    <p className="truncate text-[13px] font-medium text-[#1C1917]">{product.name}</p>
+                    <p className="mt-0.5 text-xs tabular-nums text-[#A8A29E]">Terakhir {product.stock_quantity} tersisa</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <button type="button" onClick={() => setCount(product.id, -1)} aria-label={`Kurangi ${product.name}`} className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200 text-neutral-500 active:scale-95">
+                    <button type="button" onClick={() => setCount(product.id, -1)} aria-label={`Kurangi ${product.name}`} className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E5DCC8] text-[#78716C] active:scale-95">
                       <Minus size={14} />
                     </button>
                     <input
@@ -178,9 +178,9 @@ export function ShiftOpenSheet({ onClose, onOpened }: { onClose: () => void; onO
                       }}
                       inputMode="numeric"
                       aria-label={`Stok awal ${product.name}`}
-                      className="h-9 w-14 rounded-2xl bg-neutral-100 text-center text-sm font-medium tabular-nums outline-none focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
+                      className="h-9 w-14 rounded-2xl bg-[#F3EFE6] text-center text-sm font-medium tabular-nums outline-none focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#FDBD2C]/50"
                     />
-                    <button type="button" onClick={() => setCount(product.id, 1)} aria-label={`Tambah ${product.name}`} className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-900 text-white active:scale-95">
+                    <button type="button" onClick={() => setCount(product.id, 1)} aria-label={`Tambah ${product.name}`} className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1C1917] text-white active:scale-95">
                       <Plus size={14} />
                     </button>
                   </div>
@@ -188,19 +188,19 @@ export function ShiftOpenSheet({ onClose, onOpened }: { onClose: () => void; onO
               ))}
             </div>
           ) : (
-            <p className="py-10 text-center text-[13px] text-neutral-500">Tidak ada produk terpantau. Kasir bisa langsung dibuka.</p>
+            <p className="py-10 text-center text-[13px] text-[#78716C]">Tidak ada produk terpantau. Kasir bisa langsung dibuka.</p>
           )}
           <label className="mt-4 block">
-            <span className="mb-2 block text-[13px] font-medium">Catatan <span className="font-normal text-neutral-400">· opsional</span></span>
+            <span className="mb-2 block text-[13px] font-medium">Catatan <span className="font-normal text-[#A8A29E]">· opsional</span></span>
             <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Shift pagi" maxLength={240} className="input" />
           </label>
         </div>
-        <div className="shrink-0 border-t border-neutral-100 bg-[#FAFAFA]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur">
+        <div className="shrink-0 border-t border-[#EFE7D6] bg-[#FAF7F1]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur">
           <button
             type="button"
             onClick={() => void submit()}
             disabled={!filled || saving}
-            className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+            className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
           >
             {saving ? "Membuka…" : "Buka kasir"}
           </button>
@@ -263,32 +263,32 @@ export function ShiftCloseSheet({ onClose, onClosed, onShowNotice }: { onClose: 
   }
 
   return createPortal(
-    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/30 p-0 sm:items-center sm:p-5" onClick={onClose}>
+    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30 p-0 sm:items-center sm:p-5" onClick={onClose}>
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet flex max-h-[92dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-white text-neutral-900 sm:rounded-[28px] lg:max-w-[560px]"
+        className="ord-sheet flex max-h-[92dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-[#FFFEFB] text-[#1C1917] sm:rounded-[28px] lg:max-w-[560px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="shift-close-title"
       >
-        <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-neutral-200" />
+        <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-[#E5DCC8]" />
         <div className="flex shrink-0 items-start justify-between gap-4 px-5 pb-4 pt-3">
           <div className="min-w-0">
-            <p className="text-xs text-neutral-400">Tutup kasir</p>
+            <p className="text-xs text-[#A8A29E]">Tutup kasir</p>
             <h2 id="shift-close-title" className="mt-1 text-lg font-medium tracking-tight">Rekap shift</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 active:scale-95">
+          <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F3EFE6] text-[#78716C] active:scale-95">
             <X size={15} />
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
-          {error && <p role="alert" className="mb-4 text-center text-[13px] text-neutral-500">{error}</p>}
+          {error && <p role="alert" className="mb-4 text-center text-[13px] text-[#78716C]">{error}</p>}
           {!recap ? (
             <div className="grid grid-cols-2 gap-3" aria-hidden="true">
               {[0, 1, 2, 3].map((row) => (
-                <div key={row} className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4">
+                <div key={row} className="min-h-[108px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4">
                   <div className="ord-skeleton h-3 w-2/3 rounded-full" />
                   <div className="ord-skeleton mt-2 h-6 w-1/2 rounded-full" />
                 </div>
@@ -297,59 +297,59 @@ export function ShiftCloseSheet({ onClose, onClosed, onShowNotice }: { onClose: 
           ) : (
             <>
               {recap.pendingCount > 0 && (
-                <p className="mb-4 rounded-2xl bg-neutral-100 p-4 text-[13px] leading-relaxed text-neutral-500">
+                <p className="mb-4 rounded-2xl bg-[#F3EFE6] p-4 text-[13px] leading-relaxed text-[#78716C]">
                   {recap.pendingCount} pembayaran QR masih menunggu. Tunggu lunas atau kedaluwarsa sebelum tutup.
                 </p>
               )}
               <div className="grid grid-cols-2 gap-3">
-                <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4">
-                  <p className="truncate text-xs text-neutral-400">Penjualan bersih</p>
+                <div className="min-h-[108px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4">
+                  <p className="truncate text-xs text-[#A8A29E]">Penjualan bersih</p>
                   <p className="mt-1 text-[22px] font-medium tabular-nums tracking-tight">{formatCompactIDR(recap.netRevenueIdr)}</p>
-                  <p className="mt-0.5 truncate text-[13px] text-neutral-500">{recap.orderCount} lunas</p>
+                  <p className="mt-0.5 truncate text-[13px] text-[#78716C]">{recap.orderCount} lunas</p>
                 </div>
-                <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4">
-                  <p className="truncate text-xs text-neutral-400">Item terjual</p>
+                <div className="min-h-[108px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4">
+                  <p className="truncate text-xs text-[#A8A29E]">Item terjual</p>
                   <p className="mt-1 text-[22px] font-medium tabular-nums tracking-tight">{recap.itemsSold}</p>
-                  <p className="mt-0.5 truncate text-[13px] text-neutral-500">Tunai {formatCompactIDR(recap.cashRevenueIdr)}</p>
+                  <p className="mt-0.5 truncate text-[13px] text-[#78716C]">Tunai {formatCompactIDR(recap.cashRevenueIdr)}</p>
                 </div>
-                <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4">
-                  <p className="truncate text-xs text-neutral-400">QRIS</p>
+                <div className="min-h-[108px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4">
+                  <p className="truncate text-xs text-[#A8A29E]">QRIS</p>
                   <p className="mt-1 text-[22px] font-medium tabular-nums tracking-tight">{formatCompactIDR(recap.qrisRevenueIdr)}</p>
-                  <p className="mt-0.5 truncate text-[13px] text-neutral-500">Kotor {formatCompactIDR(recap.grossRevenueIdr)}</p>
+                  <p className="mt-0.5 truncate text-[13px] text-[#78716C]">Kotor {formatCompactIDR(recap.grossRevenueIdr)}</p>
                 </div>
-                <div className="min-h-[108px] rounded-2xl border border-neutral-100 bg-white p-4">
-                  <p className="truncate text-xs text-neutral-400">Refund</p>
+                <div className="min-h-[108px] rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4">
+                  <p className="truncate text-xs text-[#A8A29E]">Refund</p>
                   <p className="mt-1 text-[22px] font-medium tabular-nums tracking-tight">{formatCompactIDR(recap.refundsIdr)}</p>
-                  <p className="mt-0.5 truncate text-[13px] text-neutral-500">Diproses shift ini</p>
+                  <p className="mt-0.5 truncate text-[13px] text-[#78716C]">Diproses shift ini</p>
                 </div>
               </div>
-              <h3 className="mb-1 mt-8 text-sm font-medium text-neutral-900">Terjual shift ini</h3>
+              <h3 className="mb-1 mt-8 text-sm font-medium text-[#1C1917]">Terjual shift ini</h3>
               {recap.products.length ? (
-                <div className="divide-y divide-neutral-100">
+                <div className="divide-y divide-[#E9E1D1]">
                   {recap.products.map((item) => (
                     <div key={`${item.product_id ?? item.name}`} className="flex items-center justify-between gap-3 py-3.5">
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-medium text-neutral-900">{item.name}</p>
-                        <p className="mt-0.5 text-xs tabular-nums text-neutral-400">{item.quantity} porsi</p>
+                        <p className="truncate text-[13px] font-medium text-[#1C1917]">{item.name}</p>
+                        <p className="mt-0.5 text-xs tabular-nums text-[#A8A29E]">{item.quantity} porsi</p>
                       </div>
-                      <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatCompactIDR(item.revenueIdr)}</span>
+                      <span className="shrink-0 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.revenueIdr)}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="py-6 text-center text-[13px] text-neutral-500">Belum ada penjualan lunas.</p>
+                <p className="py-6 text-center text-[13px] text-[#78716C]">Belum ada penjualan lunas.</p>
               )}
               {recap.remaining.length > 0 && (
                 <>
-                  <h3 className="mb-1 mt-8 text-sm font-medium text-neutral-900">Sisa stok</h3>
-                  <div className="divide-y divide-neutral-100">
+                  <h3 className="mb-1 mt-8 text-sm font-medium text-[#1C1917]">Sisa stok</h3>
+                  <div className="divide-y divide-[#E9E1D1]">
                     {recap.remaining.map((row) => (
                       <div key={row.productId} className="flex items-center justify-between gap-3 py-3.5">
                         <div className="min-w-0">
-                          <p className="truncate text-[13px] font-medium text-neutral-900">{row.name}</p>
-                          <p className="mt-0.5 text-xs tabular-nums text-neutral-400">Awal {row.openingQuantity} · terjual {row.soldQuantity}</p>
+                          <p className="truncate text-[13px] font-medium text-[#1C1917]">{row.name}</p>
+                          <p className="mt-0.5 text-xs tabular-nums text-[#A8A29E]">Awal {row.openingQuantity} · terjual {row.soldQuantity}</p>
                         </div>
-                        <span className={cn("shrink-0 text-[13px] tabular-nums", row.remainingQuantity <= 0 ? "text-neutral-900" : "text-neutral-500")}>
+                        <span className={cn("shrink-0 text-[13px] tabular-nums", row.remainingQuantity <= 0 ? "text-[#1C1917]" : "text-[#78716C]")}>
                           {row.remainingQuantity} tersisa
                         </span>
                       </div>
@@ -358,19 +358,19 @@ export function ShiftCloseSheet({ onClose, onClosed, onShowNotice }: { onClose: 
                 </>
               )}
               <label className="mt-6 block">
-                <span className="mb-2 block text-[13px] font-medium">Catatan <span className="font-normal text-neutral-400">· opsional</span></span>
+                <span className="mb-2 block text-[13px] font-medium">Catatan <span className="font-normal text-[#A8A29E]">· opsional</span></span>
                 <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Hasil cocok dengan laci" maxLength={240} className="input" />
               </label>
-              <p className="mt-4 text-xs leading-relaxed text-neutral-400">Menutup kasir mengarsipkan rekap ini. QR yang sudah dibuat sebelum tutup tetap bisa lunas.</p>
+              <p className="mt-4 text-xs leading-relaxed text-[#A8A29E]">Menutup kasir mengarsipkan rekap ini. QR yang sudah dibuat sebelum tutup tetap bisa lunas.</p>
             </>
           )}
         </div>
-        <div className="shrink-0 border-t border-neutral-100 bg-[#FAFAFA]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur">
+        <div className="shrink-0 border-t border-[#EFE7D6] bg-[#FAF7F1]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur">
           <button
             type="button"
             onClick={() => void submit()}
             disabled={!recap || closing}
-            className="h-12 w-full rounded-full bg-neutral-900 text-sm font-medium text-white active:scale-[0.98] disabled:opacity-40"
+            className="h-12 w-full rounded-full bg-[#1C1917] text-sm font-medium text-white active:scale-[0.98] disabled:opacity-40"
           >
             {closing ? "Menutup…" : "Tutup kasir"}
           </button>
