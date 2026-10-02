@@ -7,7 +7,11 @@ import { formatCompactIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ConfirmSheet, type ConfirmState } from "@/components/pos-confirm-sheet";
 import { MetaDot, MetaInline } from "@/components/meta";
+import { CategoryDropdown } from "@/components/category-filter";
+import { CategoryManager } from "@/components/category-manager";
+import { ALL_CATEGORIES_ID } from "@/components/order/constants";
 import { useDialogFocus } from "@/components/use-dialog-focus";
+import type { Category } from "@/lib/types";
 
 type AdminProduct = {
   id: string;
@@ -24,7 +28,6 @@ type AdminProduct = {
   stockTracked: boolean;
   stockQuantity: number;
 };
-type Category = { id: string; name: string };
 type FormState = { name: string; description: string; imagePath: string; categoryId: string; priceIdr: string; estimatedCostIdr: string; available: boolean; stockTracked: boolean; stockQuantity: string };
 
 const blankForm: FormState = { name: "", description: "", imagePath: "", categoryId: "", priceIdr: "", estimatedCostIdr: "", available: true, stockTracked: false, stockQuantity: "0" };
@@ -32,7 +35,9 @@ const blankForm: FormState = { name: "", description: "", imagePath: "", categor
 export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) => void }) {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [section, setSection] = useState<"menu" | "categories">("menu");
   const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>(ALL_CATEGORIES_ID);
   const [showArchived, setShowArchived] = useState(false);
   const [editor, setEditor] = useState<"create" | AdminProduct | null>(null);
   const [form, setForm] = useState<FormState>(blankForm);
@@ -47,10 +52,15 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/menu", { cache: "no-store" });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "Menu belum dapat dimuat.");
-      setCategories(payload.categories ?? []);
+      const [menuResponse, categoryResponse] = await Promise.all([
+        fetch("/api/admin/menu", { cache: "no-store" }),
+        fetch("/api/admin/categories", { cache: "no-store" }),
+      ]);
+      const payload = await menuResponse.json();
+      if (!menuResponse.ok) throw new Error(payload.error ?? "Menu belum dapat dimuat.");
+      const categoryPayload = await categoryResponse.json().catch(() => null);
+      const managedCategories = (categoryPayload?.categories ?? []).map((category: { id: string; name: string; description?: string | null; displayOrder?: number; display_order?: number; active?: boolean }) => ({ id: String(category.id), name: String(category.name), description: category.description ?? null, displayOrder: Number(category.displayOrder ?? category.display_order ?? 0), active: category.active !== false }));
+      setCategories(categoryResponse.ok ? managedCategories : (payload.categories ?? []));
       setProducts((payload.products ?? []).map((product: Record<string, unknown>) => ({
         id: String(product.id), name: String(product.name), description: product.description as string | null, imageUrl: (product.image_path as string | null) ?? null,
         categoryId: String(product.category_id), categoryName: Array.isArray(product.categories) ? String((product.categories[0] as { name?: string } | undefined)?.name ?? "") : String((product.categories as { name?: string } | null)?.name ?? ""),
@@ -62,12 +72,20 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
 
   useEffect(() => { void loadMenu(); }, []);
 
-  const visibleProducts = useMemo(() => products.filter((product) => product.active === !showArchived && `${product.name} ${product.categoryName}`.toLowerCase().includes(query.toLowerCase())), [products, query, showArchived]);
+  const visibleProducts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return products.filter((product) =>
+      product.active === !showArchived &&
+      (categoryFilter === ALL_CATEGORIES_ID || product.categoryId === categoryFilter) &&
+      (!q || `${product.name} ${product.categoryName}`.toLowerCase().includes(q)),
+    );
+  }, [products, query, showArchived, categoryFilter]);
   const activeCount = products.filter((product) => product.active).length;
 
+  const activeCategories = categories.filter((category) => category.active !== false);
   function openCreate() {
     void cleanupPendingImages();
-    setForm({ ...blankForm, categoryId: categories[0]?.id ?? "" });
+    setForm({ ...blankForm, categoryId: (activeCategories[0] ?? categories[0])?.id ?? "" });
     setEditor("create");
   }
   function openEdit(product: AdminProduct) {
@@ -158,54 +176,36 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
       <div>
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <p className="text-[13px] text-[#78716C]">
-            {showArchived ? `${products.filter((product) => !product.active).length} produk diarsipkan` : (<>{activeCount} produk aktif <MetaDot /> perubahan berlaku saat checkout</>)}
+            {section === "categories"
+              ? (<>{categories.length} kategori <MetaDot /> urutan tampil mengikuti angka urutan</>)
+              : showArchived ? `${products.filter((product) => !product.active).length} produk diarsipkan` : (<>{activeCount} produk aktif <MetaDot /> perubahan berlaku saat checkout</>)}
           </p>
-          <button
-            type="button"
-            onClick={openCreate}
-            className="flex h-12 items-center justify-center gap-2 rounded-full bg-[#FDBD2C] px-6 text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
-          >
-            <Plus size={17} strokeWidth={2} /> Tambah
-          </button>
-        </div>
-
-        <div className="relative mt-6">
-          <label htmlFor="menu-manager-search" className="sr-only">Cari menu</label>
-          <Search size={16} strokeWidth={1.8} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A8A29E]" />
-          <input
-            id="menu-manager-search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cari menu…"
-            className="h-12 w-full rounded-2xl bg-[#F3EFE6] pl-11 pr-11 text-[13px] text-[#1C1917] outline-none transition placeholder:text-[#A8A29E] focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#FDBD2C]/50"
-          />
-          {query && (
+          {section === "menu" && (
             <button
               type="button"
-              onClick={() => setQuery("")}
-              aria-label="Hapus pencarian"
-              className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#A8A29E] active:scale-95"
+              onClick={openCreate}
+              className="flex h-12 items-center justify-center gap-2 rounded-full bg-[#FDBD2C] px-6 text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
             >
-              <X size={15} />
+              <Plus size={17} strokeWidth={2} /> Tambah
             </button>
           )}
         </div>
 
-        <div className="mt-4 flex gap-3">
+        <div className="mt-4 flex gap-3" role="group" aria-label="Bagian pengelolaan">
           {(
             [
-              { key: false, label: "Aktif" },
-              { key: true, label: "Arsip" },
+              { key: "menu", label: "Menu" },
+              { key: "categories", label: "Kategori" },
             ] as const
           ).map(({ key, label }) => (
             <button
               type="button"
-              key={label}
-              onClick={() => setShowArchived(key)}
-              aria-pressed={showArchived === key}
+              key={key}
+              onClick={() => setSection(key)}
+              aria-pressed={section === key}
               className={cn(
                 "flex h-11 min-w-[108px] items-center justify-center rounded-full px-5 text-[13px] transition active:scale-[0.98]",
-                showArchived === key ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]" : "bg-[#F3EFE6] font-normal text-[#78716C]",
+                section === key ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]" : "bg-[#F3EFE6] font-normal text-[#78716C]",
               )}
             >
               {label}
@@ -213,9 +213,65 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           ))}
         </div>
 
-        {error && <div role="alert" className="mt-5 text-center"><p className="text-[13px] text-[#78716C]">{error}</p><button type="button" onClick={() => void loadMenu()} className="mx-auto mt-3 block h-11 rounded-full bg-[#1C1917] px-5 text-[13px] font-medium text-white">Coba lagi</button></div>}
+        {section === "menu" ? (
+          <>
+            <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="relative">
+                <label htmlFor="menu-manager-search" className="sr-only">Cari menu</label>
+                <Search size={16} strokeWidth={1.8} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A8A29E]" />
+                <input
+                  id="menu-manager-search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Cari menu…"
+                  className="h-12 w-full rounded-2xl bg-[#F3EFE6] pl-11 pr-11 text-[13px] text-[#1C1917] outline-none transition placeholder:text-[#A8A29E] focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#FDBD2C]/50"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    aria-label="Hapus pencarian"
+                    className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#A8A29E] active:scale-95"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+              <CategoryDropdown
+                id="menu-manager-category"
+                value={categoryFilter}
+                categories={categories}
+                onChange={setCategoryFilter}
+                allLabel="Semua kategori"
+                dark
+              />
+            </div>
 
-        <div className="mt-5 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
+            <div className="mt-4 flex gap-3">
+              {(
+                [
+                  { key: false, label: "Aktif" },
+                  { key: true, label: "Arsip" },
+                ] as const
+              ).map(({ key, label }) => (
+                <button
+                  type="button"
+                  key={label}
+                  onClick={() => setShowArchived(key)}
+                  aria-pressed={showArchived === key}
+                  className={cn(
+                    "flex h-11 min-w-[108px] items-center justify-center rounded-full px-5 text-[13px] transition active:scale-[0.98]",
+                    showArchived === key ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]" : "bg-[#F3EFE6] font-normal text-[#78716C]",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {error && <div role="alert" className="mt-5 text-center"><p className="text-[13px] text-[#78716C]">{error}</p><button type="button" onClick={() => void loadMenu()} className="mx-auto mt-3 block h-11 rounded-full bg-[#1C1917] px-5 text-[13px] font-medium text-white">Coba lagi</button></div>}
+
+            <div className="mt-5 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
           {loading ? (
             <div className="divide-y divide-[#E9E1D1] px-4 sm:px-5" aria-hidden="true">
               {[0, 1, 2].map((row) => (
@@ -283,6 +339,12 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
             </div>
           )}
         </div>
+          </>
+        ) : (
+          <div className="mt-5">
+            <CategoryManager onChanged={() => void loadMenu()} />
+          </div>
+        )}
       </div>
 
       <ConfirmSheet confirm={confirm} onClose={() => setConfirm(null)} />
@@ -292,7 +354,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           editor={editor}
           form={form}
           setForm={setForm}
-          categories={categories}
+          categories={activeCategories.length ? activeCategories : categories}
           error={error}
           saving={saving}
           uploading={uploading}

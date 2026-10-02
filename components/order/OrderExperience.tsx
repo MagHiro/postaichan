@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Home, ReceiptText, Search, X } from "lucide-react";
 import { MetaDot, MetaInline } from "@/components/meta";
 import { formatCompactIDR } from "@/lib/format";
-import type { CartItem, Product } from "@/lib/types";
+import type { CartItem, Category, Product } from "@/lib/types";
 import { buildCartItem } from "@/lib/domain/cart";
 import { cn } from "@/lib/utils";
 import {
+  ALL_CATEGORIES_ID,
   matchesOrderCategory,
   type OrderCategory,
   type OrderStep,
@@ -20,6 +21,7 @@ import { ProductSheet } from "./ProductSheet";
 import { SuccessView } from "./SuccessView";
 import { CartSheet } from "./CartSheet";
 import { EmptyState, SkeletonCard } from "./ui";
+import { CategoryDropdown } from "@/components/category-filter";
 
 export function OrderExperience({ tableToken, generalToken }: { tableToken?: string; generalToken?: string }) {
   // The customer surface renders only the authoritative server catalog.
@@ -28,8 +30,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const [menuError, setMenuError] = useState<string | null>(null);
   const [menuRetry, setMenuRetry] = useState(0);
   const [cashierOpen, setCashierOpen] = useState(true);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [category, setCategory] = useState<OrderCategory>("Semua Menu");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [category, setCategory] = useState<OrderCategory>(ALL_CATEGORIES_ID);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [placedOrders, setPlacedOrders] = useState<PlacedOrder[]>([]);
@@ -86,7 +88,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         if (payload?.products?.length) {
           setMenuError(null);
           setMenuProducts(payload.products);
-          setCategories(["Semua Menu", ...(payload.categories ?? []).map((item: { name: string }) => item.name), ...(payload.products.some((item: Product) => item.popular) ? ["Paket Hemat"] : [])]);
+          setCategories((payload.categories ?? []).map((item: { id: string; name: string }) => ({ id: String(item.id), name: String(item.name) })));
         } else setMenuError("Menu belum tersedia saat ini.");
       })
       .catch((error) => {
@@ -433,7 +435,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   }
 
   const dineIn = orderType === "Dine in";
-  const menuTitle = category === "Semua Menu" ? "Menu" : category;
+  const activeCategoryName = categories.find((item) => item.id === category)?.name;
+  const menuTitle = !category || category === ALL_CATEGORIES_ID ? "Menu" : (activeCategoryName ?? "Menu");
 
   return (
     <main className="flex min-h-screen justify-center bg-[#FAFAFA] text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
@@ -526,24 +529,13 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               )}
             </div>
 
-            <div className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5">
-              {categories.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setCategory(item)}
-                  aria-pressed={category === item}
-                  className={cn(
-                    "shrink-0 rounded-full px-3.5 py-2 text-[13px] transition active:scale-95",
-                    category === item
-                      ? "bg-[#FDBD2C]/20 font-medium text-neutral-900"
-                      : "bg-neutral-100 text-neutral-500",
-                  )}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
+            <CategoryDropdown
+              id="menu-category"
+              value={category}
+              categories={categories}
+              onChange={setCategory}
+              className="mt-4"
+            />
 
             <div className="mt-7 flex items-baseline justify-between">
               <h2 className="text-sm font-medium">{menuTitle}</h2>

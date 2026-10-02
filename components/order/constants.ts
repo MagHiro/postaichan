@@ -5,11 +5,13 @@ import type { Product } from "@/lib/types";
 export type OrderStep = "menu" | "configure" | "payment" | "success";
 export type PaymentAttempt = { orderId: string; orderNumber: string; amountIdr: number; qrString?: string; qrImageUrl?: string; expiresAt: string };
 export type PlacedOrder = { orderNumber: string; amountIdr: number; orderType: "Dine in" | "Takeaway"; tableLabel: string; time: string };
-export type OrderCategory = "Semua Menu" | "Paket Hemat" | string;
+/** Category filter is a DB category id, or "all" for every menu item. */
+export type OrderCategory = string;
+export const ALL_CATEGORIES_ID = "all";
 
 export function matchesOrderCategory(product: Product, category: OrderCategory) {
-  if (category === "Semua Menu") return true;
-  if (category === "Paket Hemat") return product.popular === true;
+  if (!category || category === ALL_CATEGORIES_ID) return true;
+  if (product.categoryId) return product.categoryId === category;
   return product.category === category;
 }
 

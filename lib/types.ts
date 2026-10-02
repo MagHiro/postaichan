@@ -1,4 +1,10 @@
-export type Category = string;
+export type Category = {
+  id: string;
+  name: string;
+  description?: string | null;
+  displayOrder?: number;
+  active?: boolean;
+};
 
 export type ModifierOption = {
   id: string;

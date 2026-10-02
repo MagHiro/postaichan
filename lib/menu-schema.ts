@@ -17,3 +17,10 @@ export const tableMutationSchema = z.object({
   code: z.string().trim().regex(/^TBL-[A-Z0-9-]{1,24}$/),
   active: z.boolean(),
 }).strict();
+
+export const categoryMutationSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  description: z.string().trim().max(500).nullable().optional(),
+  displayOrder: z.number().int().min(0).max(1000000).optional(),
+  active: z.boolean().optional(),
+}).strict();

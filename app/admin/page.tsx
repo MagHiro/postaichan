@@ -18,6 +18,7 @@ export default async function AdminPage() {
           <AdminLink href="/admin/tables" title="Meja & QR" description="Meja, kode, status, dan QR meja." />
           <AdminLink href="/admin/general-qr" title="QR umum" description="QR non-meja untuk area kasir atau promosi." />
           <AdminLink href="/admin/staff" title="Akun staff" description="Buat akun, role, dan status aktif." />
+          <AdminLink href="/admin/categories" title="Kategori menu" description="Kategori database, urutan tampil, dan status." />
           <AdminLink href="/pos" title="Kembali ke workspace" description="Ringkasan operasional dan pesanan." />
         </div>
       </div>

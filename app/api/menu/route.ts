@@ -10,7 +10,7 @@ type ModifierRow = { product_id: string; group_id: string; group_name: string; s
 export async function GET() {
   try {
     await query("select public.release_expired_inventory_reservations()");
-    const [products, variants, addons, settings, reservations] = await Promise.all([
+    const [products, variants, addons, settings, reservations, categories] = await Promise.all([
       query<ProductRow>(
         `select p.id, p.name, p.description, p.image_path, p.price_idr, p.available, p.stock_tracked, p.stock_quantity, p.popular, p.display_order,
                 c.id as category_id, c.name as category_name
@@ -42,6 +42,12 @@ export async function GET() {
          where ir.status = 'reserved' and ir.expires_at > timezone('utc', now())
          group by iri.product_id`,
       ),
+      query<{ id: string; name: string; display_order: number }>(
+        `select c.id, c.name, c.display_order
+         from public.categories c
+         where c.active = true
+         order by c.display_order asc, c.name asc`,
+      ),
     ]);
 
     const reservedByProduct = new Map(reservations.rows.map((row) => [row.product_id, Number(row.quantity)]));
@@ -52,9 +58,7 @@ export async function GET() {
       groupsByProduct.set(row.product_id, list);
     }
 
-    const categoryMap = new Map<string, { id: string; name: string }>();
     const safeProducts = products.rows.map((product) => {
-      categoryMap.set(product.category_id, { id: product.category_id, name: product.category_name });
       const groups = new Map<string, { id: string; name: string; type: "variant" | "addon"; selection: string; required: boolean; minSelection: number; maxSelection: number; displayOrder: number; options: Array<{ id: string; name: string; priceAdjustmentIdr: number; costAdjustmentIdr: number; available: boolean }> }>();
       for (const row of (groupsByProduct.get(product.id) ?? []).sort((a, b) => a.group_order - b.group_order || a.option_order - b.option_order)) {
         const group = groups.get(row.group_id) ?? { id: row.group_id, name: row.group_name, type: row.type, selection: row.selection, required: row.required, minSelection: row.min_selection, maxSelection: row.max_selection, displayOrder: row.group_order, options: [] };
@@ -68,7 +72,9 @@ export async function GET() {
       return { id: product.id, name: product.name, description: product.description ?? "", categoryId: product.category_id, category: product.category_name, price: product.price_idr, available: product.available && stockAvailable && modifiersAvailable, stockTracked: product.stock_tracked, stockQuantity: product.stock_tracked ? sellableStock : undefined, popular: product.popular, imageUrl: product.image_path, accent: "#f5f5f5", imageTone: "from-neutral-100 via-neutral-200 to-neutral-300", modifierGroups };
     });
     const shift = await query<{ id: string }>("select id from public.cashier_shifts where closed_at is null order by opened_at desc limit 1");
-    return NextResponse.json({ products: safeProducts, categories: [...categoryMap.values()], settings: { qrisEnabled: settings.rows[0]?.qris_enabled === true, cashEnabled: settings.rows[0]?.cash_enabled === true }, cashierOpen: shift.rows.length > 0 }, { headers: noStoreHeaders() });
+    // Categories are authoritative from the DB (ordered), even when empty of products.
+    const orderedCategories = categories.rows.map((category) => ({ id: category.id, name: category.name }));
+    return NextResponse.json({ products: safeProducts, categories: orderedCategories, settings: { qrisEnabled: settings.rows[0]?.qris_enabled === true, cashEnabled: settings.rows[0]?.cash_enabled === true }, cashierOpen: shift.rows.length > 0 }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("menu_fetch_failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Menu belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });

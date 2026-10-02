@@ -5,11 +5,13 @@ import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, Minus, Package, Plus, QrCode, ReceiptText, RefreshCw, Search, ShoppingBag, Store, TrendingUp, Wallet, X } from "lucide-react";
 import { formatCompactIDR, formatCountdown, formatIDR } from "@/lib/format";
-import type { CartItem, Order, Product } from "@/lib/types";
+import type { CartItem, Category, Order, Product } from "@/lib/types";
+import { ALL_CATEGORIES_ID } from "@/components/order/constants";
 import { buildCartItem } from "@/lib/domain/cart";
 import type { DailyReport } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 import { MetaDot, MetaInline } from "@/components/meta";
+import { CategoryDropdown } from "@/components/category-filter";
 import { MenuManager } from "@/components/menu-manager";
 import { ProductSheet } from "@/components/order/ProductSheet";
 import { formatShiftOpenedAt, ShiftCloseSheet, ShiftOpenSheet, useShiftStatus, type CloseRecap } from "@/components/pos-shift";
@@ -1648,7 +1650,7 @@ type CartLine = CartItem;
 
 function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }: { cashierOpen: boolean; onShowNotice: (message: string) => void; onOrderCreated?: () => Promise<void>; onOpenShift: () => void }) {
   const [menu, setMenu] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"qris" | "cash">("qris");
   const [paymentSettings, setPaymentSettings] = useState({ qrisEnabled: false, cashEnabled: false });
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -1659,7 +1661,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
   const [note, setNote] = useState("");
   const [tables, setTables] = useState<Array<{ id: string; label: string; active: boolean }>>([]);
   const [tableId, setTableId] = useState<string | null>(null);
-  const [category, setCategory] = useState<string>("Semua Menu");
+  const [category, setCategory] = useState<string>(ALL_CATEGORIES_ID);
   const [query, setQuery] = useState("");
   const [orderType, setOrderType] = useState<"dine_in" | "takeaway">("dine_in");
   const [payment, setPayment] = useState<{ orderId: string; qrString?: string; qrImageUrl?: string; orderNumber: string; totalIdr: number; expiresAt: string } | null>(null);
@@ -1674,7 +1676,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
         if (payload?.products?.length) setMenu(payload.products);
-        setCategories(["Semua Menu", ...(payload?.categories ?? []).map((item: { name: string }) => item.name)]);
+        setCategories((payload?.categories ?? []).map((item: { id: string; name: string }) => ({ id: String(item.id), name: String(item.name) })));
         setPaymentSettings(payload?.settings ?? { qrisEnabled: false, cashEnabled: false });
         if (payload?.settings?.qrisEnabled === false) setPaymentMethod("cash");
       })
@@ -1689,7 +1691,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
 
   const filtered = menu.filter(
     (product) =>
-      (category === "Semua Menu" || product.category === category) &&
+      (category === ALL_CATEGORIES_ID || (product.categoryId ?? product.category) === category || product.category === categories.find((item) => item.id === category)?.name) &&
       `${product.name} ${product.description ?? ""}`.toLowerCase().includes(query.toLowerCase()),
   );
   const total = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
@@ -1846,22 +1848,14 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
             <div className="mt-1">
               <SearchField value={query} onChange={setQuery} placeholder="Cari menu… (contoh: sate taichan)" />
             </div>
-            <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
-              {categories.map((item) => (
-                <button
-                  type="button"
-                  key={item}
-                  onClick={() => setCategory(item)}
-                  aria-pressed={category === item}
-                  className={cn(
-                    "flex h-11 shrink-0 items-center rounded-full px-4 text-[13px] transition active:scale-95",
-                    category === item ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]" : "bg-[#F3EFE6] text-[#78716C]",
-                  )}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
+            <CategoryDropdown
+              id="cashier-category"
+              value={category}
+              categories={categories}
+              onChange={setCategory}
+              className="mt-3"
+              dark
+            />
           </div>
 
           {filtered.length ? (

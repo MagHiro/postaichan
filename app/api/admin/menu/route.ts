@@ -25,7 +25,7 @@ export async function GET() {
   try {
     const [products, categories] = await Promise.all([
       query(`select p.id, p.name, p.description, p.image_path, p.price_idr, p.estimated_cost_idr, p.available, p.active, p.archived_at, p.category_id, p.stock_tracked, p.stock_quantity, c.name as category_name from public.products p join public.categories c on c.id = p.category_id order by p.display_order asc, p.name asc`),
-      query("select id, name, active, display_order from public.categories where active = true order by display_order asc, name asc"),
+      query('select id, name, active, display_order as "displayOrder" from public.categories where active = true order by display_order asc, name asc'),
     ]);
     return NextResponse.json({ products: products.rows.map((product) => ({ ...product, categories: product.category_name ? { name: product.category_name } : null })), categories: categories.rows }, { headers: noStoreHeaders() });
   } catch (error) {
