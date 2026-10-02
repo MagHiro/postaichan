@@ -24,3 +24,31 @@ export const categoryMutationSchema = z.object({
   displayOrder: z.number().int().min(0).max(1000000).optional(),
   active: z.boolean().optional(),
 }).strict();
+
+export const modifierKindSchema = z.enum(["variant", "addon"]);
+
+export const modifierGroupMutationSchema = z.object({
+  kind: modifierKindSchema,
+  name: z.string().trim().min(2).max(80),
+  selection: z.enum(["single", "multiple"]).optional(),
+  required: z.boolean().optional(),
+  minSelection: z.number().int().min(0).max(99).optional(),
+  maxSelection: z.number().int().min(1).max(99).optional(),
+  displayOrder: z.number().int().min(0).max(1000000).optional(),
+  active: z.boolean().optional(),
+}).strict();
+
+export const modifierOptionMutationSchema = z.object({
+  kind: modifierKindSchema,
+  groupId: z.string().uuid(),
+  name: z.string().trim().min(1).max(120),
+  priceAdjustmentIdr: z.number().int().min(0).max(100000000).optional(),
+  costAdjustmentIdr: z.number().int().min(0).max(100000000).optional(),
+  available: z.boolean().optional(),
+  displayOrder: z.number().int().min(0).max(1000000).optional(),
+}).strict();
+
+export const productModifiersSchema = z.object({
+  variantGroupIds: z.array(z.string().uuid()).max(20).optional(),
+  addonGroupIds: z.array(z.string().uuid()).max(20).optional(),
+}).strict();

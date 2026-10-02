@@ -24,7 +24,10 @@ export async function GET() {
   if (!auth.allowed) return failure(auth);
   try {
     const [products, categories] = await Promise.all([
-      query(`select p.id, p.name, p.description, p.image_path, p.price_idr, p.estimated_cost_idr, p.available, p.active, p.archived_at, p.category_id, p.stock_tracked, p.stock_quantity, c.name as category_name from public.products p join public.categories c on c.id = p.category_id order by p.display_order asc, p.name asc`),
+      query(`select p.id, p.name, p.description, p.image_path, p.price_idr, p.estimated_cost_idr, p.available, p.active, p.archived_at, p.category_id, p.stock_tracked, p.stock_quantity, c.name as category_name,
+              coalesce((select array_agg(pvg.group_id) from public.product_variant_groups pvg where pvg.product_id = p.id), '{}') as variant_group_ids,
+              coalesce((select array_agg(pag.group_id) from public.product_addon_groups pag where pag.product_id = p.id), '{}') as addon_group_ids
+        from public.products p join public.categories c on c.id = p.category_id order by p.display_order asc, p.name asc`),
       query('select id, name, active, display_order as "displayOrder" from public.categories where active = true order by display_order asc, name asc'),
     ]);
     return NextResponse.json({ products: products.rows.map((product) => ({ ...product, categories: product.category_name ? { name: product.category_name } : null })), categories: categories.rows }, { headers: noStoreHeaders() });

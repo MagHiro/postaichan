@@ -9,6 +9,7 @@ import { ConfirmSheet, type ConfirmState } from "@/components/pos-confirm-sheet"
 import { MetaDot, MetaInline } from "@/components/meta";
 import { CategoryDropdown } from "@/components/category-filter";
 import { CategoryManager } from "@/components/category-manager";
+import { ModifierManager, ProductModifierPicker } from "@/components/modifier-manager";
 import { ALL_CATEGORIES_ID } from "@/components/order/constants";
 import { useDialogFocus } from "@/components/use-dialog-focus";
 import type { Category } from "@/lib/types";
@@ -27,15 +28,17 @@ type AdminProduct = {
   active: boolean;
   stockTracked: boolean;
   stockQuantity: number;
+  variantGroupIds: string[];
+  addonGroupIds: string[];
 };
-type FormState = { name: string; description: string; imagePath: string; categoryId: string; priceIdr: string; estimatedCostIdr: string; available: boolean; stockTracked: boolean; stockQuantity: string };
+type FormState = { name: string; description: string; imagePath: string; categoryId: string; priceIdr: string; estimatedCostIdr: string; available: boolean; stockTracked: boolean; stockQuantity: string; variantGroupIds: string[]; addonGroupIds: string[] };
 
-const blankForm: FormState = { name: "", description: "", imagePath: "", categoryId: "", priceIdr: "", estimatedCostIdr: "", available: true, stockTracked: false, stockQuantity: "0" };
+const blankForm: FormState = { name: "", description: "", imagePath: "", categoryId: "", priceIdr: "", estimatedCostIdr: "", available: true, stockTracked: false, stockQuantity: "0", variantGroupIds: [], addonGroupIds: [] };
 
 export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) => void }) {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [section, setSection] = useState<"menu" | "categories">("menu");
+  const [section, setSection] = useState<"menu" | "categories" | "modifiers">("menu");
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_CATEGORIES_ID);
   const [showArchived, setShowArchived] = useState(false);
@@ -65,6 +68,8 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
         id: String(product.id), name: String(product.name), description: product.description as string | null, imageUrl: (product.image_path as string | null) ?? null,
         categoryId: String(product.category_id), categoryName: Array.isArray(product.categories) ? String((product.categories[0] as { name?: string } | undefined)?.name ?? "") : String((product.categories as { name?: string } | null)?.name ?? ""),
         priceIdr: Number(product.price_idr), estimatedCostIdr: Number(product.estimated_cost_idr), available: Boolean(product.available), sellable: Boolean(product.available) && (!Boolean(product.stock_tracked) || Number(product.stock_quantity ?? 0) > 0), active: Boolean(product.active), stockTracked: Boolean(product.stock_tracked), stockQuantity: Number(product.stock_quantity ?? 0),
+        variantGroupIds: Array.isArray(product.variant_group_ids) ? (product.variant_group_ids as unknown[]).map(String) : [],
+        addonGroupIds: Array.isArray(product.addon_group_ids) ? (product.addon_group_ids as unknown[]).map(String) : [],
       })));
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Menu belum dapat dimuat."); }
     finally { setLoading(false); }
@@ -90,7 +95,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
   }
   function openEdit(product: AdminProduct) {
     void cleanupPendingImages();
-    setForm({ name: product.name, description: product.description ?? "", imagePath: product.imageUrl ?? "", categoryId: product.categoryId, priceIdr: String(product.priceIdr), estimatedCostIdr: String(product.estimatedCostIdr), available: product.available, stockTracked: product.stockTracked, stockQuantity: String(product.stockQuantity) });
+    setForm({ name: product.name, description: product.description ?? "", imagePath: product.imageUrl ?? "", categoryId: product.categoryId, priceIdr: String(product.priceIdr), estimatedCostIdr: String(product.estimatedCostIdr), available: product.available, stockTracked: product.stockTracked, stockQuantity: String(product.stockQuantity), variantGroupIds: product.variantGroupIds, addonGroupIds: product.addonGroupIds });
     setEditor(product);
   }
 
@@ -120,6 +125,11 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
       const response = await fetch(isCreate ? "/api/admin/menu" : `/api/admin/menu/${(editor as AdminProduct).id}`, { method: isCreate ? "POST" : "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Menu belum berhasil disimpan.");
+      const productId = isCreate ? String(payload.product?.id ?? "") : (editor as AdminProduct).id;
+      if (!productId) throw new Error("Menu belum berhasil disimpan.");
+      const modifierResponse = await fetch(`/api/admin/menu/${productId}/modifiers`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ variantGroupIds: form.variantGroupIds, addonGroupIds: form.addonGroupIds }) });
+      const modifierPayload = await modifierResponse.json().catch(() => null);
+      if (!modifierResponse.ok) throw new Error(modifierPayload?.error ?? "Opsi produk belum tersimpan.");
       await cleanupPendingImages();
       setEditor(null); await loadMenu(); onShowNotice(isCreate ? "Produk dibuat." : "Produk diperbarui.");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Menu belum berhasil disimpan."); }
@@ -178,7 +188,9 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           <p className="text-[13px] text-[#78716C]">
             {section === "categories"
               ? (<>{categories.length} kategori <MetaDot /> urutan tampil mengikuti angka urutan</>)
-              : showArchived ? `${products.filter((product) => !product.active).length} produk diarsipkan` : (<>{activeCount} produk aktif <MetaDot /> perubahan berlaku saat checkout</>)}
+              : section === "modifiers"
+                ? (<>Level pedas & tambahan <MetaDot /> berlaku langsung di checkout</>)
+                : showArchived ? `${products.filter((product) => !product.active).length} produk diarsipkan` : (<>{activeCount} produk aktif <MetaDot /> perubahan berlaku saat checkout</>)}
           </p>
           {section === "menu" && (
             <button
@@ -191,11 +203,12 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           )}
         </div>
 
-        <div className="mt-4 flex gap-3" role="group" aria-label="Bagian pengelolaan">
+        <div className="mt-4 flex flex-wrap gap-3" role="group" aria-label="Bagian pengelolaan">
           {(
             [
               { key: "menu", label: "Menu" },
               { key: "categories", label: "Kategori" },
+              { key: "modifiers", label: "Opsi" },
             ] as const
           ).map(({ key, label }) => (
             <button
@@ -311,7 +324,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                         <span className="min-w-0">
                           <span className="block truncate text-[13px] font-medium text-[#1C1917]">{product.name}</span>
                           <span className="mt-1 block truncate text-xs tabular-nums text-[#A8A29E]">
-                            <MetaInline parts={[product.categoryName, formatCompactIDR(product.priceIdr), product.stockTracked ? `${product.stockQuantity} tersisa` : null]} />
+                            <MetaInline parts={[product.categoryName, formatCompactIDR(product.priceIdr), product.stockTracked ? `${product.stockQuantity} tersisa` : null, product.variantGroupIds.length + product.addonGroupIds.length > 0 ? `${product.variantGroupIds.length + product.addonGroupIds.length} opsi` : null]} />
                           </span>
                         </span>
                       </span>
@@ -340,6 +353,10 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           )}
         </div>
           </>
+        ) : section === "modifiers" ? (
+          <div className="mt-5">
+            <ModifierManager onChanged={() => void loadMenu()} />
+          </div>
         ) : (
           <div className="mt-5">
             <CategoryManager onChanged={() => void loadMenu()} />
@@ -393,7 +410,7 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet flex max-h-[92dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-[#FFFEFB] text-[#1C1917] sm:rounded-[28px]"
+        className="ord-sheet flex max-h-[92dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-[#FFFEFB] text-[#1C1917] sm:rounded-[28px] lg:max-w-[560px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -458,6 +475,14 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
                   <input id="product-cost" type="number" min="0" max="100000000" value={form.estimatedCostIdr} onChange={(event) => setForm({ ...form, estimatedCostIdr: event.target.value })} placeholder="10500" inputMode="numeric" className="input tabular-nums" />
                 </Field>
               </div>
+            </EditorSection>
+
+            <EditorSection title="Opsi" hint={<>Level pedas & tambahan <MetaDot /> tampil di halaman pesan.</>}>
+              <ProductModifierPicker
+                variantGroupIds={form.variantGroupIds}
+                addonGroupIds={form.addonGroupIds}
+                onChange={(next) => setForm({ ...form, variantGroupIds: next.variantGroupIds, addonGroupIds: next.addonGroupIds })}
+              />
             </EditorSection>
 
             <EditorSection title="Ketersediaan" hint="Atur stok dan apakah produk bisa dipesan.">
