@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { ArrowLeft, Download } from "lucide-react";
+import { MetaDot } from "@/components/meta";
 import { formatCountdown, formatIDR } from "@/lib/format";
 import type { PaymentAttempt } from "./constants";
 
@@ -126,8 +127,7 @@ export function PaymentView({
         </button>
         <div className="ord-rise text-center">
           <p className="text-xs text-neutral-400">
-            Order {payment.orderNumber} ·{" "}
-            {orderType === "Dine in" ? tableLabel : "Takeaway"}
+            Order {payment.orderNumber} <MetaDot /> {orderType === "Dine in" ? tableLabel : "Takeaway"}
           </p>
           <h1 className="mt-3 text-[22px] font-medium tracking-tight">
             Bayar pesanan

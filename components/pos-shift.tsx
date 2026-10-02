@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Minus, Plus, X } from "lucide-react";
 import { formatCompactIDR, formatIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { MetaDot } from "@/components/meta";
 import { useDialogFocus } from "@/components/use-dialog-focus";
 
 export type ShiftStatus = {
@@ -191,7 +192,7 @@ export function ShiftOpenSheet({ onClose, onOpened }: { onClose: () => void; onO
             <p className="py-10 text-center text-[13px] text-[#78716C]">Tidak ada produk terpantau. Kasir bisa langsung dibuka.</p>
           )}
           <label className="mt-4 block">
-            <span className="mb-2 block text-[13px] font-medium">Catatan <span className="font-normal text-[#A8A29E]">· opsional</span></span>
+            <span className="mb-2 block text-[13px] font-medium">Catatan <MetaDot /> <span className="font-normal text-[#A8A29E]">opsional</span></span>
             <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Shift pagi" maxLength={240} className="input" />
           </label>
         </div>
@@ -230,7 +231,9 @@ export function ShiftCloseSheet({ onClose, onClosed, onShowNotice }: { onClose: 
         return payload;
       })
       .then((payload) => {
-        if (!cancelled) setRecap(payload.recap as CloseRecap);
+        if (cancelled) return;
+        if (payload?.recap) setRecap(payload.recap as CloseRecap);
+        else setError("Tidak ada kasir yang sedang buka.");
       })
       .catch((caught) => {
         if (!cancelled) setError(caught instanceof Error ? caught.message : "Rekap kasir belum dapat dimuat.");
@@ -347,7 +350,7 @@ export function ShiftCloseSheet({ onClose, onClosed, onShowNotice }: { onClose: 
                       <div key={row.productId} className="flex items-center justify-between gap-3 py-3.5">
                         <div className="min-w-0">
                           <p className="truncate text-[13px] font-medium text-[#1C1917]">{row.name}</p>
-                          <p className="mt-0.5 text-xs tabular-nums text-[#A8A29E]">Awal {row.openingQuantity} · terjual {row.soldQuantity}</p>
+                          <p className="mt-0.5 text-xs tabular-nums text-[#A8A29E]">Awal {row.openingQuantity} <MetaDot /> terjual {row.soldQuantity}</p>
                         </div>
                         <span className={cn("shrink-0 text-[13px] tabular-nums", row.remainingQuantity <= 0 ? "text-[#1C1917]" : "text-[#78716C]")}>
                           {row.remainingQuantity} tersisa
@@ -358,7 +361,7 @@ export function ShiftCloseSheet({ onClose, onClosed, onShowNotice }: { onClose: 
                 </>
               )}
               <label className="mt-6 block">
-                <span className="mb-2 block text-[13px] font-medium">Catatan <span className="font-normal text-[#A8A29E]">· opsional</span></span>
+                <span className="mb-2 block text-[13px] font-medium">Catatan <MetaDot /> <span className="font-normal text-[#A8A29E]">opsional</span></span>
                 <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Hasil cocok dengan laci" maxLength={240} className="input" />
               </label>
               <p className="mt-4 text-xs leading-relaxed text-[#A8A29E]">Menutup kasir mengarsipkan rekap ini. QR yang sudah dibuat sebelum tutup tetap bisa lunas.</p>

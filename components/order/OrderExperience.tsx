@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Home, ReceiptText, Search, X } from "lucide-react";
+import { MetaDot, MetaInline } from "@/components/meta";
 import { formatCompactIDR } from "@/lib/format";
 import type { CartItem, Product } from "@/lib/types";
 import { buildCartItem } from "@/lib/domain/cart";
@@ -583,7 +584,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
           <div key="orders" className="ord-rise flex-1 px-5 pt-7">
             <h1 className="text-[22px] font-medium tracking-tight">Pesanan</h1>
             <p className="mt-1 text-[13px] text-neutral-500">
-              {dineIn ? `${tableLabel} · Dine in` : "Takeaway · Ambil di kasir"}
+              {dineIn ? (<MetaInline parts={[tableLabel, "Dine in"]} />) : (<MetaInline parts={["Takeaway", "Ambil di kasir"]} />)}
             </p>
 
             {cart.length === 0 && placedOrders.length === 0 ? (
@@ -596,7 +597,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                 {cart.length > 0 && (
                   <div className="mt-7">
                     <p className="text-xs text-neutral-400">
-                      Keranjang · {cartCount} item
+                      Keranjang <MetaDot /> {cartCount} item
                     </p>
                     <div className="mt-1">
                       <CartSheet
@@ -625,10 +626,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                               {order.orderNumber}
                             </p>
                             <p className="mt-0.5 text-xs text-neutral-400">
-                              {order.orderType === "Dine in"
-                                ? order.tableLabel
-                                : "Takeaway"}{" "}
-                              · {order.time}
+                              <MetaInline parts={[order.orderType === "Dine in" ? order.tableLabel : "Takeaway", order.time]} />
                             </p>
                           </div>
                           <p className="shrink-0 text-[13px] tabular-nums text-neutral-500">

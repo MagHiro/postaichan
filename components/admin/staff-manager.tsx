@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useDialogFocus } from "@/components/use-dialog-focus";
+import { MetaDot } from "@/components/meta";
 
 type Staff = { id: string; display_name: string; email: string; role: "operator" | "admin"; active: boolean; created_at: string };
 
@@ -68,7 +69,7 @@ export function StaffManager() {
   return (
     <main className="min-h-screen bg-[#FAFAFA] px-5 py-8 text-neutral-900 lg:px-10">
       <div className="mx-auto max-w-[820px]">
-        <p className="text-xs text-neutral-400">Administrator · <a href="/admin" className="text-neutral-500">Pengaturan</a></p>
+        <p className="text-xs text-neutral-400">Administrator <MetaDot /> <a href="/admin" className="text-neutral-500">Pengaturan</a></p>
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><h1 className="mt-1 text-[22px] font-medium tracking-tight">Akun staff</h1><p className="mt-1 text-[13px] text-neutral-500">Password awal hanya dimasukkan saat pembuatan dan tidak ditampilkan kembali.</p></div><button type="button" onClick={() => setShowForm(true)} className="flex h-11 items-center justify-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium"><Plus size={15} />Tambah staff</button></div>
         {notice && <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 shadow-soft text-[13px] text-neutral-500"><span>{notice}</span>{loadError && <button type="button" onClick={() => { setNotice(null); void load(); }} className="h-9 rounded-full bg-neutral-900 px-4 text-xs font-medium text-white">Coba lagi</button>}</div>}
         {loading ? <p className="py-14 text-center text-[13px] text-neutral-500">Memuat akun…</p> : staff.length ? <div className="mt-8 divide-y divide-neutral-100">{staff.map((member) => <div key={member.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="truncate text-[14px] font-medium">{member.display_name}</p><p className="mt-1 truncate text-xs text-neutral-400">{member.email || "Email tidak tersedia"}</p></div><label htmlFor={`role-${member.id}`} className="sr-only">Role {member.display_name}</label><select id={`role-${member.id}`} value={member.role} onChange={(event) => void update(member.id, { role: event.target.value as "operator" | "admin" })} disabled={saving} className="h-10 rounded-full border border-neutral-200 px-3 text-[13px]"><option value="operator">Staff</option><option value="admin">Admin</option></select><button type="button" onClick={() => void update(member.id, { active: !member.active })} disabled={saving} className="h-10 rounded-full border border-neutral-200 px-4 text-[13px] font-medium disabled:opacity-50">{member.active ? "Nonaktifkan" : "Aktifkan"}</button><span className="text-xs text-neutral-400">{member.active ? "Aktif" : "Nonaktif"}</span></div>)}</div> : <p className="py-14 text-center text-[13px] text-neutral-500">Belum ada akun staff. Tambahkan akun pertama di atas.</p>}

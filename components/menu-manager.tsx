@@ -6,6 +6,7 @@ import { Archive, Package, Plus, Search, X } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ConfirmSheet, type ConfirmState } from "@/components/pos-confirm-sheet";
+import { MetaDot, MetaInline } from "@/components/meta";
 import { useDialogFocus } from "@/components/use-dialog-focus";
 
 type AdminProduct = {
@@ -157,7 +158,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
       <div>
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <p className="text-[13px] text-[#78716C]">
-            {showArchived ? `${products.filter((product) => !product.active).length} produk diarsipkan` : `${activeCount} produk aktif · perubahan berlaku saat checkout`}
+            {showArchived ? `${products.filter((product) => !product.active).length} produk diarsipkan` : (<>{activeCount} produk aktif <MetaDot /> perubahan berlaku saat checkout</>)}
           </p>
           <button
             type="button"
@@ -244,21 +245,21 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                       key={product.id}
                       type="button"
                       onClick={() => openEdit(product)}
-                      aria-label={`Ubah ${product.name} · ${statusLabel}`}
-                      className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-4 py-3.5 text-left transition active:bg-[#FAF7F1] sm:grid-cols-[minmax(0,1fr)_170px] sm:items-center sm:gap-4 sm:px-5 sm:py-3"
+                      aria-label={`Ubah ${product.name}, ${statusLabel}`}
+                      className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-3.5 text-left transition active:bg-[#FAF7F1] sm:grid-cols-[minmax(0,1fr)_170px] sm:gap-4 sm:px-5 sm:py-3"
                     >
-                      <span className="row-start-1 flex min-w-0 items-center gap-3 sm:col-start-1">
+                      <span className="col-start-1 row-start-1 flex min-w-0 items-center gap-3 sm:col-start-1">
                         <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F3EFE6] text-base font-medium text-[#A8A29E]">
                           {product.imageUrl ? <img src={product.imageUrl} alt="" className="h-full w-full object-cover" /> : product.name.slice(0, 1)}
                         </span>
                         <span className="min-w-0">
                           <span className="block truncate text-[13px] font-medium text-[#1C1917]">{product.name}</span>
                           <span className="mt-1 block truncate text-xs tabular-nums text-[#A8A29E]">
-                            {product.categoryName} · {formatCompactIDR(product.priceIdr)}{product.stockTracked ? ` · ${product.stockQuantity} tersisa` : ""}
+                            <MetaInline parts={[product.categoryName, formatCompactIDR(product.priceIdr), product.stockTracked ? `${product.stockQuantity} tersisa` : null]} />
                           </span>
                         </span>
                       </span>
-                      <span className={cn("col-start-1 row-start-2 flex h-9 w-fit items-center gap-2 rounded-full px-3.5 text-[11px] font-medium sm:col-start-2 sm:row-start-1", statusClass)}>
+                      <span className={cn("col-start-2 row-start-1 flex h-9 w-fit items-center gap-2 self-center rounded-full px-3.5 text-[11px] font-medium sm:col-start-2", statusClass)}>
                         <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
                         {statusLabel}
                       </span>
@@ -369,7 +370,7 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
               </Field>
             </EditorSection>
 
-            <EditorSection title="Foto" hint="Opsional · JPEG, PNG, atau WebP hingga 5 MB.">
+            <EditorSection title="Foto" hint={<>Opsional <MetaDot /> JPEG, PNG, atau WebP hingga 5 MB.</>}>
               {form.imagePath ? (
                 <div className="relative overflow-hidden rounded-2xl bg-[#F3EFE6]">
                   <img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/10] w-full object-cover" />
@@ -494,7 +495,7 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
   );
 }
 
-function EditorSection({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+function EditorSection({ title, hint, children }: { title: string; hint?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section aria-label={title} className="border-t border-[#E9E1D1] pt-5 first:border-t-0 first:pt-0">
       <h3 className="text-sm font-medium text-[#1C1917]">{title}</h3>

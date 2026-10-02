@@ -9,6 +9,7 @@ import type { CartItem, Order, Product } from "@/lib/types";
 import { buildCartItem } from "@/lib/domain/cart";
 import type { DailyReport } from "@/lib/reports";
 import { cn } from "@/lib/utils";
+import { MetaDot, MetaInline } from "@/components/meta";
 import { MenuManager } from "@/components/menu-manager";
 import { ProductSheet } from "@/components/order/ProductSheet";
 import { formatShiftOpenedAt, ShiftCloseSheet, ShiftOpenSheet, useShiftStatus, type CloseRecap } from "@/components/pos-shift";
@@ -297,7 +298,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <h1 className="truncate text-[22px] font-medium leading-snug tracking-tight text-[#1C1917]">Pesanan</h1>
-                <p className="mt-1 text-[13px] leading-tight tabular-nums text-[#78716C]">{activeCount} aktif · {formatOrdersHeaderDate(date)}</p>
+                <p className="mt-1 text-[13px] leading-tight tabular-nums text-[#78716C]"><MetaInline parts={[`${activeCount} aktif`, formatOrdersHeaderDate(date)]} /></p>
               </div>
               <button
                 type="button"
@@ -325,7 +326,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                   </button>
                 </div>
                 <p className="mt-0.5 text-xs tabular-nums text-[#A8A29E]">
-                  {activeCount} aktif · {date}
+                  <MetaInline parts={[`${activeCount} aktif`, date]} />
                 </p>
               </div>
               {nav !== "POS" && (
@@ -487,7 +488,7 @@ function pageTitle(nav: NavItem) {
 
 /* ================= Shared ================= */
 
-function PageHead({ title, sub, action }: { title: string; sub?: string; action?: React.ReactNode }) {
+function PageHead({ title, sub, action }: { title: string; sub?: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
       <div className="min-w-0">
@@ -674,7 +675,7 @@ function LiveOverview({
       <div className="hidden lg:block">
         <PageHead
           title="Hari ini"
-          sub={loading ? "Memuat ringkasan…" : `${active.length} aktif · ${paidCount} lunas`}
+          sub={loading ? "Memuat ringkasan…" : <MetaInline parts={[`${active.length} aktif`, `${paidCount} lunas`]} />}
         />
       </div>
 
@@ -773,7 +774,7 @@ function LiveOverview({
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-medium leading-tight text-[#1C1917]">{order.number}</span>
                       <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]">
-                        {order.table ?? order.type} · {order.items} item · {order.time}{order.paymentStatus !== "Paid" ? " · Belum bayar" : ""}
+                        <MetaInline parts={[order.table ?? order.type, `${order.items} item`, order.time, order.paymentStatus !== "Paid" ? "Belum bayar" : null]} />
                       </span>
                       <span className="mt-1 block text-[13px] leading-none tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</span>
                     </span>
@@ -803,11 +804,10 @@ function LiveOverview({
                       aria-label={`Lihat ${order.number}`}
                     >
                       <p className="truncate text-[13px] font-medium text-[#1C1917]">
-                        {order.number} <span className="font-normal text-[#A8A29E]">· {STATUS_LABEL[order.status]}</span>
+                        {order.number} <MetaDot /> <span className="font-normal text-[#A8A29E]">{STATUS_LABEL[order.status]}</span>
                       </p>
                       <p className="mt-0.5 truncate text-xs text-[#A8A29E]">
-                        {order.table ?? order.type} · {order.items} item · {order.time}
-                        {order.paymentStatus !== "Paid" ? " · Belum bayar" : ""}
+                        <MetaInline parts={[order.table ?? order.type, `${order.items} item`, order.time, order.paymentStatus !== "Paid" ? "Belum bayar" : null]} />
                       </p>
                       <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</p>
                     </button>
@@ -986,7 +986,7 @@ function MobileOrderRow({ order, opening, onOpen }: { order: Order; opening: boo
     >
       <span className="min-w-0">
         <span className="block truncate text-[13px] font-medium leading-tight text-[#1C1917]">{order.number}</span>
-        <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]">{order.type} · {order.items} item · {order.time}</span>
+        <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]"><MetaInline parts={[order.type, `${order.items} item`, order.time]} /></span>
         <span className="mt-1 block text-[13px] leading-none tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</span>
       </span>
       <span className={cn("rounded-full px-3 py-1.5 text-[11px] font-medium leading-none", mobileOrderStatusTone(order.status))}>
@@ -1194,12 +1194,12 @@ function LiveOrders({
                         aria-label={`Detail ${order.number}`}
                       >
                         <p className="truncate text-[14px] font-medium text-[#1C1917]">{order.number}</p>
-                        <p className="mt-1 truncate text-xs text-[#A8A29E]">{formatShortDate(jakartaToday())} · {order.time}</p>
+                        <p className="mt-1 truncate text-xs text-[#A8A29E]"><MetaInline parts={[formatShortDate(jakartaToday()), order.time]} /></p>
                       </button>
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-[13px] font-medium text-[#1C1917]">{order.type}</p>
-                          <p className="mt-0.5 truncate text-xs text-[#A8A29E]">{order.table ? `${order.table} · ` : ""}{order.items} item</p>
+                          <p className="mt-0.5 truncate text-xs text-[#A8A29E]"><MetaInline parts={[order.table ?? null, `${order.items} item`]} /></p>
                         </div>
                       </div>
                       <p className="self-center text-[13px] font-medium tabular-nums text-[#1C1917]">{formatCompactIDR(order.total)}</p>
@@ -1303,7 +1303,7 @@ function formatCreatedAt(iso: string) {
   const date = new Date(iso);
   const time = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(date);
   const day = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(date);
-  return `${day} · ${time}`;
+  return { day, time };
 }
 
 function formatShortDate(date: string) {
@@ -1337,6 +1337,7 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
   const [resumeQr, setResumeQr] = useState<{ qrString?: string; qrImageUrl?: string; expiresAt: string } | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
   useDialogFocus(dialogRef, onClose);
+  const createdAt = formatCreatedAt(detail.order.created_at);
 
   async function checkPaymentNow() {
     setCheckingPay(true);
@@ -1418,7 +1419,7 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
               {rawStatusLabel(detail.order.status)}
             </div>
             <h2 id="order-detail-title" className="mt-4 truncate text-lg font-medium leading-tight tracking-tight text-[#1C1917]">{detail.order.order_number}</h2>
-            <p className="mt-1 text-[13px] text-[#78716C]">{formatCreatedAt(detail.order.created_at)}</p>
+            <p className="mt-1 text-[13px] text-[#78716C]"><MetaInline parts={[createdAt.day, createdAt.time]} /></p>
             <div className="mt-5 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-2 rounded-full bg-[#F3EFE6] px-4 py-2 text-[13px] text-[#78716C]">
                 {detail.order.order_type === "dine_in" ? (table ?? "Dine in") : "Takeaway"}
@@ -1443,7 +1444,7 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
           <section>
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-sm font-medium text-[#1C1917]">Item Pesanan</h3>
-              <span className="shrink-0 text-xs text-[#A8A29E]">{detail.items.length} item · {totalItems} baris</span>
+              <span className="shrink-0 text-xs text-[#A8A29E]"><MetaInline parts={[`${detail.items.length} item`, `${totalItems} baris`]} /></span>
             </div>
             <div className="mt-1 divide-y divide-[#E9E1D1]">
               {detail.items.map((item) => {
@@ -1457,8 +1458,7 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-medium text-[#1C1917]">{item.product_name_snapshot}</p>
                       <p className="mt-0.5 truncate text-xs text-[#A8A29E]">
-                        {item.quantity} × {formatCompactIDR(item.unit_price_idr)} · {modifiers.length > 0 ? modifiers.join(" · ") : "Original"}
-                        {item.note ? ` · “${item.note}”` : ""}
+                        <MetaInline parts={[`${item.quantity} × ${formatCompactIDR(item.unit_price_idr)}`, modifiers.length > 0 ? modifiers.join(", ") : "Original", item.note ? `\u201c${item.note}\u201d` : null]} />
                       </p>
                     </div>
                     <span className="shrink-0 self-start text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.line_total_idr)}</span>
@@ -1481,8 +1481,7 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
               <div className="flex items-center justify-between gap-4">
                 <span className="text-[13px] text-[#A8A29E]">Metode</span>
                 <span className="text-right text-[13px] text-[#1C1917]">
-                  {payMethodLabel(payment?.method)}
-                  {payment?.provider ? ` · ${payment.provider}` : ""}
+                  <MetaInline parts={[payMethodLabel(payment?.method), payment?.provider ?? null]} />
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
@@ -1625,7 +1624,7 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
         aria-modal="true"
         aria-labelledby="resume-qr-title"
       >
-        <p id="resume-qr-title" className="text-xs text-[#A8A29E]">QRIS · {orderNumber}</p>
+        <p id="resume-qr-title" className="text-xs text-[#A8A29E]">QRIS <MetaDot /> {orderNumber}</p>
         {qrImageUrl ? (
           <img src={qrImageUrl} alt="QRIS pembayaran" className="mx-auto mt-4 h-48 w-48 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft p-2" />
         ) : qr ? (
@@ -1801,7 +1800,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
   return (
     <div>
       <div className="hidden lg:block">
-        <PageHead title="Kasir" sub={`${orderType === "dine_in" ? "Dine in" : "Takeaway"} · ${paymentMethod === "cash" ? "Tunai" : "QRIS"}`} />
+        <PageHead title="Kasir" sub={<MetaInline parts={[orderType === "dine_in" ? "Dine in" : "Takeaway", paymentMethod === "cash" ? "Tunai" : "QRIS"]} />} />
       </div>
 
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -1834,7 +1833,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
             </div>
             {orderType === "dine_in" && (
               <label htmlFor="cashier-table" className="block text-[13px] font-medium text-[#1C1917] sm:col-span-2 xl:col-span-1">
-                Meja <span className="font-normal text-[#A8A29E]">· opsional</span>
+                Meja <MetaDot /> <span className="font-normal text-[#A8A29E]">opsional</span>
                 <select id="cashier-table" value={tableId ?? ""} onChange={(event) => setTableId(event.target.value || null)} className="select mt-2 h-12 rounded-2xl">
                   <option value="">Tanpa meja / walk-in</option>
                   {tables.map((table) => <option key={table.id} value={table.id}>{table.label}</option>)}
@@ -1925,7 +1924,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
             {cart.length > 0 && <button type="button" onClick={clearCart} className="text-[13px] text-[#78716C]">Hapus Semua</button>}
           </div>
           <p className="mt-1 text-[13px] text-[#78716C]">
-            {orderType === "dine_in" ? "Dine in" : "Takeaway"} · {paymentMethod === "cash" ? "Tunai" : "QRIS"}
+            <MetaInline parts={[orderType === "dine_in" ? "Dine in" : "Takeaway", paymentMethod === "cash" ? "Tunai" : "QRIS"]} />
           </p>
           <div className="mt-4">
             {cart.length ? (
@@ -1934,7 +1933,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
                   <div key={item.key} className="flex gap-3 py-4">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-medium text-[#1C1917]">{item.product.name}</p>
-                      <p className="mt-0.5 truncate text-xs text-[#A8A29E]">{[...item.variantLabels, ...item.addonLabels].join(" · ") || "Original"}</p>
+                      <p className="mt-0.5 truncate text-xs text-[#A8A29E]">{[...item.variantLabels, ...item.addonLabels].join(", ") || "Original"}</p>
                       <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.unitPrice * item.quantity)}</p>
                       <div className="mt-2">
                         <QtyStepper itemName={item.product.name} count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
@@ -2004,10 +2003,10 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
             <div className="flex items-start justify-between px-5 pb-3 pt-2">
               <div>
                 <p className="text-xs text-[#A8A29E]">
-                  Pesanan berjalan · {orderType === "dine_in" ? "Dine in" : "Takeaway"}
+                  Pesanan berjalan <MetaDot /> {orderType === "dine_in" ? "Dine in" : "Takeaway"}
                 </p>
                 <h2 id="cashier-cart-title" className="mt-1 text-lg font-medium tabular-nums tracking-tight">
-                  {count} item · {formatIDR(total)}
+                  {count} item <MetaDot /> {formatIDR(total)}
                 </h2>
               </div>
               <button
@@ -2026,7 +2025,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
                     <div key={item.key} className="flex items-center gap-3 py-4">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14px] font-medium">{item.product.name}</p>
-                        <p className="mt-0.5 truncate text-xs text-[#A8A29E]">{[...item.variantLabels, ...item.addonLabels].join(" · ") || "Original"}</p>
+                        <p className="mt-0.5 truncate text-xs text-[#A8A29E]">{[...item.variantLabels, ...item.addonLabels].join(", ") || "Original"}</p>
                         <p className="mt-0.5 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.unitPrice * item.quantity)}</p>
                       </div>
                       <QtyStepper itemName={item.product.name} count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
@@ -2039,7 +2038,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
             </div>
             <div className="border-t border-[#EFE7D6] bg-[#FFFEFB] px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
               <div className="mb-3 flex items-baseline justify-between">
-                <span className="text-[13px] text-[#78716C]">Total · {count} item</span>
+                <span className="text-[13px] text-[#78716C]">Total <MetaDot /> {count} item</span>
                 <span className="text-base font-medium tabular-nums">{formatIDR(total)}</span>
               </div>
               <button
@@ -2048,7 +2047,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
                 onClick={() => void createOrder()}
                 className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
               >
-                {saving ? "Membuat…" : `Buat pembayaran · ${formatCompactIDR(total)}`}
+                {saving ? "Membuat…" : `Buat pembayaran ${formatCompactIDR(total)}`}
               </button>
               {cart.length > 0 && (
                 <button
@@ -2177,7 +2176,7 @@ function CashierPayment({
       >
         <div className="flex items-start justify-between text-left">
           <div>
-            <p id="cashier-payment-title" className="text-xs text-[#A8A29E]">QRIS · {payment.orderNumber}</p>
+            <p id="cashier-payment-title" className="text-xs text-[#A8A29E]">QRIS <MetaDot /> {payment.orderNumber}</p>
             <p className="mt-3 text-3xl font-medium tabular-nums tracking-tight text-[#1C1917]">{formatIDR(payment.totalIdr)}</p>
           </div>
           <button
@@ -2208,10 +2207,10 @@ function CashierPayment({
           )}
         </div>
         <p className="mt-6 text-[13px] text-[#A8A29E]">          {state === "settled" ? (
-            "Terverifikasi · masuk antrean dapur"
+            <MetaInline parts={["Terverifikasi", "masuk antrean dapur"]} />
           ) : state === "pending" ? (
             <span>
-              Berlaku <span className="tabular-nums">{formatCountdown(remainingMs)}</span> · Scan dengan e-wallet apa pun
+              Berlaku <span className="tabular-nums">{formatCountdown(remainingMs)}</span> <MetaDot /> Scan dengan e-wallet apa pun
             </span>
           ) : state === "expired" ? (
             "Kode kedaluwarsa"
@@ -2314,7 +2313,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
     <div>
       <PageHead
         title="Laporan"
-        sub="Hari bisnis Jakarta · pembayaran lunas"
+        sub={<MetaInline parts={["Hari bisnis Jakarta", "pembayaran lunas"]} />}
         action={
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -2369,7 +2368,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
           </div>
           <p className="mt-1 text-[13px] text-[#78716C]">Rekap live sejak kasir dibuka</p>
           <p className="mt-3 text-[22px] font-medium tabular-nums leading-none tracking-tight text-[#1C1917]">{formatCompactIDR(shiftRecap.netRevenueIdr)}</p>
-          <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">{shiftRecap.orderCount} lunas · {shiftRecap.itemsSold} porsi</p>
+          <p className="mt-1 text-[13px] tabular-nums text-[#78716C]"><MetaInline parts={[`${shiftRecap.orderCount} lunas`, `${shiftRecap.itemsSold} porsi`]} /></p>
           <div className="mt-3 divide-y divide-[#E9E1D1] border-t border-[#EFE7D6]">
             <div className="flex items-center gap-2 py-3">
               <Banknote size={15} strokeWidth={1.6} aria-hidden="true" className="shrink-0 text-[#A8A29E]" />
@@ -2429,7 +2428,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
             </div>
           </section>
 
-          {report.dailyBreakdown.length > 1 && <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft"><div className="px-5 pb-4 pt-5 sm:px-6"><h3 className="text-sm font-medium text-[#1C1917]">Per hari</h3><p className="mt-1 text-[13px] text-[#78716C]">Ringkasan settlement per tanggal</p></div><div className="divide-y divide-[#E9E1D1]">{report.dailyBreakdown.map((day) => <div key={day.date} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6"><div><p className="text-[13px] font-medium text-[#1C1917]">{day.date}</p><p className="mt-0.5 text-xs text-[#A8A29E]">{day.paidOrderCount} pesanan · refund {formatCompactIDR(day.refundsIdr)}</p></div><span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(day.netRevenueIdr)}</span></div>)}</div></section>}
+          {report.dailyBreakdown.length > 1 && <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft"><div className="px-5 pb-4 pt-5 sm:px-6"><h3 className="text-sm font-medium text-[#1C1917]">Per hari</h3><p className="mt-1 text-[13px] text-[#78716C]">Ringkasan settlement per tanggal</p></div><div className="divide-y divide-[#E9E1D1]">{report.dailyBreakdown.map((day) => <div key={day.date} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6"><div><p className="text-[13px] font-medium text-[#1C1917]">{day.date}</p><p className="mt-0.5 text-xs text-[#A8A29E]"><MetaInline parts={[`${day.paidOrderCount} pesanan`, `refund ${formatCompactIDR(day.refundsIdr)}`]} /></p></div><span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(day.netRevenueIdr)}</span></div>)}</div></section>}
 
           <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
             <div className="px-5 pb-4 pt-5 sm:px-6">
@@ -2471,10 +2470,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
                       <div className="min-w-0">
                         <p className="truncate text-[13px] font-medium text-[#1C1917]">{item.orderNumber}</p>
                         <p className="mt-0.5 text-xs text-[#A8A29E]">
-                          {item.type === "dine_in" ? "Dine in" : "Takeaway"} ·{" "}
-                          {new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(
-                            new Date(item.settledAt),
-                          )}
+                          <MetaInline parts={[item.type === "dine_in" ? "Dine in" : "Takeaway", new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(new Date(item.settledAt))]} />
                         </p>
                       </div>
                       <span className="shrink-0 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.totalIdr)}</span>

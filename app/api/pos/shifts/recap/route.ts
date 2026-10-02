@@ -11,7 +11,7 @@ export async function GET() {
   if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   try {
     const recap = await getCloseRecap();
-    if (!recap) return NextResponse.json({ error: "Tidak ada kasir yang sedang buka." }, { status: 409, headers: noStoreHeaders() });
+    if (!recap) return NextResponse.json({ recap: null }, { headers: noStoreHeaders() });
     return NextResponse.json({ recap }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("shift_recap_failed", error instanceof Error ? error.message : "unknown");

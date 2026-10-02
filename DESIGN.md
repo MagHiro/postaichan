@@ -207,13 +207,13 @@ surfaces → `bg-[#FFFEFB]` + `border-[#EFE7D6]`. Canvas
 ## Orders Tab
 
 - Title `Pesanan` (`text-[22px] font-medium tracking-tight`) + context
-  sub (`tableLabel · Dine in` / `Takeaway · Ambil di kasir`).
+  sub via `MetaInline` (`tableLabel` / `Dine in`, `Takeaway` / `Ambil di kasir`).
 - Empty state links back to Home.
-- Cart label: `mt-7 text-xs text-[#A8A29E]` ("Keranjang · N item").
+- Cart label: `mt-7 text-xs text-[#A8A29E]` ("Keranjang" + dot + "N item").
 - Cart rows: `divide-y divide-[#E9E1D1]`, `py-3.5 flex gap-3`;
   name `truncate text-[13px] font-medium`; modifiers
-  `truncate text-xs text-[#A8A29E]` ("variant · addons" or "Original",
-  note in quotes); line price `text-[13px] tabular-nums text-[#78716C]`.
+  `truncate text-xs text-[#A8A29E]` (comma-joined variants, then dot,
+  or "Original", note in quotes); line price `text-[13px] tabular-nums text-[#78716C]`.
 - `QtyStepper`: minus `h-7 w-7 rounded-full border border-[#E5DCC8]
   text-[#78716C]` (`Minus` 13); count `w-4 text-[13px] font-medium
   tabular-nums`; plus `h-7 w-7 rounded-full bg-[#1C1917] text-white`
@@ -253,11 +253,12 @@ surfaces → `bg-[#FFFEFB]` + `border-[#EFE7D6]`. Canvas
   tabular-nums text-[#78716C]`; desc `mt-2 text-[13px] leading-relaxed
   text-[#78716C]`.
 - Groups `space-y-7`; label `mb-3 text-[13px] font-medium`, hint
-  `font-normal text-[#A8A29E]` (" · opsional").
+  `font-normal text-[#A8A29E]` joined by `MetaDot` ("opsional" /
+  "wajib N pilihan").
 - Option pills `flex flex-wrap gap-2`: `rounded-full px-3.5 py-2
   text-[13px]`; active `bg-[#FDBD2C]/20 font-medium text-[#1C1917]`;
   inactive `bg-[#F3EFE6] text-[#78716C]`. No step numbers, no hints
-  per pill (Lontong keeps "· +2rb" suffix).
+  per pill (price shown on its own line).
 - Addons: `divide-y divide-[#E9E1D1]` rows `py-3`; name `text-[13px]`
   (`font-medium` active / `text-[#57534E]` inactive); right side price
   `text-[13px] tabular-nums text-[#A8A29E]` + dot `h-5 w-5
@@ -276,7 +277,7 @@ surfaces → `bg-[#FFFEFB]` + `border-[#EFE7D6]`. Canvas
 
 - Shell: `max-w-[440px] px-5 pb-10 pt-[safe-area]`; back `mb-8 flex
   gap-2 text-[13px] text-[#78716C]` (`ArrowLeft` 15, "Kembali").
-- Meta `text-xs text-[#A8A29E]` (order no. · table/takeaway); amount
+- Meta `text-xs text-[#A8A29E]` via `MetaDot` (order no., table/takeaway); amount
   `mt-3 text-3xl font-medium tabular-nums tracking-tight`; timer
   `mt-1 text-[13px] text-[#A8A29E]`.
 - QR card: `mx-auto mt-8 w-fit rounded-3xl border border-[#EFE7D6]
@@ -327,7 +328,7 @@ in wider grids (`lg:`) plus a `266px` sidebar.
 - Mobile headers: `text-[22px] font-medium tracking-tight` + `13px
   #78716C` sub, compact `h-11` accent `Pesanan baru` CTA
   (compact header exception vs customer `h-12` primary). Kasir hides
-  the CTA while active; sub shows `N aktif · date`.
+  the CTA while active; sub shows `MetaInline` (`N aktif`, date).
 - Metrics: `grid-cols-2 gap-2.5` compact cards (`min-h-[108px] p-4`,
   `sm:p-5`, `lg:min-h-0`) using the shared `Metric` type
   (`xs #A8A29E / 22px medium tabular / 13px #78716C`).
@@ -426,7 +427,7 @@ in wider grids (`lg:`) plus a `266px` sidebar.
 - Cart sheet `max-w-[440px] rounded-t-[28px]` + grabber; rows
   `14px medium / xs text-[#A8A29E] / 13px tabular` + `QtyStepper h-9`;
   footer total `13px / base medium tabular`; CTA `h-12` accent
-  `Buat pembayaran · Rp`; `Kosongkan` quiet → ConfirmSheet.
+  (`Buat pembayaran` + amount, no middot); `Kosongkan` quiet → ConfirmSheet.
 - ProductSheet (shared with customer): footer `bg-[#FAF7F1]/95`,
   label `Total` (not "Total amount"); POS keeps grid variants +
   stepper addons as staff exception.
@@ -482,8 +483,8 @@ in wider grids (`lg:`) plus a `266px` sidebar.
 - Closing (`POST /api/pos/shifts/close`): blocked while QR payments are
   pending (`SHIFT_CLOSE_BLOCKED:N`). `ShiftCloseSheet` shows the full
   recap first — net/gross/refund/cash/QRIS, orders, items sold,
-  per-product Terjual, per-product Sisa stok (awal · terjual ·
-  tersisa) — then a neutral `h-12 Tutup kasir`. QRs minted before close
+  per-product Terjual, per-product Sisa stok (dot-separated awal /
+  terjual / tersisa) — then a neutral `h-12 Tutup kasir`. QRs minted before close
   keep settling afterwards.
 - Closed states: shared `CashierClosedCard` (`rounded-2xl
   border-[#EFE7D6] bg-[#FFFEFB] p-5 sm:p-6 shadow-soft`): accent dot +
@@ -499,8 +500,8 @@ in wider grids (`lg:`) plus a `266px` sidebar.
   (fail-closed) and normalize `settled_at` Date objects to ISO before
   comparing (the pg driver returns `Date`, and `Date >= string` is
   always false — this previously zeroed **every** daily report).
-  Laporan tab adds a `Shift berjalan` live section (net · orders,
-  Tunai, QRIS, Refund, Item terjual) fed by `GET
+  Laporan tab adds a `Shift berjalan` live section (dot-separated net /
+  orders, Tunai, QRIS, Refund, Item terjual) fed by `GET
   /api/pos/shifts/recap`.
 
 ## Behavior Notes (not visual)

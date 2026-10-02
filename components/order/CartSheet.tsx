@@ -1,5 +1,6 @@
 "use client";
 
+import { MetaInline } from "@/components/meta";
 import { formatCompactIDR, formatIDR } from "@/lib/format";
 import type { CartItem } from "@/lib/types";
 import { QtyStepper } from "./ui";
@@ -34,9 +35,7 @@ export function CartSheet({
                 {item.product.name}
               </p>
               <p className="mt-0.5 truncate text-xs text-neutral-400">
-                {[...item.variantLabels, ...item.addonLabels].filter(Boolean).join(" · ") ||
-                  "Original"}
-                {item.note ? ` · “${item.note}”` : ""}
+                <MetaInline parts={[[...item.variantLabels, ...item.addonLabels].filter(Boolean).join(", ") || "Original", item.note ? `\u201c${item.note}\u201d` : null]} />
               </p>
               <p className="mt-1 text-[13px] tabular-nums text-neutral-500">
                 {formatCompactIDR(item.unitPrice * item.quantity)}

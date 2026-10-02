@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { ArrowLeft, Heart, Minus, Plus } from "lucide-react";
+import { MetaDot } from "@/components/meta";
 import { formatCompactIDR } from "@/lib/format";
 import type { ModifierGroup, Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -148,7 +149,7 @@ export function ProductSheet({
 
               <div>
                 <label htmlFor="product-note" className="mb-2 block text-[13px] font-medium">
-                  Catatan <span className="font-normal text-neutral-400">· opsional</span>
+                  Catatan <MetaDot /> <span className="font-normal text-neutral-400">opsional</span>
                 </label>
                 <textarea
                   id="product-note"
@@ -229,13 +230,13 @@ function OptionGroup({
     ? selectedAddonIds.filter((id) => group.options.some((option) => option.id === id)).length
     : group.options.filter((option) => selectedIds.includes(option.id)).length;
   const hint = group.required
-    ? `wajib · ${group.minSelection === group.maxSelection ? group.maxSelection : `${group.minSelection}–${group.maxSelection}`} pilihan`
+    ? `wajib ${group.minSelection === group.maxSelection ? group.maxSelection : `${group.minSelection}–${group.maxSelection}`} pilihan`
     : "opsional";
 
   return (
     <fieldset className="min-w-0 border-0 p-0">
       <legend className="mb-3 text-[13px] font-medium">
-        {group.name} <span className="font-normal text-neutral-400">· {hint}</span>
+        {group.name} <MetaDot /> <span className="font-normal text-neutral-400">{hint}</span>
       </legend>
       {group.type === "addon" ? (
         <div className="divide-y divide-neutral-100">
@@ -253,7 +254,7 @@ function OptionGroup({
                   className="min-w-0 flex-1 text-left disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <span className={cn("block truncate text-[13px]", active ? "font-medium" : "text-neutral-600")}>
-                    {option.name}{!option.available ? " · Habis" : ""}
+                    {option.name}{!option.available ? (<> <MetaDot /> Habis</>) : null}
                   </span>
                 </button>
                 <span className="shrink-0 text-[13px] tabular-nums text-neutral-400">
@@ -305,7 +306,7 @@ function OptionGroup({
                 )}
               >
                 <span className="block truncate text-[13px]">
-                  {option.name}{!option.available ? " · Habis" : ""}
+                  {option.name}{!option.available ? (<> <MetaDot /> Habis</>) : null}
                 </span>
                 {option.priceAdjustmentIdr > 0 && (
                   <span className="mt-0.5 block text-xs tabular-nums text-neutral-400">
