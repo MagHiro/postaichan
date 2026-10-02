@@ -123,18 +123,6 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
     } finally { setUploading(false); }
   }
 
-  async function toggleAvailability(product: AdminProduct) {
-    setProducts((current) => current.map((item) => item.id === product.id ? { ...item, available: !item.available, sellable: !item.available && (!item.stockTracked || item.stockQuantity > 0) } : item));
-    try {
-      const response = await fetch(`/api/admin/menu/${product.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ available: !product.available }) });
-      if (!response.ok) throw new Error("Ketersediaan gagal disimpan.");
-      onShowNotice(`${product.name} ditandai ${product.available ? "habis" : "tersedia"}.`);
-    } catch {
-      setProducts((current) => current.map((item) => item.id === product.id ? { ...item, available: product.available, sellable: product.sellable } : item));
-      onShowNotice("Koneksi terputus. Ketersediaan belum berubah.");
-    }
-  }
-
   function requestArchiveProduct(product: AdminProduct) {
     setConfirm({
       title: `Arsipkan ${product.name}?`,
@@ -248,20 +236,18 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
               </div>
               <div className="divide-y divide-[#E9E1D1]">
                 {visibleProducts.map((product) => {
-                  const statusLabel = product.active ? (product.available ? (product.sellable ? "Manual aktif" : "Stok habis") : "Manual off") : "Diarsipkan";
-                  const statusClass = product.active && product.available && product.sellable
-                    ? "bg-[#F3EFE6] text-[#78716C]"
-                    : product.active && product.available
-                      ? "bg-[#FDBD2C]/20 text-[#1C1917]"
-                      : "bg-[#F3EFE6] text-[#78716C]";
+                  const isOn = product.active && product.sellable;
+                  const statusLabel = !product.active ? "Diarsipkan" : isOn ? "Aktif" : "Non-aktif";
+                  const statusClass = isOn ? "bg-[#FDBD2C]/20 text-[#1C1917]" : "bg-[#F3EFE6] text-[#78716C]";
                   return (
-                    <div key={product.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-4 py-3.5 sm:grid-cols-[minmax(0,1fr)_170px] sm:items-center sm:gap-4 sm:px-5 sm:py-3">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(product)}
-                        className="row-start-1 flex min-w-0 items-center gap-3 rounded-xl text-left sm:col-start-1"
-                        aria-label={`Ubah ${product.name}`}
-                      >
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => openEdit(product)}
+                      aria-label={`Ubah ${product.name} · ${statusLabel}`}
+                      className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-4 py-3.5 text-left transition active:bg-[#FAF7F1] sm:grid-cols-[minmax(0,1fr)_170px] sm:items-center sm:gap-4 sm:px-5 sm:py-3"
+                    >
+                      <span className="row-start-1 flex min-w-0 items-center gap-3 sm:col-start-1">
                         <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F3EFE6] text-base font-medium text-[#A8A29E]">
                           {product.imageUrl ? <img src={product.imageUrl} alt="" className="h-full w-full object-cover" /> : product.name.slice(0, 1)}
                         </span>
@@ -271,25 +257,12 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                             {product.categoryName} · {formatCompactIDR(product.priceIdr)}{product.stockTracked ? ` · ${product.stockQuantity} tersisa` : ""}
                           </span>
                         </span>
-                      </button>
-                      {product.active ? (
-                        <button
-                          type="button"
-                          onClick={() => void toggleAvailability(product)}
-                          aria-label={`${product.name}: ${product.available ? "tersedia" : "habis"}`}
-                          aria-pressed={product.available}
-                          className={cn("col-start-1 row-start-2 flex h-9 w-fit items-center gap-2 rounded-full border px-3.5 text-[11px] font-medium transition active:scale-[0.98] sm:col-start-2 sm:row-start-1", statusClass)}
-                        >
-                          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
-                          {statusLabel}
-                        </button>
-                      ) : (
-                        <span className={cn("col-start-1 row-start-2 flex h-9 w-fit items-center gap-2 rounded-full px-3.5 text-[11px] font-medium sm:col-start-2 sm:row-start-1", statusClass)}>
-                          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
-                          {statusLabel}
-                        </span>
-                      )}
-                    </div>
+                      </span>
+                      <span className={cn("col-start-1 row-start-2 flex h-9 w-fit items-center gap-2 rounded-full px-3.5 text-[11px] font-medium sm:col-start-2 sm:row-start-1", statusClass)}>
+                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+                        {statusLabel}
+                      </span>
+                    </button>
                   );
                 })}
               </div>
@@ -347,119 +320,173 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
 
 function ProductEditor({ editor, form, setForm, categories, error, saving, uploading, onClose, onSave, onUpload, onArchive, onRestore }: { editor: "create" | AdminProduct; form: FormState; setForm: (form: FormState) => void; categories: Category[]; error: string | null; saving: boolean; uploading: boolean; onClose: () => void; onSave: () => void; onUpload: (file: File) => void; onArchive?: (product: AdminProduct) => void; onRestore?: (product: AdminProduct) => void }) {
   const isCreate = editor === "create";
+  const isArchived = !isCreate && onRestore !== undefined;
   const dialogRef = useRef<HTMLElement>(null);
   useDialogFocus(dialogRef, onClose);
+  const canSave = !saving && !uploading && form.name.trim() !== "" && form.categoryId !== "" && form.priceIdr !== "" && (!form.stockTracked || form.stockQuantity !== "");
+  const activeCategory = categories.find((category) => category.id === form.categoryId)?.name;
   return createPortal(
     <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30 p-0 sm:items-center sm:p-5" onClick={onClose}>
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet max-h-[92dvh] w-full max-w-[440px] overflow-y-auto rounded-t-[28px] bg-[#FFFEFB] p-5 text-[#1C1917] sm:rounded-[28px] sm:p-6"
+        className="ord-sheet flex max-h-[92dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-[#FFFEFB] text-[#1C1917] sm:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="product-editor-title"
       >
-        <div className="mx-auto h-1 w-9 rounded-full bg-[#E5DCC8] sm:hidden" />
-        <div className="mt-2 flex items-start justify-between sm:mt-0">
-          <div>
-            <p className="text-xs text-[#A8A29E]">{isCreate ? "Produk baru" : "Ubah produk"}</p>
-            <h2 id="product-editor-title" className="mt-1 text-lg font-medium tracking-tight">{isCreate ? "Tambah ke menu" : (editor as AdminProduct).name}</h2>
+        <div className="shrink-0 border-b border-[#EFE7D6] px-5 pb-4 pt-3">
+          <div className="mx-auto h-1 w-9 rounded-full bg-[#E5DCC8] sm:hidden" aria-hidden="true" />
+          <div className="mt-3 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs text-[#A8A29E]">{isCreate ? "Produk baru" : isArchived ? "Produk arsip" : "Ubah produk"}</p>
+              <h2 id="product-editor-title" className="mt-1 truncate text-lg font-medium tracking-tight">{isCreate ? "Tambah ke menu" : (editor as AdminProduct).name}</h2>
+              {!isCreate && activeCategory && <p className="mt-0.5 truncate text-[13px] text-[#78716C]">{activeCategory}</p>}
+            </div>
+            <button type="button" onClick={onClose} aria-label="Tutup editor" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F3EFE6] text-[#78716C] transition active:scale-95">
+              <X size={15} />
+            </button>
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3EFE6] text-[#78716C] active:scale-95">
-            <X size={15} />
-          </button>
         </div>
-        {error && <p role="alert" className="mt-5 text-center text-[13px] text-[#78716C]">{error}</p>}
 
-        <form onSubmit={(event) => { event.preventDefault(); onSave(); }}>
-        <div className="mt-6 space-y-7">
-          <Field label="Nama produk">
-            <input id="product-name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Sate Taichan 10 Tusuk" className="input" />
-          </Field>
-          <Field label="Kategori">
-            <select id="product-category" required value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })} className="select">
-              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Foto menu · opsional">
-            <div className="space-y-3">
-              {form.imagePath ? <div className="relative overflow-hidden rounded-2xl bg-[#F3EFE6]"><img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/10] w-full object-cover" /><button type="button" onClick={() => setForm({ ...form, imagePath: "" })} className="absolute right-3 top-3 rounded-full bg-[#FFFEFB]/90 px-3 py-1.5 text-xs font-medium text-[#78716C]">Hapus foto</button></div> : <div className="flex aspect-[16/10] items-center justify-center rounded-2xl bg-[#F3EFE6] text-[13px] text-[#A8A29E]">Belum ada foto</div>}
-              <label className="flex h-11 cursor-pointer items-center justify-center rounded-full border border-[#E5DCC8] text-[13px] font-medium text-[#78716C]">
+        <form onSubmit={(event) => { event.preventDefault(); onSave(); }} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-8 overflow-y-auto px-5 py-5">
+            {error && <p role="alert" className="rounded-2xl border border-[#EFE7D6] bg-[#FAF7F1] px-4 py-3 text-center text-[13px] leading-relaxed text-[#78716C]">{error}</p>}
+
+            <EditorSection title="Info dasar" hint="Nama, kategori, dan deskripsi tampil di menu pelanggan.">
+              <Field label="Nama produk" htmlFor="product-name">
+                <input id="product-name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Sate Taichan 10 Tusuk" maxLength={80} className="input" />
+              </Field>
+              <Field label="Kategori" htmlFor="product-category">
+                <select id="product-category" required value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })} className="select">
+                  <option value="" disabled>Pilih kategori</option>
+                  {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </select>
+              </Field>
+              <Field label="Deskripsi" hint={`${form.description.length}/160`} htmlFor="product-description">
+                <textarea id="product-description" rows={2} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value.slice(0, 160) })} placeholder="Deskripsi singkat, mis. pedas gurih dengan sambal." maxLength={160} className="input resize-none" />
+              </Field>
+            </EditorSection>
+
+            <EditorSection title="Foto" hint="Opsional · JPEG, PNG, atau WebP hingga 5 MB.">
+              {form.imagePath ? (
+                <div className="relative overflow-hidden rounded-2xl bg-[#F3EFE6]">
+                  <img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/10] w-full object-cover" />
+                  <button type="button" onClick={() => setForm({ ...form, imagePath: "" })} aria-label="Hapus foto" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#FFFEFB]/90 text-[#78716C] backdrop-blur transition active:scale-95">
+                    <X size={15} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex aspect-[16/10] items-center justify-center rounded-2xl border border-dashed border-[#E5DCC8] bg-[#F3EFE6] px-4 text-center text-[13px] text-[#A8A29E]">Belum ada foto — menu tetap bisa disimpan.</div>
+              )}
+              <label className="flex h-11 cursor-pointer items-center justify-center rounded-full bg-[#F3EFE6] px-4 text-[13px] font-medium text-[#1C1917] transition active:scale-[0.98]">
                 {uploading ? "Mengunggah…" : form.imagePath ? "Ganti foto" : "Upload foto"}
                 <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = ""; }} className="sr-only" />
               </label>
-              <p className="text-xs text-[#A8A29E]">JPEG, PNG, atau WebP · maksimal 5 MB. File disimpan di server aplikasi.</p>
-            </div>
-          </Field>
-          <Field label="Deskripsi">
-            <textarea id="product-description" rows={2} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Deskripsi singkat" className="input resize-none" />
-          </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Harga jual">
-              <input id="product-price" required type="number" min="0" value={form.priceIdr} onChange={(event) => setForm({ ...form, priceIdr: event.target.value })} placeholder="28000" className="input tabular-nums" />
-            </Field>
-            <Field label="Est. modal">
-              <input id="product-cost" type="number" min="0" value={form.estimatedCostIdr} onChange={(event) => setForm({ ...form, estimatedCostIdr: event.target.value })} placeholder="10500" className="input tabular-nums" />
-            </Field>
+            </EditorSection>
+
+            <EditorSection title="Harga" hint="Modal hanya untuk internal, tidak tampil ke pelanggan.">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Harga jual" htmlFor="product-price">
+                  <input id="product-price" required type="number" min="0" max="100000000" value={form.priceIdr} onChange={(event) => setForm({ ...form, priceIdr: event.target.value })} placeholder="28000" inputMode="numeric" className="input tabular-nums" />
+                </Field>
+                <Field label="Est. modal" htmlFor="product-cost">
+                  <input id="product-cost" type="number" min="0" max="100000000" value={form.estimatedCostIdr} onChange={(event) => setForm({ ...form, estimatedCostIdr: event.target.value })} placeholder="10500" inputMode="numeric" className="input tabular-nums" />
+                </Field>
+              </div>
+            </EditorSection>
+
+            <EditorSection title="Ketersediaan" hint="Atur stok dan apakah produk bisa dipesan.">
+              <fieldset className="border-0 p-0">
+                <legend className="mb-2 text-[13px] font-medium">Mode stok</legend>
+                <div className="flex rounded-full bg-[#F3EFE6] p-1" role="group" aria-label="Mode stok">
+                  {(
+                    [
+                      { key: false, label: "Unlimited" },
+                      { key: true, label: "Track stok" },
+                    ] as const
+                  ).map(({ key, label }) => (
+                    <button
+                      type="button"
+                      key={label}
+                      onClick={() => setForm({ ...form, stockTracked: key })}
+                      aria-pressed={form.stockTracked === key}
+                      className={cn(
+                        "h-11 flex-1 rounded-full text-center text-[13px] transition active:scale-[0.98]",
+                        form.stockTracked === key ? "border border-[#EFE7D6] bg-[#FFFEFB] font-medium text-[#1C1917] shadow-xs" : "font-normal text-[#78716C]",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {form.stockTracked && (
+                  <div className="mt-3">
+                    <label htmlFor="product-stock" className="mb-2 block text-[13px] font-medium">Sisa stok</label>
+                    <input id="product-stock" required type="number" min="0" max="1000000" value={form.stockQuantity} onChange={(event) => setForm({ ...form, stockQuantity: event.target.value })} inputMode="numeric" className="input tabular-nums" placeholder="24" />
+                  </div>
+                )}
+              </fieldset>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.available}
+                aria-label="Tersedia dipesan"
+                onClick={() => setForm({ ...form, available: !form.available })}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[#F3EFE6] px-4 py-3 text-left transition active:scale-[0.99]"
+              >
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-medium">Tersedia dipesan</span>
+                  <span className="mt-0.5 block truncate text-xs text-[#A8A29E]">{form.available ? "Tampil dan bisa dipesan" : "Disembunyikan dari checkout"}</span>
+                </span>
+                <span aria-hidden="true" className={cn("flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition", form.available ? "justify-end bg-[#FDBD2C]" : "justify-start bg-[#EDE8DB]")}>
+                  <span className="h-5 w-5 rounded-full bg-[#FFFEFB] shadow-xs" />
+                </span>
+              </button>
+            </EditorSection>
           </div>
-          <fieldset className="border-0 p-0">
-            <legend className="mb-3 text-[13px] font-medium">Stok</legend>
-            <div className="flex rounded-full bg-[#F3EFE6] p-1" role="group" aria-label="Mode stok">
-              {(
-                [
-                  { key: false, label: "Unlimited" },
-                  { key: true, label: "Track stok" },
-                ] as const
-              ).map(({ key, label }) => (
+
+          <div className="shrink-0 border-t border-[#EFE7D6] bg-[#FAF7F1]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+            {isArchived && onRestore ? (
+              <div className="space-y-2">
                 <button
                   type="button"
-                  key={label}
-                  onClick={() => setForm({ ...form, stockTracked: key })}
-                  aria-pressed={form.stockTracked === key}
-                  className={cn(
-                    "h-11 flex-1 rounded-full text-center text-[13px] transition active:scale-[0.98]",
-                    form.stockTracked === key ? "bg-[#FFFEFB] font-medium text-[#1C1917] shadow-xs" : "font-normal text-[#78716C]",
-                  )}
+                  onClick={() => onRestore(editor as AdminProduct)}
+                  className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
                 >
-                  {label}
+                  Pulihkan produk
                 </button>
-              ))}
-            </div>
-            {form.stockTracked && <input id="product-stock" required type="number" min="0" max="1000000" value={form.stockQuantity} onChange={(event) => setForm({ ...form, stockQuantity: event.target.value })} className="input mt-3 tabular-nums" aria-label="Jumlah stok" placeholder="24" />}
-          </fieldset>
-          <button
-            type="button"
-            onClick={() => setForm({ ...form, available: !form.available })}
-            className="flex w-full items-center justify-between py-1 text-left"
-          >
-            <span className="text-[13px] font-medium">Tersedia dipesan</span>
-            <span className="text-[13px] font-normal text-[#A8A29E]">{form.available ? "Ya" : "Tidak"}</span>
-          </button>
-        </div>
-
-        <div className="mt-8 space-y-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-          <button
-            type="submit"
-            disabled={saving || uploading || !form.name || !form.categoryId || form.priceIdr === "" || (form.stockTracked && form.stockQuantity === "")}
-            className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
-          >
-            {saving ? "Menyimpan…" : isCreate ? "Tambah" : "Simpan"}
-          </button>
-          {!isCreate && onArchive && (
-            <button
-              type="button"
-              onClick={() => onArchive(editor as AdminProduct)}
-              className="h-11 w-full rounded-full text-[13px] font-normal text-[#78716C]"
-            >
-              Arsipkan produk
-            </button>
-          )}
-          {!isCreate && onRestore && <button type="button" onClick={() => onRestore(editor as AdminProduct)} className="h-11 w-full rounded-full bg-[#FDBD2C] text-[13px] font-medium text-[#1C1917] active:scale-[0.98]">Pulihkan produk</button>}
-          <button type="button" onClick={onClose} className="h-11 w-full rounded-full text-[13px] font-normal text-[#78716C]">
-            Batal
-          </button>
-        </div>
+                <button type="button" onClick={onClose} className="h-12 w-full rounded-full text-sm text-[#78716C] transition active:scale-[0.98]">
+                  Batal
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <button
+                  type="submit"
+                  disabled={!canSave}
+                  className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+                >
+                  {saving ? "Menyimpan…" : isCreate ? "Tambah ke menu" : "Simpan perubahan"}
+                </button>
+                <div className="flex items-center justify-center gap-1">
+                  {!isCreate && onArchive && (
+                    <button
+                      type="button"
+                      onClick={() => onArchive(editor as AdminProduct)}
+                      className="h-12 flex-1 rounded-full text-sm text-[#78716C] transition active:scale-[0.98]"
+                    >
+                      Arsipkan
+                    </button>
+                  )}
+                  <button type="button" onClick={onClose} className="h-12 flex-1 rounded-full text-sm text-[#78716C] transition active:scale-[0.98]">
+                    Batal
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </form>
       </section>
     </div>,
@@ -467,6 +494,24 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-3 block text-[13px] font-medium">{label}</span>{children}</label>;
+function EditorSection({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <section aria-label={title} className="border-t border-[#E9E1D1] pt-5 first:border-t-0 first:pt-0">
+      <h3 className="text-sm font-medium text-[#1C1917]">{title}</h3>
+      {hint && <p className="mt-1 text-xs leading-relaxed text-[#A8A29E]">{hint}</p>}
+      <div className="mt-4 space-y-4">{children}</div>
+    </section>
+  );
+}
+
+function Field({ label, hint, htmlFor, children }: { label: string; hint?: string; htmlFor?: string; children: React.ReactNode }) {
+  return (
+    <div className="block">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <label htmlFor={htmlFor} className="text-[13px] font-medium text-[#1C1917]">{label}</label>
+        {hint && <span className="shrink-0 text-xs tabular-nums text-[#A8A29E]">{hint}</span>}
+      </div>
+      {children}
+    </div>
+  );
 }
