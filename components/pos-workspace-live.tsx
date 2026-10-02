@@ -402,7 +402,6 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 loading={loading}
                 cashierOpen={cashierOpen}
                 shiftOpenedAt={shift?.shift?.opened_at ?? null}
-                onOpenShift={() => setShiftSheet("open")}
                 onCloseShift={() => setShiftSheet("close")}
                 onAdvance={advanceOrderGuarded}
                 advancingId={advancingId}
@@ -411,7 +410,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
               />
             )}
             {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} onAdvance={advanceOrderGuarded} advancingId={advancingId} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} onNewOrder={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))} />}
-            {nav === "POS" && <LiveCashier cashierOpen={cashierOpen} onOpenShift={() => setShiftSheet("open")} onShowNotice={showNotice} onOrderCreated={() => loadOperations(true)} />}
+            {nav === "POS" && <LiveCashier cashierOpen={cashierOpen} onShowNotice={showNotice} onOrderCreated={() => loadOperations(true)} />}
             {nav === "Menu" && role === "admin" && <MenuManager onShowNotice={showNotice} />}
             {nav === "Reports" && role === "admin" && <LiveReports initialReport={summary} onShowNotice={showNotice} />}
           </div>
@@ -606,7 +605,6 @@ function LiveOverview({
   loading,
   cashierOpen,
   shiftOpenedAt,
-  onOpenShift,
   onCloseShift,
   onAdvance,
   advancingId,
@@ -619,7 +617,6 @@ function LiveOverview({
   loading: boolean;
   cashierOpen: boolean;
   shiftOpenedAt: string | null;
-  onOpenShift: () => void;
   onCloseShift: () => void;
   onAdvance: (order: Order) => void;
   advancingId: string | null;
@@ -644,21 +641,6 @@ function LiveOverview({
         />
       </div>
 
-      {!cashierOpen && (
-        <section className="mt-6 flex flex-col gap-3 rounded-2xl border border-neutral-100 bg-white p-5 shadow-soft sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h2 className="text-sm font-medium text-neutral-900">Kasir tutup</h2>
-            <p className="mt-1 text-[13px] leading-relaxed text-neutral-500">Buka kasir dan isi stok awal untuk mulai menerima pesanan.</p>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenShift}
-            className="h-10 shrink-0 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
-          >
-            Buka kasir
-          </button>
-        </section>
-      )}
       {cashierOpen && shiftOpenedAt && (
         <p className="mt-6 text-xs tabular-nums text-neutral-400">Kasir buka sejak {formatShiftOpenedAt(shiftOpenedAt)}</p>
       )}
@@ -1575,7 +1557,7 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
 
 type CartLine = CartItem;
 
-function LiveCashier({ cashierOpen, onOpenShift, onShowNotice, onOrderCreated }: { cashierOpen: boolean; onOpenShift: () => void; onShowNotice: (message: string) => void; onOrderCreated?: () => Promise<void> }) {
+function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated }: { cashierOpen: boolean; onShowNotice: (message: string) => void; onOrderCreated?: () => Promise<void> }) {
   const [menu, setMenu] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"qris" | "cash">("qris");
@@ -1717,21 +1699,7 @@ function LiveCashier({ cashierOpen, onOpenShift, onShowNotice, onOrderCreated }:
   }
 
   if (!cashierOpen) {
-    return (
-      <div className="flex flex-col gap-3 rounded-2xl border border-neutral-100 bg-white p-5 shadow-soft">
-        <div className="min-w-0">
-          <h2 className="text-sm font-medium text-neutral-900">Kasir tutup</h2>
-          <p className="mt-1 text-[13px] leading-relaxed text-neutral-500">Buka kasir dan isi stok awal untuk mulai menerima pesanan.</p>
-        </div>
-        <button
-          type="button"
-          onClick={onOpenShift}
-          className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] sm:w-auto sm:px-8"
-        >
-          Buka kasir
-        </button>
-      </div>
-    );
+    return null;
   }
 
   return (
