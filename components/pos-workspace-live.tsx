@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
-import { Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, Minus, Package, Plus, QrCode, ReceiptText, RefreshCw, Search, ShoppingBag, Store, TrendingUp, Wallet, X } from "lucide-react";
+import { Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, LogOut, Minus, Package, Plus, QrCode, ReceiptText, RefreshCw, Search, ShoppingBag, Store, TrendingUp, Wallet, X } from "lucide-react";
 import { formatCompactIDR, formatCountdown, formatIDR } from "@/lib/format";
 import type { CartItem, Category, Order, Product } from "@/lib/types";
 import { ALL_CATEGORIES_ID } from "@/components/order/constants";
@@ -16,6 +16,7 @@ import { MenuManager } from "@/components/menu-manager";
 import { ProductSheet } from "@/components/order/ProductSheet";
 import { formatShiftOpenedAt, ShiftCloseSheet, ShiftOpenSheet, useShiftStatus, type CloseRecap } from "@/components/pos-shift";
 import { useDialogFocus } from "@/components/use-dialog-focus";
+import { ConfirmSheet, type ConfirmState } from "@/components/pos-confirm-sheet";
 
 type NavItem = "Overview" | "Orders" | "POS" | "Menu" | "Reports";
 type Detail = {
@@ -115,7 +116,21 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   const noticeTimer = useRef<number | null>(null);
   const { shift, refresh: refreshShift } = useShiftStatus(showNotice);
   const [shiftSheet, setShiftSheet] = useState<"open" | "close" | null>(null);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const cashierOpen = shift?.open === true;
+
+  async function doLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      /* revoke failed — still bounce to login; session cookie stays httpOnly */
+    } finally {
+      window.location.href = "/login";
+    }
+  }
 
   function showNotice(message: string) {
     if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
@@ -211,19 +226,25 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   }
 
   const navItems = (Object.keys(NAV_LABEL) as NavItem[]).filter((item) => role === "admin" || (item !== "Menu" && item !== "Reports"));
-  const isOverview = nav === "Overview";
-  const isOrders = nav === "Orders";
 
   return (
     <div className="flex h-[100dvh] max-h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden bg-[#FAF7F1] text-[#1C1917] antialiased lg:h-auto lg:max-h-none lg:min-h-screen lg:overflow-visible lg:pl-[266px]">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden h-screen w-[266px] flex-col overflow-y-auto border-r border-[#EFE7D6] bg-[#FAF7F1] px-5 py-8 lg:flex">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[15px] font-medium tracking-tight">Tempat Taichan</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-medium tracking-tight">Tempat Taichan</p>
             <p className="mt-1 text-xs text-[#A8A29E]">{role === "admin" ? "Administrator" : "Staff"}</p>
           </div>
-          <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#FDBD2C]" />
+          <button
+            type="button"
+            onClick={() => setConfirmLogout(true)}
+            aria-label="Keluar"
+            title="Keluar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F3EFE6] text-[13px] font-medium text-[#78716C] transition active:scale-95"
+          >
+            {role === "admin" ? "A" : "S"}
+          </button>
         </div>
         <nav aria-label="Navigasi workspace" className="mt-10 space-y-1">
           {navItems.map((item) => {
@@ -260,6 +281,14 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
           <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
           <span className="flex-1 text-left">{cashierOpen ? "Tutup kasir" : "Buka kasir"}</span>
         </button>
+        <button
+          type="button"
+          onClick={() => setConfirmLogout(true)}
+          className="mt-1 flex w-full items-center gap-3 rounded-full px-3.5 py-2 text-[13px] font-normal text-[#78716C] transition active:scale-[0.98]"
+        >
+          <LogOut size={17} strokeWidth={1.6} className="text-[#A8A29E]" />
+          <span className="flex-1 text-left">Keluar</span>
+        </button>
         <p className="mt-4 text-xs leading-relaxed text-[#A8A29E]">
           {activeCount} pesanan aktif
           <br />
@@ -268,81 +297,37 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:block lg:min-h-screen">
-        {/* Mobile top bar */}
-        <header className={cn(
-          "shrink-0 border-b border-[#EFE7D6] bg-[#FAF7F1]/90 backdrop-blur-md lg:hidden",
-          isOverview
-            ? "px-5 pb-2 pt-[max(1.25rem,env(safe-area-inset-top))]"
-            : isOrders
-              ? "px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))]"
-              : "px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))]",
-        )}>
-          {isOverview ? (
-            <div className="flex items-center justify-between gap-2.5">
-              <div className="min-w-0 flex-1 pt-1">
-                <p className="truncate text-[22px] font-medium leading-snug tracking-tight text-[#1C1917]">
-                  {jakartaGreeting()}
-                </p>
-                <p className="mt-1 text-[13px] leading-tight tabular-nums text-[#78716C]">{formatMobileDate(date)}</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))}
-                  className="flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-[#FDBD2C] px-3.5 text-[13px] font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
-                >
-                  <Plus size={16} strokeWidth={2} />
-                  {cashierOpen ? "Pesanan baru" : "Buka kasir"}
-                </button>
-              </div>
+        {/* Mobile top bar — same typography + structure across all 5 menus */}
+        <header className="shrink-0 border-b border-[#EFE7D6] bg-[#FAF7F1]/90 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md lg:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-[22px] font-medium leading-snug tracking-tight text-[#1C1917]">{pageTitle(nav)}</h1>
+              <p className="mt-1 text-[13px] leading-tight tabular-nums text-[#78716C]">
+                <MetaInline parts={[`${activeCount} aktif`, formatMobileDate(date)]} />
+              </p>
             </div>
-          ) : isOrders ? (
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <h1 className="truncate text-[22px] font-medium leading-snug tracking-tight text-[#1C1917]">Pesanan</h1>
-                <p className="mt-1 text-[13px] leading-tight tabular-nums text-[#78716C]"><MetaInline parts={[`${activeCount} aktif`, formatOrdersHeaderDate(date)]} /></p>
-              </div>
-              <button
-                type="button"
-                onClick={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))}
-                className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-4 text-sm font-medium leading-none text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
-              >
-                <Plus size={16} strokeWidth={2} />
-                {cashierOpen ? "Pesanan baru" : "Buka kasir"}
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex min-w-0 items-center gap-2">
-                  <p className="truncate text-[15px] font-medium tracking-tight"><span aria-hidden="true" className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#FDBD2C] align-middle" />{pageTitle(nav)}</p>
-                  <button
-                    type="button"
-                    onClick={() => setShiftSheet(cashierOpen ? "close" : "open")}
-                    className={cn(
-                      "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium leading-none",
-                      cashierOpen ? "bg-[#F3EFE6] text-[#78716C]" : "bg-[#FDBD2C]/20 text-[#1C1917]",
-                    )}
-                  >
-                    {cashierOpen ? "Buka" : "Tutup"}
-                  </button>
-                </div>
-                <p className="mt-0.5 text-xs tabular-nums text-[#A8A29E]">
-                  <MetaInline parts={[`${activeCount} aktif`, date]} />
-                </p>
-              </div>
+            <div className="flex shrink-0 items-center gap-2">
               {nav !== "POS" && (
                 <button
                   type="button"
                   onClick={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))}
-                  className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-5 text-[13px] font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
+                  className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#FDBD2C] px-4 text-sm font-medium leading-none text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
                 >
                   <Plus size={16} strokeWidth={2} />
                   {cashierOpen ? "Pesanan baru" : "Buka kasir"}
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(true)}
+                aria-label="Keluar"
+                title="Keluar"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F3EFE6] text-[13px] font-medium text-[#78716C] transition active:scale-95"
+              >
+                {role === "admin" ? "A" : "S"}
+              </button>
             </div>
-          )}
+          </div>
         </header>
 
         {/* Desktop top bar */}
@@ -375,9 +360,15 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                 <Plus size={17} strokeWidth={2} />
                 Pesanan baru
               </button>
-              <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F3EFE6] text-[#78716C]">
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(true)}
+                aria-label="Keluar"
+                title="Keluar"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F3EFE6] text-[13px] font-medium text-[#78716C] transition active:scale-95"
+              >
                 {role === "admin" ? "A" : "S"}
-              </span>
+              </button>
             </div>
           </div>
         </header>
@@ -386,9 +377,9 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
         <main
           className={cn(
             "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain mx-auto w-full max-w-[1540px] lg:min-h-0 lg:flex-none lg:overflow-visible lg:px-8 xl:px-12 2xl:px-[74px] lg:pb-20",
-            isOverview
+            nav === "Overview"
                 ? "px-4 pb-[calc(96px+env(safe-area-inset-bottom))] pt-3"
-                : isOrders
+                : nav === "Orders"
                 ? "px-5 pb-[calc(160px+env(safe-area-inset-bottom))] pt-6"
                 : "px-5 pb-[calc(128px+env(safe-area-inset-bottom))] pt-6",
             nav === "Orders" || nav === "Menu" ? "lg:pt-3" : "lg:pt-10",
@@ -421,19 +412,41 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
         </main>
       </div>
 
-      {/* Mobile bottom tabs */}
+      {/* Mobile bottom tabs — Kasir is the primary action: bigger yellow circle */}
       <nav aria-label="Navigasi workspace" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#EFE7D6] bg-[#FAF7F1]/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
-        <div className={cn("mx-auto grid w-full max-w-[440px] gap-1", navItems.length === 3 ? "grid-cols-3" : "grid-cols-5")}>
+        <div className={cn("mx-auto grid w-full max-w-[440px] items-end gap-1", navItems.length === 3 ? "grid-cols-3" : "grid-cols-5")}>
           {navItems.map((item) => {
-            const Icon = item === "Overview" ? Home : NAV_ICON[item];
             const active = nav === item;
+            if (item === "POS") {
+              return (
+                <button
+                  type="button"
+                  key={item}
+                  onClick={() => setNav(item)}
+                  aria-current={active ? "page" : undefined}
+                  aria-label="Kasir"
+                  className="relative flex min-h-[56px] flex-col items-center justify-center gap-1.5 rounded-2xl py-1 active:scale-[0.98]"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FDBD2C] text-[#1C1917] shadow-[0_6px_16px_rgba(253,189,44,0.35)]"
+                  >
+                    <Plus size={24} strokeWidth={2.2} />
+                  </span>
+                  <span className={cn("text-[11px] leading-none", active ? "font-medium text-[#1C1917]" : "font-normal text-[#78716C]")}>
+                    {NAV_SHORT_LABEL[item]}
+                  </span>
+                </button>
+              );
+            }
+            const Icon = item === "Overview" ? Home : NAV_ICON[item];
             return (
               <button
                 type="button"
                 key={item}
                 onClick={() => setNav(item)}
                 aria-current={active ? "page" : undefined}
-                className="relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-2xl py-2"
+                className="relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-2xl py-2 active:scale-[0.98]"
               >
                 <Icon size={20} strokeWidth={active ? 2 : 1.6} className={active ? "text-[#1C1917]" : "text-[#A8A29E]"} />
                 <span className={cn("flex items-center gap-1 text-[11px] leading-none", active ? "font-medium text-[#1C1917]" : "font-normal text-[#A8A29E]")}>
@@ -473,6 +486,22 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
           }}
         />
       )}
+
+      <ConfirmSheet
+        confirm={
+          confirmLogout
+            ? {
+                title: "Keluar dari workspace?",
+                description: "Sesi staff ini akan diakhiri. Masuk lagi untuk melanjutkan.",
+                confirmLabel: loggingOut ? "Keluar…" : "Keluar",
+                onConfirm: () => void doLogout(),
+              }
+            : null
+        }
+        onClose={() => {
+          if (!loggingOut) setConfirmLogout(false);
+        }}
+      />
 
       {notice && (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-5">
@@ -580,8 +609,6 @@ function ListSkeleton({ rows = 3 }: { rows?: number }) {
     </div>
   );
 }
-
-import { ConfirmSheet, type ConfirmState } from "@/components/pos-confirm-sheet";
 
 function SearchField({ value, onChange, placeholder, id = "workspace-search", onScan }: { value: string; onChange: (v: string) => void; placeholder: string; id?: string; ordersStyle?: boolean; onScan?: () => void }) {
   return (
@@ -2503,12 +2530,6 @@ function formatMobileDate(date: string) {
   const parsed = new Date(`${date}T12:00:00+07:00`);
   if (Number.isNaN(parsed.getTime())) return date;
   return new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(parsed);
-}
-
-function formatOrdersHeaderDate(date: string) {
-  const parsed = new Date(`${date}T12:00:00+07:00`);
-  if (Number.isNaN(parsed.getTime())) return date;
-  return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(parsed);
 }
 
 function jakartaGreeting() {
