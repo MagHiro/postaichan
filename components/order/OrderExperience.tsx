@@ -7,7 +7,6 @@ import { formatCompactIDR } from "@/lib/format";
 import type { CartItem, Category, Product } from "@/lib/types";
 import { buildCartItem } from "@/lib/domain/cart";
 import { cn } from "@/lib/utils";
-import { WarmSelect } from "@/components/warm-select";
 import {
   ALL_CATEGORIES_ID,
   matchesOrderCategory,
@@ -41,11 +40,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const [step, setStep] = useState<OrderStep>("menu");
   const [session, setSession] = useState<{
     token: string;
-    tableId: string | null;
     tableLabel: string | null;
   } | null>(null);
-  const [tables, setTables] = useState<Array<{ id: string; label: string }>>([]);
-  const [tableId, setTableId] = useState<string | null>(null);
   const [payment, setPayment] = useState<PaymentAttempt | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
@@ -107,39 +103,13 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
   useEffect(() => {
     let active = true;
-    fetch("/api/tables", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload) => {
-        if (active) setTables(payload?.tables ?? []);
-      })
-      .catch(() => { /* Table picker stays optional when offline. */ });
-    return () => { active = false; };
-  }, []);
-
-  async function createSession(nextTableId: string | null) {
-    setSession(null);
-    setSessionError(null);
-    const response = await fetch("/api/customer/session", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ tableToken: tableToken ?? undefined, generalToken, tableId: nextTableId ?? undefined }),
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok || !payload?.sessionToken) throw new Error(payload?.error ?? "QR pemesanan belum dapat digunakan.");
-    setSession({ token: payload.sessionToken, tableId: nextTableId, tableLabel: payload.tableLabel ?? null });
-    window.sessionStorage.setItem("tt-session", JSON.stringify({ token: payload.sessionToken, tableToken, generalToken, tableId: nextTableId, tableLabel: payload.tableLabel ?? null, expiresAt: payload.expiresAt }));
-  }
-
-  useEffect(() => {
-    let active = true;
     const stored = window.sessionStorage.getItem("tt-session");
     if (stored) {
       try {
-        const value = JSON.parse(stored) as { token: string; tableToken?: string; generalToken?: string; tableId?: string | null; tableLabel?: string | null; expiresAt?: string };
+        const value = JSON.parse(stored) as { token: string; tableToken?: string; generalToken?: string; tableLabel?: string | null; expiresAt?: string };
         if (value.tableToken === tableToken && value.generalToken === generalToken && (!value.expiresAt || new Date(value.expiresAt).getTime() > Date.now())) {
           setSessionError(null);
-          setSession({ token: value.token, tableId: value.tableId ?? null, tableLabel: value.tableLabel ?? null });
-          setTableId(value.tableId ?? null);
+          setSession({ token: value.token, tableLabel: value.tableLabel ?? null });
           return () => { active = false; };
         }
       } catch { window.sessionStorage.removeItem("tt-session"); }
@@ -154,8 +124,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         const payload = await response.json().catch(() => null);
         if (!response.ok || !payload?.sessionToken) throw new Error(payload?.error ?? "QR pemesanan belum dapat digunakan.");
         if (!active) return;
-        setSession({ token: payload.sessionToken, tableId: null, tableLabel: payload.tableLabel ?? null });
-        window.sessionStorage.setItem("tt-session", JSON.stringify({ token: payload.sessionToken, tableToken, generalToken, tableId: null, tableLabel: payload.tableLabel ?? null, expiresAt: payload.expiresAt }));
+        setSession({ token: payload.sessionToken, tableLabel: payload.tableLabel ?? null });
+        window.sessionStorage.setItem("tt-session", JSON.stringify({ token: payload.sessionToken, tableToken, generalToken, tableLabel: payload.tableLabel ?? null, expiresAt: payload.expiresAt }));
       } catch {
         if (active) { setSession(null); setSessionError("QR pemesanan sudah tidak aktif. Minta QR terbaru dari kasir."); }
       }
@@ -164,18 +134,6 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
       active = false;
     };
   }, [tableToken, generalToken]);
-
-  async function changeTable(nextTableId: string | null) {
-    setTableId(nextTableId);
-    resetCheckoutIntent();
-    try {
-      await createSession(nextTableId);
-      setSessionError(null);
-    } catch {
-      setSession(null);
-      setSessionError("Meja belum dapat dipakai. Pilih meja lain atau lanjut tanpa meja.");
-    }
-  }
 
   useEffect(() => {
     if (!session) return;
@@ -346,7 +304,6 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
           body: JSON.stringify({
             tableToken: tableToken ?? undefined,
             generalToken,
-            tableId: tableId ?? undefined,
           }),
         });
         const sessionPayload = await sessionResponse.json();
@@ -355,7 +312,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
             sessionPayload.error ?? "Pesanan belum dapat dimulai. Coba lagi.",
           );
         activeSessionToken = sessionPayload.sessionToken as string;
-          setSession({ token: activeSessionToken as string, tableId: tableId ?? null, tableLabel: sessionPayload.tableLabel ?? null });
+          setSession({ token: activeSessionToken as string, tableLabel: sessionPayload.tableLabel ?? null });
       }
       if (!checkoutIntentKey.current) checkoutIntentKey.current = crypto.randomUUID();
       const response = await fetch("/api/checkout", {
@@ -485,8 +442,6 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
   const activeCategoryName = categories.find((item) => item.id === category)?.name;
   const menuTitle = !category || category === ALL_CATEGORIES_ID ? "Menu" : (activeCategoryName ?? "Menu");
-  const tableLocked = Boolean(tableToken);
-  const tableOptions = [{ value: "", label: "Tanpa meja / walk-in" }, ...tables.map((table) => ({ value: table.id, label: table.label }))];
 
   return (
     <main className="flex min-h-screen justify-center bg-[#FAF7F1] text-[#1C1917] antialiased selection:bg-[#FDBD2C] selection:text-[#1C1917]">
@@ -503,18 +458,6 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                 </span>
               )}
             </div>
-            {!tableLocked && (
-              <div className="mt-3">
-                <WarmSelect
-                  id="customer-table"
-                  label="Meja"
-                  value={tableId ?? ""}
-                  onChange={(next) => void changeTable(next || null)}
-                  placeholder="Pilih meja — opsional"
-                  options={tableOptions}
-                />
-              </div>
-            )}
             {sessionError && <div role="alert" className="mt-3 text-center text-[13px] leading-relaxed text-[#78716C]">{sessionError}</div>}
           </div>
         </header>

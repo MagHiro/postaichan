@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
-import { Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, LogOut, Minus, Package, Plus, QrCode, ReceiptText, RefreshCw, Search, ShoppingBag, Store, TrendingUp, Wallet, X } from "lucide-react";
+import { Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, LogOut, Minus, Package, Plus, Power, QrCode, ReceiptText, RefreshCw, Search, Settings, ShoppingBag, Store, TrendingUp, Wallet, X } from "lucide-react";
 import { formatCompactIDR, formatCountdown, formatIDR } from "@/lib/format";
 import type { CartItem, Category, Order, Product } from "@/lib/types";
 import { ALL_CATEGORIES_ID } from "@/components/order/constants";
@@ -307,7 +307,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
             );
           })}
         </nav>
-        {role === "admin" && <a href="/admin" className="mt-4 flex items-center gap-3 rounded-full px-3.5 py-2 text-[13px] text-[#78716C]"><span>Admin / Pengaturan</span></a>}
+        {role === "admin" && <a href="/admin" className="mt-4 flex items-center gap-3 rounded-full px-3.5 py-2 text-[13px] text-[#78716C]"><Settings size={17} strokeWidth={1.6} className="text-[#A8A29E]" /><span>Admin / Pengaturan</span></a>}
         <button
           type="button"
           onClick={() => setShiftSheet(cashierOpen ? "close" : "open")}
@@ -316,7 +316,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
             cashierOpen ? "font-normal text-[#78716C]" : "bg-[#FDBD2C]/20 font-medium text-[#1C1917]",
           )}
         >
-          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+          <Power size={17} strokeWidth={cashierOpen ? 1.6 : 2} className="text-[#A8A29E]" />
           <span className="flex-1 text-left">{cashierOpen ? "Tutup kasir" : "Buka kasir"}</span>
         </button>
         <button
