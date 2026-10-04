@@ -1,9 +1,10 @@
 import "server-only";
 
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
+import { query } from "@/lib/db";
 
 export const MENU_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 const MENU_UPLOAD_DIRECTORY = path.resolve(process.cwd(), "public", "uploads", "menu");
@@ -58,20 +59,32 @@ export async function storeMenuImage(file: File) {
   }
 
   const imagePath = `/uploads/menu/${randomUUID()}.webp`;
-  const absolutePath = absolutePathForMenuImage(imagePath);
   try {
-    await mkdir(MENU_UPLOAD_DIRECTORY, { recursive: true });
-    await writeFile(absolutePath, output, { flag: "wx", mode: 0o644 });
+    await query("insert into public.menu_images(image_path, data) values ($1, $2)", [imagePath, output]);
   } catch (error) {
     console.error("menu_image_storage_failed", error);
-    throw new MenuImageStorageError("Penyimpanan gambar tidak tersedia. Periksa izin folder public/uploads/menu di server.");
+    throw new MenuImageStorageError("Penyimpanan gambar tidak tersedia. Pastikan migrasi database terbaru sudah diterapkan.");
   }
-  return { imagePath, absolutePath };
+  return { imagePath };
+}
+
+export async function readMenuImage(imagePath: string): Promise<Buffer | null> {
+  if (!isMenuImagePath(imagePath)) return null;
+  const result = await query<{ data: Buffer }>("select data from public.menu_images where image_path = $1", [imagePath]);
+  if (result.rows[0]) return result.rows[0].data;
+  // Preserve images created by older local/self-hosted releases.
+  try {
+    return await readFile(absolutePathForMenuImage(imagePath));
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return null;
+    throw error;
+  }
 }
 
 export async function removeMenuImage(imagePath: string | null | undefined) {
   if (!imagePath || !isMenuImagePath(imagePath)) return;
   try {
+    await query("delete from public.menu_images where image_path = $1 and not exists (select 1 from public.products where image_path = $1)", [imagePath]);
     await rm(absolutePathForMenuImage(imagePath), { force: true });
   } catch {
     // Cleanup is best effort. The database never receives an unsafe path.

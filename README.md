@@ -48,7 +48,7 @@ npm run db:down
 
 The application owns staff authentication. Cookies contain opaque database-session tokens and are `HttpOnly`, `SameSite=Lax`, and secure in production. Staff roles are checked on server-rendered pages, route handlers, and transactional database functions.
 
-Menu images are sanitized WebP files under `public/uploads/menu`. The deployment must provide a writable, durable filesystem for this directory; immutable/serverless runtimes need a different storage adapter before production use.
+Menu images are sanitized WebP images stored in PostgreSQL (`public.menu_images`) and served at `/uploads/menu/<id>.webp`. This works on Vercel without filesystem writes or additional storage credentials. Apply database migrations, including `029_menu_image_database_storage.sql`, to the deployment database before deploying this version. Existing local images under `public/uploads/menu` remain readable.
 
 Use database backups, monitoring, secret rotation, and a tested restore procedure before launch. The compose file is intended for local/single-host operation, not as a complete production orchestration policy.
 
