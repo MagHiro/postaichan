@@ -4,7 +4,7 @@ import { databaseErrorCode, query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { createOpaqueToken, hashOpaqueToken } from "@/lib/domain/tokens";
 import { tableMutationSchema } from "@/lib/menu-schema";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
@@ -15,7 +15,7 @@ export async function PATCH(request: Request, { params }: Context) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Meja tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = tableMutationSchema.partial().safeParse(await request.json().catch(() => null));
+  const parsed = tableMutationSchema.partial().safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Data meja belum lengkap atau tidak valid." }, { status: 400, headers: noStoreHeaders() });
   let result;
   try {

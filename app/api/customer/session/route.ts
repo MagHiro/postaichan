@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { createOpaqueToken, hashOpaqueToken } from "@/lib/domain/tokens";
-import { consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 import { customerSessionSchema } from "@/lib/schemas";
 
 export const runtime = "nodejs";
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = customerSessionSchema.safeParse(await request.json().catch(() => null));
+  const parsed = customerSessionSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Sesi pemesanan tidak valid." }, { status: 400, headers: noStoreHeaders() });
   try {
     if (!(await consumeRateLimit(request, "customer-session", 12, 300))) return NextResponse.json({ error: "Terlalu banyak percobaan. Coba lagi sebentar." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "300" } });

@@ -44,7 +44,7 @@ export async function storeMenuImage(file: File) {
     if (!metadata.format || !["jpeg", "png", "webp"].includes(metadata.format) || !metadata.width || !metadata.height || metadata.width < 1 || metadata.height < 1) {
       throw new MenuImageError("File gambar tidak valid.");
     }
-    output = await image.rotate().webp({ quality: 84, effort: 4 }).toBuffer();
+    output = await image.rotate().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).webp({ quality: 84, effort: 4 }).toBuffer();
   } catch (error) {
     if (error instanceof MenuImageError) throw error;
     throw new MenuImageError("File gambar tidak valid atau rusak.");

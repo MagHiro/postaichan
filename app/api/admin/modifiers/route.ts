@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { modifierGroupMutationSchema } from "@/lib/menu-schema";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   const auth = await adminAuth();
   if (!auth.allowed) return failure(auth);
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = modifierGroupMutationSchema.safeParse(await request.json().catch(() => null));
+  const parsed = modifierGroupMutationSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Data opsi belum lengkap atau tidak valid." }, { status: 400, headers: noStoreHeaders() });
   const input = parsed.data;
   try {

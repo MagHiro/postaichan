@@ -3,7 +3,7 @@ import { z } from "zod";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { query } from "@/lib/db";
 import { productMutationSchema } from "@/lib/menu-schema";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 import { isMenuImagePath, removeMenuImage } from "@/lib/uploads/menu-storage";
 
 export const runtime = "nodejs";
@@ -30,7 +30,7 @@ export async function PATCH(request: Request, context: Context) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await context.params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Product not found." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = productMutationSchema.partial().safeParse(await request.json().catch(() => null));
+  const parsed = productMutationSchema.partial().safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Perubahan menu tidak valid." }, { status: 400, headers: noStoreHeaders() });
   const input = parsed.data;
   try {

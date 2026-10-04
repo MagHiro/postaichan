@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { databaseErrorCode, query } from "@/lib/db";
 import { midtransWebhookSchema } from "@/lib/schemas";
 import { paymentStatusFromProvider } from "@/lib/domain/payment-state";
-import { noStoreHeaders } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
@@ -16,7 +16,7 @@ function safeEqual(left: string, right: string) {
 export async function POST(request: Request) {
   const serverKey = process.env.MIDTRANS_SERVER_KEY;
   if (!serverKey) return NextResponse.json({ error: "Webhook is not configured." }, { status: 503, headers: noStoreHeaders() });
-  const body = await request.json().catch(() => null);
+  const body = await readJsonBody(request);
   const parsed = midtransWebhookSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid notification" }, { status: 400, headers: noStoreHeaders() });
   const event = parsed.data;

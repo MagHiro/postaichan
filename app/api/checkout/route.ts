@@ -5,7 +5,7 @@ import { checkoutSchema } from "@/lib/schemas";
 import { presentQrMaterial } from "@/lib/payments/qr";
 import { describeMidtransError, MidtransProvider } from "@/lib/payments/midtrans";
 import { hashOpaqueToken } from "@/lib/domain/tokens";
-import { consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 import { checkoutDatabaseFailure, checkoutIntentMissing, checkoutQrMissing, checkoutUnexpectedFailure, invalidCheckoutInput } from "@/lib/domain/checkout-errors";
 
 export const runtime = "nodejs";
@@ -21,7 +21,7 @@ function fingerprint(input: { orderType: string; items: Array<{ productId: strin
 }
 
 export async function POST(request: Request) {
-  const parsed = checkoutSchema.safeParse(await request.json().catch(() => null));
+  const parsed = checkoutSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) {
     const failure = invalidCheckoutInput(parsed.error.issues[0]);
     return NextResponse.json(failure, { status: failure.status, headers: noStoreHeaders() });

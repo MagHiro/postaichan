@@ -4,7 +4,7 @@ import { databaseErrorCode, query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { createOpaqueToken, hashOpaqueToken } from "@/lib/domain/tokens";
 import { tableMutationSchema } from "@/lib/menu-schema";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 const createSchema = tableMutationSchema.extend({ active: z.boolean().optional().default(true) });
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   const auth = await authorizeStaff("admin");
   if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = createSchema.safeParse(await request.json().catch(() => null));
+  const parsed = createSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Data meja belum lengkap atau tidak valid." }, { status: 400, headers: noStoreHeaders() });
   const rawToken = createOpaqueToken(32);
   let result;

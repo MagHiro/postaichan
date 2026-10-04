@@ -6,7 +6,7 @@ import { cashierOrderSchema } from "@/lib/schemas";
 import { jakartaDayRange } from "@/lib/reports";
 import { describeMidtransError, MidtransProvider } from "@/lib/payments/midtrans";
 import { presentQrMaterial } from "@/lib/payments/qr";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 import { checkoutDatabaseFailure, checkoutIntentMissing, checkoutQrMissing, checkoutUnexpectedFailure, invalidCheckoutInput } from "@/lib/domain/checkout-errors";
 
 export const runtime = "nodejs";
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   const auth = await authorizeStaff();
   if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = cashierOrderSchema.safeParse(await request.json().catch(() => null));
+  const parsed = cashierOrderSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) {
     const failure = invalidCheckoutInput(parsed.error.issues[0]);
     return NextResponse.json(failure, { status: failure.status, headers: noStoreHeaders() });

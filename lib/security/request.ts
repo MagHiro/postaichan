@@ -1,26 +1,21 @@
-import { createHash } from "node:crypto";
 import { query } from "@/lib/db";
+import { rateLimitKey, requestAddress } from "./http";
+export { sameOrigin, readJsonBody } from "./http";
 
 export function noStoreHeaders() {
   return { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
 }
 
 export function clientBucket(request: Request, scope: string) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const address = forwarded || request.headers.get("x-real-ip") || "unknown";
-  return `${scope}:${createHash("sha256").update(address).digest("hex").slice(0, 32)}`;
+  return rateLimitKey(scope, requestAddress(request));
 }
 
-export function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return true;
-  const host = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() || request.headers.get("host");
-  if (!host) return false;
-  try { return new URL(origin).host === host; } catch { return false; }
+export async function consumeIdentityRateLimit(scope: string, identity: string, limit: number, windowSeconds: number) {
+  const result = await query<{ consume_rate_limit: boolean }>("select public.consume_rate_limit($1, $2, $3) as consume_rate_limit", [rateLimitKey(scope, identity), limit, windowSeconds]);
+  return result.rows[0]?.consume_rate_limit === true;
 }
 
 export async function consumeRateLimit(request: Request, scope: string, limit: number, windowSeconds: number, extra = "") {
-  const bucket = `${clientBucket(request, scope)}:${extra}`;
-  const result = await query<{ consume_rate_limit: boolean }>("select public.consume_rate_limit($1, $2, $3) as consume_rate_limit", [bucket, limit, windowSeconds]);
-  return result.rows[0]?.consume_rate_limit === true;
+  // An authenticated identity is limited independently of its network address.
+  return consumeIdentityRateLimit(scope, extra || requestAddress(request), limit, windowSeconds);
 }

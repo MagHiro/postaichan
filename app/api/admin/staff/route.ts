@@ -3,7 +3,7 @@ import { z } from "zod";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { hashPassword } from "@/lib/auth/password";
 import { databaseErrorCode, query, withTransaction } from "@/lib/db";
-import { consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const auth = await authorizeStaff("admin");
   if (!auth.allowed) return failure(auth);
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = createSchema.safeParse(await request.json().catch(() => null));
+  const parsed = createSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Nama, email, password awal, dan role harus valid." }, { status: 400, headers: noStoreHeaders() });
   try {
     if (!(await consumeRateLimit(request, "staff-create", 8, 900, auth.actorId ?? "dev"))) return NextResponse.json({ error: "Terlalu banyak pembuatan akun. Coba lagi nanti." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "900" } });

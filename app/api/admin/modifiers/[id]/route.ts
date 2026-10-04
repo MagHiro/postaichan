@@ -3,7 +3,7 @@ import { z } from "zod";
 import { query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { modifierGroupMutationSchema } from "@/lib/menu-schema";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
@@ -18,7 +18,7 @@ export async function PATCH(request: Request, { params }: Context) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!modifierId(id)) return NextResponse.json({ error: "Grup opsi tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = modifierGroupMutationSchema.partial().safeParse(await request.json().catch(() => null));
+  const parsed = modifierGroupMutationSchema.partial().safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Perubahan opsi tidak valid." }, { status: 400, headers: noStoreHeaders() });
   const input = parsed.data;
   if (!input.kind) return NextResponse.json({ error: "Jenis grup (variant/addon) wajib diisi." }, { status: 400, headers: noStoreHeaders() });

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { productModifiersSchema } from "@/lib/menu-schema";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
@@ -36,7 +36,7 @@ export async function PUT(request: Request, { params }: Context) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Product not found." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = productModifiersSchema.safeParse(await request.json().catch(() => null));
+  const parsed = productModifiersSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Data opsi produk tidak valid." }, { status: 400, headers: noStoreHeaders() });
   try {
     const result = await query<{ set_product_modifier_groups: boolean }>(

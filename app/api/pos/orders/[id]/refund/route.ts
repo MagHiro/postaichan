@@ -3,7 +3,7 @@ import { z } from "zod";
 import { query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { MidtransProvider } from "@/lib/payments/midtrans";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 const schema = z.object({ amountIdr: z.number().int().positive().max(2_000_000_000), reason: z.string().trim().min(3).max(240) }).strict();
@@ -14,7 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Order not found." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = schema.safeParse(await request.json().catch(() => null));
+  const parsed = schema.safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Refund amount and reason are required." }, { status: 400, headers: noStoreHeaders() });
   try {
     const paymentResult = await query<{ id: string; method: string; provider: string; status: string; provider_order_id: string }>("select id, method, provider, status, provider_order_id from public.payments where order_id = $1 and status in ('settled', 'partially_refunded') order by created_at desc limit 1", [id]);

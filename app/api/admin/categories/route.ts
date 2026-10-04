@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { databaseErrorCode, query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { categoryMutationSchema } from "@/lib/menu-schema";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const auth = await authorizeStaff("admin");
   if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = categoryMutationSchema.safeParse(await request.json().catch(() => null));
+  const parsed = categoryMutationSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Data kategori belum lengkap atau tidak valid." }, { status: 400, headers: noStoreHeaders() });
   try {
     const result = await query("select * from public.create_category($1, $2, $3, $4::uuid)", [parsed.data.name, parsed.data.description ?? null, parsed.data.displayOrder ?? 0, auth.actorId]);

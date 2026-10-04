@@ -3,7 +3,7 @@ import { z } from "zod";
 import { databaseErrorCode, query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { categoryMutationSchema } from "@/lib/menu-schema";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
@@ -18,7 +18,7 @@ export async function PATCH(request: Request, { params }: Context) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!categoryId(id)) return NextResponse.json({ error: "Kategori tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = categoryMutationSchema.partial().safeParse(await request.json().catch(() => null));
+  const parsed = categoryMutationSchema.partial().safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Perubahan kategori tidak valid." }, { status: 400, headers: noStoreHeaders() });
   try {
     const descriptionSet = parsed.data.description !== undefined;

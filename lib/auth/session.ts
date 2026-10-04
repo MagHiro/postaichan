@@ -16,19 +16,19 @@ export type CurrentStaff = {
 
 export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   const token = (await cookies()).get(STAFF_SESSION_COOKIE)?.value;
-  if (!token) return null;
+  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
   const result = await query<CurrentStaff>(
     `select u.id, u.email, p.display_name, p.role, p.active
      from public.staff_sessions s
      join public.staff_users u on u.id = s.staff_user_id
      join public.profiles p on p.id = u.id
-     where s.token_hash = $1 and s.revoked_at is null and s.expires_at > timezone('utc', now())
+     where p.active = true and u.email_confirmed = true and s.token_hash = $1 and s.revoked_at is null and s.expires_at > timezone('utc', now())
      limit 1`,
     [hashOpaqueToken(token)],
   );
   const staff = result.rows[0] ?? null;
   if (staff) {
-    void query("update public.staff_sessions set last_seen_at = timezone('utc', now()) where token_hash = $1", [hashOpaqueToken(token)]).catch(() => undefined);
+    void query("update public.staff_sessions set last_seen_at = timezone('utc', now()) where token_hash = $1 and last_seen_at < timezone('utc', now()) - interval '5 minutes'", [hashOpaqueToken(token)]).catch(() => undefined);
   }
   return staff;
 }

@@ -4,7 +4,7 @@ import { query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { uuidParamSchema } from "@/lib/schemas";
 import { describeMidtransError, MidtransProvider } from "@/lib/payments/midtrans";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 const statusSchema = z.object({ status: z.enum(["accepted", "processing", "ready", "completed", "cancelled"]) }).strict();
@@ -15,7 +15,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!uuidParamSchema.safeParse(id).success) return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = statusSchema.safeParse(await request.json().catch(() => null));
+  const parsed = statusSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Status pesanan tidak valid." }, { status: 400, headers: noStoreHeaders() });
   try {
     const current = await query<{ status: string; payment_status: string | null; provider: string | null; provider_order_id: string | null }>(

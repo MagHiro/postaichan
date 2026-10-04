@@ -31,10 +31,12 @@ export async function hashPassword(password: string) {
 
 export async function verifyPassword(password: string, encodedHash: string) {
   try {
-    const [algorithm, n, r, p, encodedSalt, encodedKey] = encodedHash.split("$");
+    const parts = encodedHash.split("$");
+    if (parts.length !== 6) return false;
+    const [algorithm, n, r, p, encodedSalt, encodedKey] = parts;
     if (algorithm !== "scrypt" || Number(n) !== SCRYPT_N || Number(r) !== SCRYPT_R || Number(p) !== SCRYPT_P || !encodedSalt || !encodedKey) return false;
     const expected = decode(encodedKey);
-    if (expected.length !== KEY_LENGTH) return false;
+    if (decode(encodedSalt).length !== 16 || expected.length !== KEY_LENGTH) return false;
     const actual = await derive(password, decode(encodedSalt), { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P, maxmem: 64 * 1024 * 1024 });
     return timingSafeEqual(expected, actual);
   } catch {

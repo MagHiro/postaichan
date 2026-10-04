@@ -3,7 +3,7 @@ import { z } from "zod";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { createOpaqueToken, hashOpaqueToken } from "@/lib/domain/tokens";
 import { databaseErrorCode, query } from "@/lib/db";
-import { consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 const schema = z.object({ label: z.string().trim().min(1).max(80) }).strict();
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   const auth = await authorizeStaff("admin");
   if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = schema.safeParse(await request.json().catch(() => null));
+  const parsed = schema.safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Label QR umum wajib diisi." }, { status: 400, headers: noStoreHeaders() });
   try {
     if (!(await consumeRateLimit(request, "general-qr-create", 12, 900, auth.actorId ?? "dev"))) return NextResponse.json({ error: "Terlalu banyak pembuatan QR. Coba lagi nanti." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "900" } });

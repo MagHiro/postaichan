@@ -3,7 +3,7 @@ import { z } from "zod";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { createOpaqueToken, hashOpaqueToken } from "@/lib/domain/tokens";
 import { databaseErrorCode, query } from "@/lib/db";
-import { noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
 export const runtime = "nodejs";
 const updateSchema = z.object({ label: z.string().trim().min(1).max(80).optional(), active: z.boolean().optional() }).strict().refine((value) => value.label !== undefined || value.active !== undefined, "Change required");
@@ -14,7 +14,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "QR umum tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = updateSchema.safeParse(await request.json().catch(() => null));
+  const parsed = updateSchema.safeParse(await readJsonBody(request));
   if (!parsed.success) return NextResponse.json({ error: "Perubahan QR tidak valid." }, { status: 400, headers: noStoreHeaders() });
   let result;
   try {

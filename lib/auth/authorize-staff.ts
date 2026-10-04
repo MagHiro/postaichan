@@ -29,7 +29,7 @@ export async function authorizeStaff(requiredRole: RequiredRole = "operator"): P
   }
   const staff = await getCurrentStaff();
   if (!staff) return { allowed: false, authenticated: false, actorId: null, role: null };
-  const allowed = requiredRole === "operator" || staff.role === "admin";
+  const allowed = staff.active && (requiredRole === "operator" || staff.role === "admin");
   return { allowed, authenticated: true, actorId: staff.id, role: staff.role };
 }
 
