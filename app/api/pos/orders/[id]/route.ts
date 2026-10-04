@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureMessage, authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { uuidParamSchema } from "@/lib/schemas";
 import { noStoreHeaders } from "@/lib/security/request";
 
@@ -9,7 +9,7 @@ type OrderItemDetail = { id: string; product_name_snapshot: string; image_url: s
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authorizeStaff();
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Staff authorization is insufficient.", "Staff authorization required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   const { id } = await params;
   if (!uuidParamSchema.safeParse(id).success) return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
   try {
@@ -28,7 +28,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     }
     return NextResponse.json({ order, items: [...itemMap.values()] }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("pos_order_detail_failed", error);
+    console.error("pos_order_detail_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     return NextResponse.json({ error: "Detail pesanan belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }

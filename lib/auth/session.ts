@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { createOpaqueToken, hashOpaqueToken } from "@/lib/domain/tokens";
 import { query } from "@/lib/db";
+import { getServerConfig } from "@/lib/config";
 
 export const STAFF_SESSION_COOKIE = "baranburn_staff_session";
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
@@ -36,14 +37,10 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
 export async function createStaffSession(staffUserId: string) {
   const rawToken = createOpaqueToken(32);
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-  await query(
-    `insert into public.staff_sessions(staff_user_id, token_hash, expires_at)
-     values ($1, $2, $3)`,
-    [staffUserId, hashOpaqueToken(rawToken), expiresAt.toISOString()],
-  );
+  await query("select public.create_staff_session($1::uuid, $2, $3::timestamptz)", [staffUserId, hashOpaqueToken(rawToken), expiresAt.toISOString()]);
   (await cookies()).set(STAFF_SESSION_COOKIE, rawToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: getServerConfig().isProduction,
     sameSite: "lax",
     expires: expiresAt,
     path: "/",
@@ -53,8 +50,11 @@ export async function createStaffSession(staffUserId: string) {
 export async function revokeCurrentStaffSession() {
   const cookieStore = await cookies();
   const token = cookieStore.get(STAFF_SESSION_COOKIE)?.value;
-  if (token) {
-    await query("update public.staff_sessions set revoked_at = coalesce(revoked_at, timezone('utc', now())) where token_hash = $1", [hashOpaqueToken(token)]);
+  try {
+    if (token) await query("update public.staff_sessions set revoked_at = coalesce(revoked_at, timezone('utc', now())) where token_hash = $1", [hashOpaqueToken(token)]);
+  } catch (error) {
+    console.warn("staff_logout_revoke_unavailable", { errorType: error instanceof Error ? error.name : "unknown" });
+  } finally {
+    cookieStore.delete(STAFF_SESSION_COOKIE);
   }
-  cookieStore.delete(STAFF_SESSION_COOKIE);
 }

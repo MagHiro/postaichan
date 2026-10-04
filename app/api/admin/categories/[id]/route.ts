@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { databaseErrorCode, query } from "@/lib/db";
-import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureMessage, authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { categoryMutationSchema } from "@/lib/menu-schema";
 import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
@@ -14,11 +14,13 @@ function categoryId(id: string) {
 
 export async function PATCH(request: Request, { params }: Context) {
   const auth = await authorizeStaff("admin");
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!categoryId(id)) return NextResponse.json({ error: "Kategori tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = categoryMutationSchema.partial().safeParse(await readJsonBody(request));
+  const body = await readJsonBody(request);
+  if (body instanceof Response) return body;
+  const parsed = categoryMutationSchema.partial().safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Perubahan kategori tidak valid." }, { status: 400, headers: noStoreHeaders() });
   try {
     const descriptionSet = parsed.data.description !== undefined;
@@ -30,14 +32,14 @@ export async function PATCH(request: Request, { params }: Context) {
     if (databaseErrorCode(error) === "23505") return NextResponse.json({ error: "Nama kategori sudah digunakan." }, { status: 409, headers: noStoreHeaders() });
     const message = error instanceof Error ? error.message.split(":")[0] : "";
     if (message === "INVALID_CATEGORY") return NextResponse.json({ error: "Perubahan kategori tidak valid." }, { status: 400, headers: noStoreHeaders() });
-    console.error("admin_category_update_failed", message || "unknown");
+    console.error("admin_category_update_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     return NextResponse.json({ error: "Perubahan kategori belum tersimpan." }, { status: 503, headers: noStoreHeaders() });
   }
 }
 
 export async function DELETE(request: Request, { params }: Context) {
   const auth = await authorizeStaff("admin");
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!categoryId(id)) return NextResponse.json({ error: "Kategori tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
@@ -48,14 +50,14 @@ export async function DELETE(request: Request, { params }: Context) {
     return NextResponse.json({ deleted: true }, { headers: noStoreHeaders() });
   } catch (error) {
     const message = error instanceof Error ? error.message.split(":")[0] : "";
-    console.error("admin_category_delete_failed", message || "unknown");
+    console.error("admin_category_delete_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     return NextResponse.json({ error: "Kategori belum berhasil dihapus." }, { status: 503, headers: noStoreHeaders() });
   }
 }
 
 export async function POST(request: Request, { params }: Context) {
   const auth = await authorizeStaff("admin");
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!categoryId(id)) return NextResponse.json({ error: "Kategori tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
@@ -65,7 +67,7 @@ export async function POST(request: Request, { params }: Context) {
     if (row?.reactivated !== true && row?.reactivate_category !== true) return NextResponse.json({ error: "Kategori tidak ditemukan." }, { status: 404, headers: noStoreHeaders() });
     return NextResponse.json({ reactivated: true }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("admin_category_reactivate_failed", error instanceof Error ? error.message : "unknown");
+    console.error("admin_category_reactivate_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Kategori belum berhasil diaktifkan." }, { status: 503, headers: noStoreHeaders() });
   }
 }

@@ -1,0 +1,94 @@
+name: Production checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-checks:
+    name: production-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postaichan_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postaichan_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NODE_ENV: development
+      DATABASE_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:5432/postaichan_ci_test
+      DATABASE_DDL_ROLE: postaichan_ddl
+      DATABASE_TEST_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:5432/postaichan_ci_test
+      DATABASE_TEST_URL: postgresql://postaichan_ci:ci-only-password@127.0.0.1:5432/postaichan_ci_test
+      ADMIN_EMAIL: ci-admin@example.test
+      ADMIN_PASSWORD: IntegrationPasswordForCI2026!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Enable the pinned pnpm release
+        run: corepack enable pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Apply complete migration chain to clean PostgreSQL 16
+        run: pnpm run db:migrate
+      - name: Seed fixtures twice to verify idempotency
+        run: |
+          pnpm run db:seed
+          pnpm run db:seed
+      - name: Provision isolated least-privileged integration login
+        run: >-
+          psql "$DATABASE_ADMIN_URL" -v ON_ERROR_STOP=1
+          -c "CREATE ROLE postaichan_ci LOGIN PASSWORD 'ci-only-password';
+          GRANT postaichan_runtime TO postaichan_ci;"
+      - name: Unit tests
+        run: pnpm run test:unit
+      - name: Database and concurrency integration tests
+        run: pnpm run test:db
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: ESLint
+        run: pnpm run lint
+      - name: Production build with CSP and production configuration
+        env:
+          NODE_ENV: production
+          DATABASE_URL: postgresql://postaichan_ci:ci-only-password@127.0.0.1:5432/postaichan_ci_test
+          APP_ORIGIN: https://postaichan.example.test
+          MIDTRANS_SERVER_KEY: ci-only-not-a-provider-credential
+          MIDTRANS_IS_PRODUCTION: "false"
+          DATABASE_POOL_MAX: "5"
+          CLIENT_IP_STRATEGY: trusted_header
+          TRUSTED_CLIENT_IP_HEADER: x-real-ip
+          REQUIRE_ORDERING_QR: "true"
+        run: pnpm run build
+      - name: Render public, POS, and admin pages with production CSP
+        env:
+          NODE_ENV: production
+          DATABASE_URL: postgresql://postaichan_ci:ci-only-password@127.0.0.1:5432/postaichan_ci_test
+          APP_ORIGIN: https://postaichan.example.test
+          MIDTRANS_SERVER_KEY: ci-only-not-a-provider-credential
+          MIDTRANS_IS_PRODUCTION: "false"
+          DATABASE_POOL_MAX: "5"
+          CLIENT_IP_STRATEGY: trusted_header
+          TRUSTED_CLIENT_IP_HEADER: x-real-ip
+          REQUIRE_ORDERING_QR: "true"
+        run: pnpm run test:csp-smoke
+      - name: Dependency security audit
+        run: node scripts/audit-dependencies.mjs

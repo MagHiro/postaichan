@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureMessage, authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { describeMidtransError, MidtransProvider } from "@/lib/payments/midtrans";
 import { presentQrMaterial } from "@/lib/payments/qr";
 import { uuidParamSchema } from "@/lib/schemas";
@@ -12,7 +12,7 @@ type Context = { params: Promise<{ id: string }> };
 
 async function paymentStatus(request: Request, { params }: Context, synchronizeProvider: boolean) {
   const auth = await authorizeStaff();
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Staff authorization is insufficient.", "Staff authorization required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   const { id } = await params;
   if (!uuidParamSchema.safeParse(id).success) return NextResponse.json({ code: "ORDER_NOT_FOUND", error: "Pesanan tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
   try {
@@ -30,8 +30,8 @@ async function paymentStatus(request: Request, { params }: Context, synchronizeP
     if (synchronizeProvider && status === "pending" && payment.provider === "midtrans" && payment.provider_order_id) {
       try {
         const providerStatus = await new MidtransProvider().getPaymentStatus(payment.provider_order_id);
-        const next = providerStatus === "settled" ? "settled" : providerStatus === "expired" ? "expired" : providerStatus === "failed" ? "failed" : "pending";
-        const transitionData = await query<{ payment_status: string }>("select * from public.apply_payment_transition($1::uuid, $2::public.payment_status, $3, $4, $5, $6::timestamptz)", [payment.payment_id, next, providerStatus, null, 0, next === "settled" ? new Date().toISOString() : null]);
+        const next = providerStatus.state === "settled" ? "settled" : providerStatus.state === "expired" ? "expired" : providerStatus.state === "failed" ? "failed" : "pending";
+        const transitionData = await query<{ payment_status: string }>("select * from public.apply_payment_transition($1::uuid, $2::public.payment_status, $3, $4, $5, $6::timestamptz)", [payment.payment_id, next, providerStatus.providerStatus, providerStatus.providerTransactionId ?? null, 0, next === "settled" ? (providerStatus.settlementTime ?? new Date()).toISOString() : null]);
         const transitionRow = transitionData.rows[0];
         status = transitionRow?.payment_status ?? status;
       } catch (error) {
@@ -43,7 +43,7 @@ async function paymentStatus(request: Request, { params }: Context, synchronizeP
     }
     return NextResponse.json({ orderNumber: order.order_number, orderStatus: status === "settled" ? "paid" : order.order_status, paymentStatus: status, expiresAt: payment.expires_at, amountIdr: payment.amount_idr, ...presentQrMaterial(status === "pending" ? payment.qr_string : null) }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("pos_payment_status_failed", error instanceof Error ? error.message : "unknown");
+    console.error("pos_payment_status_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ code: "PAYMENT_STATUS_INTERNAL_ERROR", error: "Status pembayaran belum dapat dicek karena server gagal membaca data pembayaran. Status belum diubah; coba lagi.", retryable: true }, { status: 503, headers: noStoreHeaders() });
   }
 }

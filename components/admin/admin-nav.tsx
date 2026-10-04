@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Armchair, QrCode, Tags, Users } from "lucide-react";
+import { Armchair, QrCode, Tags, Users, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ADMIN_NAV = [
@@ -10,6 +10,7 @@ const ADMIN_NAV = [
   { href: "/admin/general-qr", label: "QR umum", icon: QrCode },
   { href: "/admin/staff", label: "Akun staff", icon: Users },
   { href: "/admin/categories", label: "Kategori menu", icon: Tags },
+  { href: "/admin/reconciliation", label: "Rekonsiliasi", icon: AlertTriangle },
 ] as const;
 
 export function AdminNav({ variant = "sidebar" }: { variant?: "sidebar" | "top" }) {

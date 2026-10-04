@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { databaseErrorCode, query } from "@/lib/db";
-import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureMessage, authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { modifierOptionMutationSchema } from "@/lib/menu-schema";
 import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
@@ -9,14 +9,18 @@ export const runtime = "nodejs";
 async function adminAuth() { return authorizeStaff("admin"); }
 
 function failure(auth: Awaited<ReturnType<typeof authorizeStaff>>) {
-  return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
 }
 
 export async function POST(request: Request) {
   const auth = await adminAuth();
   if (!auth.allowed) return failure(auth);
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = modifierOptionMutationSchema.safeParse(await readJsonBody(request));
+  const body = await readJsonBody(request);
+
+  if (body instanceof Response) return body;
+
+  const parsed = modifierOptionMutationSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Data opsi belum lengkap atau tidak valid." }, { status: 400, headers: noStoreHeaders() });
   const input = parsed.data;
   try {
@@ -31,7 +35,7 @@ export async function POST(request: Request) {
     if (databaseErrorCode(error) === "23505") return NextResponse.json({ error: "Nama opsi sudah dipakai di grup ini." }, { status: 409, headers: noStoreHeaders() });
     const message = error instanceof Error ? error.message.split(":")[0] : "";
     if (message === "INVALID_MODIFIER") return NextResponse.json({ error: "Data opsi belum lengkap atau tidak valid." }, { status: 400, headers: noStoreHeaders() });
-    console.error("admin_modifier_option_create_failed", message || "unknown");
+    console.error("admin_modifier_option_create_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     return NextResponse.json({ error: "Opsi belum berhasil dibuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }

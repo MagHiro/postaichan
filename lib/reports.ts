@@ -28,6 +28,8 @@ export type DailyReport = {
   end: string;
   grossRevenueIdr: number;
   refundsIdr: number;
+  orphanedSettlementAmountIdr: number;
+  orphanedSettlementCount: number;
   netRevenueIdr: number;
   revenueIdr: number;
   orderCount: number;
@@ -76,8 +78,8 @@ function methodLabel(method: string) {
   return method.toLowerCase() === "cash" ? "cash" : "qris";
 }
 
-export async function getReport(fromValue?: string, toValue?: string, shiftId?: string): Promise<DailyReport> {
-  const { query } = await import("@/lib/db");
+export async function getReport(fromValue?: string, toValue?: string, shiftId?: string, queryOverride?: typeof import("@/lib/db").query): Promise<DailyReport> {
+  const query = queryOverride ?? (await import("@/lib/db")).query;
   const range = jakartaRange(fromValue, toValue);
   const candidatePayments = await query<PaymentRow & { method: string; order_status: string; shift_id: string | null }>(
     `select p.id, p.order_id, p.status, p.amount_idr, p.refunded_amount_idr, p.orphaned_settlement, p.settled_at, p.created_at, p.method,
@@ -121,15 +123,28 @@ export async function getReport(fromValue?: string, toValue?: string, shiftId?: 
   const settlementRows = [...primaryByOrder.values()].filter((row) => row.settled_at! >= range.start && row.settled_at! < range.end);
   const settlementPaymentIds = settlementRows.map((row) => row.id);
 
-  const [refunds, orders] = await Promise.all([
+  const [refunds, orders, orphaned] = await Promise.all([
     query<RefundRow>(
-      `select id, payment_id, amount_idr, processed_at, reason
-       from public.payment_refunds where processed_at >= $1 and processed_at < $2 order by processed_at asc`,
-      [range.start, range.end],
+      `select r.id, r.payment_id, r.amount_idr, r.processed_at, r.reason
+       from public.payment_refunds r
+       join public.payments p on p.id = r.payment_id
+       join public.orders o on o.id = p.order_id
+       where r.processed_at >= $1 and r.processed_at < $2
+         and ($3::uuid is null or o.shift_id = $3::uuid)
+       order by r.processed_at asc`,
+      [range.start, range.end, shiftId ?? null],
     ),
     candidateOrderIds.length
       ? query<OrderRow>("select id, order_number, status, total_idr, created_at from public.orders where id = any($1::uuid[])", [candidateOrderIds])
       : Promise.resolve({ rows: [] as OrderRow[] }),
+    query<{ amount_idr: number; count: number }>(
+      `select coalesce(sum(greatest(p.amount_idr - p.refunded_amount_idr, 0)), 0)::bigint as amount_idr, count(*)::int as count
+       from public.payments p join public.orders o on o.id = p.order_id
+       where p.orphaned_settlement = true and p.status = any($1::public.payment_status[])
+         and p.settled_at >= $2 and p.settled_at < $3
+         and ($4::uuid is null or o.shift_id = $4::uuid)`,
+      [RECOGNIZED_PAYMENT_STATUSES, range.start, range.end, shiftId ?? null],
+    ),
   ]);
 
   const refundRows = refunds.rows;
@@ -204,6 +219,8 @@ export async function getReport(fromValue?: string, toValue?: string, shiftId?: 
     end: range.end,
     grossRevenueIdr,
     refundsIdr,
+    orphanedSettlementAmountIdr: Number(orphaned.rows[0]?.amount_idr ?? 0),
+    orphanedSettlementCount: Number(orphaned.rows[0]?.count ?? 0),
     netRevenueIdr,
     revenueIdr: netRevenueIdr,
     orderCount: settlementRows.length,

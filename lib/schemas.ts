@@ -28,15 +28,21 @@ export const customerSessionSchema = z.object({
 });
 
 export const midtransWebhookSchema = z.object({
-  order_id: z.string().trim().min(1).max(120),
+  // These four strings feed Midtrans' SHA-512 signature. Keep them byte-for-byte
+  // as received; normalization before verification would change the signed input.
+  order_id: z.string().min(1).max(120),
   status_code: z.string().regex(/^\d{3}$/),
-  gross_amount: z.string().regex(/^\d{1,12}$/),
+  gross_amount: z.string().min(1).max(40),
   signature_key: z.string().regex(/^[a-f0-9]{128}$/i),
-  transaction_status: z.enum(["pending", "settlement", "capture", "expire", "cancel", "deny", "failure"]),
+  // Verify the signature over this exact string, then safely acknowledge any
+  // future provider state that is not actionable for QRIS.
+  transaction_status: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
   fraud_status: z.string().max(30).optional(),
-  transaction_id: z.string().trim().max(120).optional(),
-  payment_type: z.string().trim().max(40).optional(),
-}).strict();
+  transaction_id: z.string().max(120).optional(),
+  payment_type: z.string().max(40).optional(),
+  transaction_time: z.string().max(80).optional(),
+  settlement_time: z.string().max(80).optional(),
+}).passthrough();
 
 export const cashierOrderSchema = z.object({
   idempotencyKey: z.string().uuid(),

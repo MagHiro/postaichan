@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureMessage, authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { shiftCloseSchema } from "@/lib/schemas";
 import { shiftDatabaseFailure } from "@/lib/domain/shift-errors";
 import { invalidCheckoutInput } from "@/lib/domain/checkout-errors";
@@ -10,9 +10,13 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const auth = await authorizeStaff();
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Staff authorization is insufficient." : "Staff authorization required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Staff authorization is insufficient.", "Staff authorization required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = shiftCloseSchema.safeParse(await readJsonBody(request));
+  const body = await readJsonBody(request);
+
+  if (body instanceof Response) return body;
+
+  const parsed = shiftCloseSchema.safeParse(body);
   if (!parsed.success) {
     const failure = invalidCheckoutInput(parsed.error.issues[0]);
     return NextResponse.json(failure, { status: failure.status, headers: noStoreHeaders() });

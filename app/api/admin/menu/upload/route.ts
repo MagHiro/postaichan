@@ -1,6 +1,6 @@
 import { readBoundedBody, RequestBodyTooLargeError } from "@/lib/security/http";
 import { NextResponse } from "next/server";
-import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureMessage, authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { readJsonBody, consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 import { z } from "zod";
 import { query } from "@/lib/db";
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const auth = await authorizeStaff("admin");
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const contentLength = Number(request.headers.get("content-length") ?? 0);
   if (contentLength > MENU_UPLOAD_MAX_BYTES + 256_000) return NextResponse.json({ error: "Ukuran gambar maksimal 5 MB." }, { status: 413, headers: noStoreHeaders() });
@@ -31,23 +31,25 @@ export async function POST(request: Request) {
     if (error instanceof RequestBodyTooLargeError) return NextResponse.json({ error: "Ukuran gambar maksimal 5 MB." }, { status: 413, headers: noStoreHeaders() });
     if (error instanceof MenuImageError) return NextResponse.json({ error: error.message }, { status: 400, headers: noStoreHeaders() });
     if (error instanceof MenuImageStorageError) return NextResponse.json({ code: "MENU_IMAGE_STORAGE_UNAVAILABLE", error: error.message }, { status: 503, headers: noStoreHeaders() });
-    console.error("menu_image_upload_failed", error instanceof Error ? error.message : "unknown");
+    console.error("menu_image_upload_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ code: "MENU_IMAGE_UPLOAD_FAILED", error: "Gambar belum dapat diunggah. Coba lagi." }, { status: 503, headers: noStoreHeaders() });
   }
 }
 
 export async function DELETE(request: Request) {
   const auth = await authorizeStaff("admin");
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = z.object({ imagePath: z.string().regex(/^\/uploads\/menu\/[A-Za-z0-9_-]+\.webp$/) }).strict().safeParse(await readJsonBody(request));
+  const body = await readJsonBody(request);
+  if (body instanceof Response) return body;
+  const parsed = z.object({ imagePath: z.string().regex(/^\/uploads\/menu\/[A-Za-z0-9_-]+\.webp$/) }).strict().safeParse(body);
   if (!parsed.success || !isMenuImagePath(parsed.data.imagePath)) return NextResponse.json({ error: "Path gambar tidak valid." }, { status: 400, headers: noStoreHeaders() });
   try {
     const references = await query("select id from public.products where image_path = $1 limit 1", [parsed.data.imagePath]);
     if (references.rowCount === 0) await removeMenuImage(parsed.data.imagePath);
     return NextResponse.json({ removed: references.rowCount === 0 }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("menu_image_cleanup_failed", error instanceof Error ? error.message : "unknown");
+    console.error("menu_image_cleanup_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Gambar belum dapat dibersihkan." }, { status: 503, headers: noStoreHeaders() });
   }
 }

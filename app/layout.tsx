@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 
@@ -24,7 +25,9 @@ export const viewport: Viewport = {
   colorScheme: "light",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // Nonce-based CSP requires request-time rendering in Next.js 16.
+  await headers();
   return (
     <html lang="id">
       <body className={`${poppins.variable}`}>{children}</body>

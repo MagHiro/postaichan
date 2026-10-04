@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureMessage, authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { modifierGroupMutationSchema } from "@/lib/menu-schema";
 import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 async function adminAuth() { return authorizeStaff("admin"); }
 
 function failure(auth: Awaited<ReturnType<typeof authorizeStaff>>) {
-  return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
 }
 
 export async function GET() {
@@ -38,7 +38,7 @@ export async function GET() {
       assignments: assignments.rows,
     }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("admin_modifiers_read_failed", error instanceof Error ? error.message : "unknown");
+    console.error("admin_modifiers_read_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Opsi belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }
@@ -47,7 +47,11 @@ export async function POST(request: Request) {
   const auth = await adminAuth();
   if (!auth.allowed) return failure(auth);
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = modifierGroupMutationSchema.safeParse(await readJsonBody(request));
+  const body = await readJsonBody(request);
+
+  if (body instanceof Response) return body;
+
+  const parsed = modifierGroupMutationSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Data opsi belum lengkap atau tidak valid." }, { status: 400, headers: noStoreHeaders() });
   const input = parsed.data;
   try {
@@ -61,7 +65,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message.split(":")[0] : "";
     if (message === "INVALID_MODIFIER") return NextResponse.json({ error: "Data opsi belum lengkap atau tidak valid." }, { status: 400, headers: noStoreHeaders() });
-    console.error("admin_modifier_group_create_failed", message || "unknown");
+    console.error("admin_modifier_group_create_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     return NextResponse.json({ error: "Grup opsi belum berhasil dibuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }

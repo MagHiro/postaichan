@@ -130,7 +130,11 @@ export async function getCloseRecap(): Promise<CloseRecap | null> {
   const shift = (await query<{ id: string; opened_at: string }>("select id, opened_at from public.cashier_shifts where closed_at is null order by opened_at desc limit 1")).rows[0];
   if (!shift) return null;
   const summary = (await getShiftSummary(shift.id)) ?? { shiftId: shift.id, grossRevenueIdr: 0, refundsIdr: 0, netRevenueIdr: 0, orderCount: 0, cashRevenueIdr: 0, qrisRevenueIdr: 0, itemsSold: 0, products: [] };
-  const pending = await query<{ count: string }>("select count(*) as count from public.payments where status = 'pending' and expires_at > timezone('utc', now())");
+  const pending = await query<{ count: string }>(
+    `select count(*) as count from public.payments p join public.orders o on o.id = p.order_id
+     where p.status = 'pending' and p.expires_at > timezone('utc', now()) and o.shift_id = $1`,
+    [shift.id],
+  );
   const intake = await query<{ product_id: string; name: string; opening_quantity: number; stock_quantity: number }>(
     `select i.product_id, p.name, i.opening_quantity, p.stock_quantity
      from public.shift_stock_intakes i join public.products p on p.id = i.product_id

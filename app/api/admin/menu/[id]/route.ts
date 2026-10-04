@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureMessage, authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { query } from "@/lib/db";
 import { productMutationSchema } from "@/lib/menu-schema";
 import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
 
 function adminFailure(auth: Awaited<ReturnType<typeof authorizeStaff>>) {
-  return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
 }
 
 async function getProduct(id: string) {
@@ -30,7 +30,9 @@ export async function PATCH(request: Request, context: Context) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await context.params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Product not found." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = productMutationSchema.partial().safeParse(await readJsonBody(request));
+  const body = await readJsonBody(request);
+  if (body instanceof Response) return body;
+  const parsed = productMutationSchema.partial().safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Perubahan menu tidak valid." }, { status: 400, headers: noStoreHeaders() });
   const input = parsed.data;
   try {
@@ -43,10 +45,10 @@ export async function PATCH(request: Request, context: Context) {
     const row = result.rows[0];
     if (!row) return NextResponse.json({ error: "Product not found." }, { status: 404, headers: noStoreHeaders() });
     const nextPath = input.imagePath === undefined ? current.image_path : input.imagePath;
-    if (current.image_path && current.image_path !== nextPath) await cleanupIfUnreferenced(current.image_path, id).catch((error) => console.error("menu_image_cleanup_failed", error));
+    if (current.image_path && current.image_path !== nextPath) await cleanupIfUnreferenced(current.image_path, id).catch((error) => console.error("menu_image_cleanup_failed", { errorType: error instanceof Error ? error.name : "unknown" }));
     return NextResponse.json({ product: row }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("admin_menu_update_failed", error);
+    console.error("admin_menu_update_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     const message = error instanceof Error ? error.message.split(":")[0] : "";
     return NextResponse.json({ error: message === "CATEGORY_NOT_AVAILABLE" ? "Kategori tidak tersedia." : message === "STOCK_RESERVED" ? "Stok tidak boleh di bawah jumlah yang sedang dipesan." : "Perubahan menu belum tersimpan." }, { status: ["CATEGORY_NOT_AVAILABLE", "STOCK_RESERVED"].includes(message) ? 409 : 503, headers: noStoreHeaders() });
   }
@@ -63,7 +65,7 @@ export async function DELETE(request: Request, context: Context) {
     if (result.rows[0]?.archived !== true) return NextResponse.json({ error: "Product not found or already archived." }, { status: 409, headers: noStoreHeaders() });
     return NextResponse.json({ archived: true }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("admin_menu_archive_failed", error instanceof Error ? error.message : "unknown");
+    console.error("admin_menu_archive_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Menu belum berhasil dihapus dari menu." }, { status: 503, headers: noStoreHeaders() });
   }
 }
@@ -79,7 +81,7 @@ export async function POST(request: Request, context: Context) {
     if (result.rows[0]?.restored !== true) return NextResponse.json({ error: "Product is not archived or does not exist." }, { status: 409, headers: noStoreHeaders() });
     return NextResponse.json({ restored: true }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("admin_menu_restore_failed", error instanceof Error ? error.message : "unknown");
+    console.error("admin_menu_restore_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Menu belum berhasil dipulihkan." }, { status: 503, headers: noStoreHeaders() });
   }
 }

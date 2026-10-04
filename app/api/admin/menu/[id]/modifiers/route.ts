@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { query } from "@/lib/db";
-import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureMessage, authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { productModifiersSchema } from "@/lib/menu-schema";
 import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
@@ -10,7 +10,7 @@ type Context = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: Context) {
   const auth = await authorizeStaff("admin");
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Product not found." }, { status: 400, headers: noStoreHeaders() });
   try {
@@ -25,18 +25,22 @@ export async function GET(_request: Request, { params }: Context) {
     if (!row) return NextResponse.json({ error: "Product not found." }, { status: 404, headers: noStoreHeaders() });
     return NextResponse.json(row, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("admin_product_modifiers_read_failed", error instanceof Error ? error.message : "unknown");
+    console.error("admin_product_modifiers_read_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Opsi produk belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }
 
 export async function PUT(request: Request, { params }: Context) {
   const auth = await authorizeStaff("admin");
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Product not found." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = productModifiersSchema.safeParse(await readJsonBody(request));
+  const body = await readJsonBody(request);
+
+  if (body instanceof Response) return body;
+
+  const parsed = productModifiersSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Data opsi produk tidak valid." }, { status: 400, headers: noStoreHeaders() });
   try {
     const result = await query<{ set_product_modifier_groups: boolean }>(
@@ -49,7 +53,9 @@ export async function PUT(request: Request, { params }: Context) {
     const message = error instanceof Error ? error.message.split(":")[0] : "";
     if (message === "PRODUCT_NOT_FOUND") return NextResponse.json({ error: "Product not found." }, { status: 404, headers: noStoreHeaders() });
     if (message === "INVALID_MODIFIER") return NextResponse.json({ error: "Grup opsi tidak valid atau tidak aktif." }, { status: 400, headers: noStoreHeaders() });
-    console.error("admin_product_modifiers_update_failed", message || "unknown");
+    if (message === "MODIFIER_GROUP_IN_USE") return NextResponse.json({ code: message, error: "Grup opsi sudah dimiliki produk aktif lainnya." }, { status: 409, headers: noStoreHeaders() });
+    if (message === "MODIFIER_GROUP_UNSATISFIABLE") return NextResponse.json({ code: message, error: "Pilihan grup belum cukup untuk memenuhi aturan semua produk aktif." }, { status: 409, headers: noStoreHeaders() });
+    console.error("admin_product_modifiers_update_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     return NextResponse.json({ error: "Opsi produk belum tersimpan." }, { status: 503, headers: noStoreHeaders() });
   }
 }

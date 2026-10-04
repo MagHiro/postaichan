@@ -36,8 +36,8 @@ async function getPaymentStatus(request: Request, { params }: Context, synchroni
     if (synchronizeProvider && paymentStatus === "pending" && payment.provider === "midtrans" && payment.provider_order_id) {
       try {
         const providerStatus = await new MidtransProvider().getPaymentStatus(payment.provider_order_id);
-        const transition = providerStatus === "settled" ? "settled" : providerStatus === "expired" ? "expired" : providerStatus === "failed" ? "failed" : "pending";
-        const transitionData = await query<{ payment_status: string; order_status: string }>("select * from public.apply_payment_transition($1::uuid, $2::public.payment_status, $3, $4, $5, $6::timestamptz)", [payment.id, transition, providerStatus, null, 0, transition === "settled" ? new Date().toISOString() : null]);
+        const transition = providerStatus.state === "settled" ? "settled" : providerStatus.state === "expired" ? "expired" : providerStatus.state === "failed" ? "failed" : "pending";
+        const transitionData = await query<{ payment_status: string; order_status: string }>("select * from public.apply_payment_transition($1::uuid, $2::public.payment_status, $3, $4, $5, $6::timestamptz)", [payment.id, transition, providerStatus.providerStatus, providerStatus.providerTransactionId ?? null, 0, transition === "settled" ? (providerStatus.settlementTime ?? new Date()).toISOString() : null]);
         const transitionRow = transitionData.rows[0];
         paymentStatus = transitionRow?.payment_status ?? paymentStatus;
         orderStatus = transitionRow?.order_status ?? orderStatus;
@@ -51,7 +51,7 @@ async function getPaymentStatus(request: Request, { params }: Context, synchroni
     const qr = presentQrMaterial(paymentStatus === "pending" ? payment.qr_string : null);
     return NextResponse.json({ orderNumber: order.order_number, orderStatus, paymentStatus, expiresAt: payment.expires_at, amountIdr: payment.amount_idr, ...qr }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("customer_payment_status_failed", error instanceof Error ? error.message : "unknown");
+    console.error("customer_payment_status_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ code: "PAYMENT_STATUS_INTERNAL_ERROR", error: "Status pembayaran belum dapat dicek karena server gagal membaca data pembayaran. Status belum diubah; coba lagi.", retryable: true }, { status: 503, headers: noStoreHeaders() });
   }
 }

@@ -62,7 +62,7 @@ export async function storeMenuImage(file: File) {
   try {
     await query("insert into public.menu_images(image_path, data) values ($1, $2)", [imagePath, output]);
   } catch (error) {
-    console.error("menu_image_storage_failed", error);
+    console.error("menu_image_storage_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     throw new MenuImageStorageError("Penyimpanan gambar tidak tersedia. Pastikan migrasi database terbaru sudah diterapkan.");
   }
   return { imagePath };

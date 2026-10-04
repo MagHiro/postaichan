@@ -1,12 +1,13 @@
 import "server-only";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import { getServerConfig } from "@/lib/config";
 
-const connectionString = process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:55432/baranburn";
+const config = getServerConfig();
 const globalForDatabase = globalThis as typeof globalThis & { __baranburnPool?: Pool };
 
 export const pool = globalForDatabase.__baranburnPool ?? new Pool({
-  connectionString,
-  max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+  connectionString: config.databaseUrl,
+  max: config.databasePoolMax,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
 });

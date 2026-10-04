@@ -76,7 +76,7 @@ export async function GET() {
     const orderedCategories = categories.rows.map((category) => ({ id: category.id, name: category.name }));
     return NextResponse.json({ products: safeProducts, categories: orderedCategories, settings: { qrisEnabled: settings.rows[0]?.qris_enabled === true, cashEnabled: settings.rows[0]?.cash_enabled === true }, cashierOpen: shift.rows.length > 0 }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("menu_fetch_failed", error instanceof Error ? error.message : "unknown");
+    console.error("menu_fetch_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Menu belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }

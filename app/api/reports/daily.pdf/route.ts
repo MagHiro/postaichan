@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
-import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureMessage, authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { getReport } from "@/lib/reports";
 import { formatIDR } from "@/lib/format";
 import { noStoreHeaders } from "@/lib/security/request";
@@ -22,6 +22,7 @@ function makePdf(report: Awaited<ReturnType<typeof getReport>>) {
     const summary = [
       ["Gross sales", formatIDR(report.grossRevenueIdr)],
       ["Refunds", formatIDR(report.refundsIdr)],
+      ["Orphaned settlements to reconcile", `${formatIDR(report.orphanedSettlementAmountIdr)} (${report.orphanedSettlementCount})`],
       ["Net sales", formatIDR(report.netRevenueIdr)],
       ["Paid orders", String(report.orderCount)],
     ];
@@ -37,7 +38,7 @@ function makePdf(report: Awaited<ReturnType<typeof getReport>>) {
 
 export async function GET(request: Request) {
   const auth = await authorizeStaff("admin");
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   try {
     const params = new URL(request.url).searchParams;
     const date = params.get("date") ?? undefined;
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
     return new Response(new Uint8Array(pdf), { headers: { ...noStoreHeaders(), "content-type": "application/pdf", "content-disposition": `attachment; filename="tempat-taichan-report-${report.from}-${report.to}.pdf"` } });
   } catch (error) {
     if (error instanceof Error && ["INVALID_REPORT_DATE", "REPORT_RANGE_LIMIT"].includes(error.message)) return NextResponse.json({ error: error.message === "REPORT_RANGE_LIMIT" ? "Rentang laporan maksimal 31 hari." : "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });
-    console.error("daily_pdf_failed", error);
+    console.error("daily_pdf_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     return NextResponse.json({ error: "PDF laporan belum dapat dibuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }

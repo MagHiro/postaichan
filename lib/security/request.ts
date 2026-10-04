@@ -7,7 +7,8 @@ export function noStoreHeaders() {
 }
 
 export function clientBucket(request: Request, scope: string) {
-  return rateLimitKey(scope, requestAddress(request));
+  const address = requestAddress(request);
+  return address ? rateLimitKey(scope, address) : null;
 }
 
 export async function consumeIdentityRateLimit(scope: string, identity: string, limit: number, windowSeconds: number) {
@@ -16,6 +17,14 @@ export async function consumeIdentityRateLimit(scope: string, identity: string, 
 }
 
 export async function consumeRateLimit(request: Request, scope: string, limit: number, windowSeconds: number, extra = "") {
-  // An authenticated identity is limited independently of its network address.
-  return consumeIdentityRateLimit(scope, extra || requestAddress(request), limit, windowSeconds);
+  const network = clientBucket(request, `${scope}:network`);
+  // Lack of a trusted network address uses a generous shared safety limit. It
+  // never puts every visitor into a small "unknown" bucket.
+  const networkLimit = Math.max(limit * 10, 100);
+  const networkAllowed = network
+    ? await consumeIdentityRateLimit(`${scope}:network`, network, networkLimit, windowSeconds)
+    : await consumeIdentityRateLimit(`${scope}:global`, "all", Math.max(limit * 100, 1000), windowSeconds);
+  if (!networkAllowed) return false;
+  if (!extra) return true;
+  return consumeIdentityRateLimit(`${scope}:identity`, extra, limit, windowSeconds);
 }

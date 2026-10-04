@@ -2,11 +2,11 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { checkoutSchema } from "@/lib/schemas";
-import { presentQrMaterial } from "@/lib/payments/qr";
-import { describeMidtransError, MidtransProvider } from "@/lib/payments/midtrans";
+import { createProviderPayment } from "@/lib/payments/create-provider-payment";
 import { hashOpaqueToken } from "@/lib/domain/tokens";
-import { readJsonBody, consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
+import { readJsonBody, consumeRateLimit, consumeIdentityRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 import { checkoutDatabaseFailure, checkoutIntentMissing, checkoutQrMissing, checkoutUnexpectedFailure, invalidCheckoutInput } from "@/lib/domain/checkout-errors";
+import { createRequestId, structuredLog } from "@/lib/security/structured-log";
 
 export const runtime = "nodejs";
 
@@ -20,7 +20,12 @@ function fingerprint(input: { items: Array<{ productId: string; quantity: number
 }
 
 export async function POST(request: Request) {
-  const parsed = checkoutSchema.safeParse(await readJsonBody(request));
+  const requestId = createRequestId();
+  const body = await readJsonBody(request);
+
+  if (body instanceof Response) return body;
+
+  const parsed = checkoutSchema.safeParse(body);
   if (!parsed.success) {
     const failure = invalidCheckoutInput(parsed.error.issues[0]);
     return NextResponse.json(failure, { status: failure.status, headers: noStoreHeaders() });
@@ -32,15 +37,20 @@ export async function POST(request: Request) {
     if (!(await consumeRateLimit(request, "checkout", 8, 60, sessionHash.slice(0, 24)))) {
       return NextResponse.json({ error: "Terlalu banyak percobaan. Coba lagi sebentar." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "60" } });
     }
+    // Bound distributed bursts in addition to the trusted-network and session
+    // buckets; the database separately caps concurrent live QR reservations.
+    if (!(await consumeIdentityRateLimit("checkout-global", "all", 240, 60))) {
+      return NextResponse.json({ error: "Checkout sedang ramai. Coba lagi sebentar." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "60" } });
+    }
     let intentResult;
     try {
-      intentResult = await query<{ order_id: string; order_number: string; payment_id: string; payment_status: string; amount_idr: number; provider_order_id: string; qr_string: string | null; expires_at: string | null; replayed: boolean }>(
+      intentResult = await query<{ order_id: string; order_number: string; payment_id: string; payment_status: string; amount_idr: number; provider_order_id: string; qr_string: string | null; created_at: string | Date | null; expires_at: string | Date | null; replayed: boolean }>(
         `select * from public.create_checkout_intent($1::uuid, $2, $3, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`,
         [input.idempotencyKey, fingerprint({ items: input.items }), sessionHash, null, null, "qris", JSON.stringify(input.items)],
       );
     } catch (error) {
       const failure = checkoutDatabaseFailure(error, "customer");
-      return NextResponse.json(failure, { status: failure.status, headers: noStoreHeaders() });
+      return NextResponse.json(failure, { status: failure.status, headers: { ...noStoreHeaders(), ...(failure.code === "QR_RESERVATION_CAPACITY" ? { "Retry-After": "60" } : {}) } });
     }
     const intent = intentResult.rows[0];
     if (!intent) {
@@ -50,44 +60,24 @@ export async function POST(request: Request) {
     if (intent.payment_status === "settled") {
       return NextResponse.json({ code: "ORDER_ALREADY_PAID", error: "Pesanan ini sudah lunas. Tidak perlu membuat pembayaran baru.", orderId: intent.order_id, orderNumber: intent.order_number, status: intent.payment_status }, { status: 409, headers: noStoreHeaders() });
     }
-    const storedPayment = await query<{ qr_string: string | null }>("select qr_string from public.payments where id = $1", [intent.payment_id]);
-    const storedQr = storedPayment.rows[0]?.qr_string ?? intent.qr_string;
-    let { qrString, qrImageUrl } = presentQrMaterial(storedQr);
-    let expiresAt = intent.expires_at as string | null;
-    if (intent.payment_status === "pending" && !qrString && !qrImageUrl) {
-      const claimed = await query<{ claimed: boolean }>("select public.claim_payment_provider_create($1) as claimed", [intent.payment_id]);
-      if (claimed.rows[0]?.claimed === true) {
-        try {
-          if (!intent.expires_at) throw new Error("PAYMENT_EXPIRY_MISSING");
-          const providerPayment = await new MidtransProvider().createPayment({ providerOrderId: intent.provider_order_id, amountIdr: intent.amount_idr, expiresAt: new Date(intent.expires_at) });
-          await query(
-            `update public.payments
-             set provider_transaction_id = $2, qr_string = $3, expires_at = $4, provider_created_at = $5,
-                 provider_error = null, provider_creation_claimed_at = null, updated_at = timezone('utc', now())
-             where id = $1 and status = 'pending'`,
-            [intent.payment_id, providerPayment.providerTransactionId ?? null, providerPayment.qrString ?? providerPayment.qrImageUrl ?? null, providerPayment.expiresAt.toISOString(), new Date().toISOString()],
-          );
-          qrString = providerPayment.qrString ?? null;
-          qrImageUrl = providerPayment.qrImageUrl ?? null;
-          expiresAt = providerPayment.expiresAt.toISOString();
-      } catch (providerError) {
-        await query("select public.release_payment_provider_create($1, $2)", [intent.payment_id, providerError instanceof Error ? providerError.message : "provider_error"]);
-        const failure = describeMidtransError(providerError) ?? (providerError instanceof Error && providerError.message === "PAYMENT_EXPIRY_MISSING"
-          ? { code: "PAYMENT_EXPIRY_MISSING", error: "Waktu berlaku pembayaran tidak tersedia. Pesanan belum dibuatkan QR; coba lagi.", status: 503, retryable: true }
-          : checkoutUnexpectedFailure("customer"));
-        return NextResponse.json({ ...failure, orderId: intent.order_id }, { status: failure.status, headers: noStoreHeaders() });
-      }
-      } else {
-        return NextResponse.json({ code: "PAYMENT_PREPARING", error: "Pembayaran sedang diklaim oleh proses lain. Jangan buat pesanan baru; tekan Bayar lagi dalam beberapa detik.", retryable: true, action: "retry", orderId: intent.order_id }, { status: 503, headers: noStoreHeaders() });
-      }
+    let qrString: string | null = null;
+    let qrImageUrl: string | null = null;
+    let expiresAt = intent.expires_at ? new Date(intent.expires_at).toISOString() : null;
+    if (intent.payment_status === "pending") {
+      const providerPayment = await createProviderPayment(intent, requestId);
+      if (!providerPayment.ok) return NextResponse.json({ ...providerPayment, orderId: intent.order_id }, { status: providerPayment.status, headers: noStoreHeaders() });
+      qrString = providerPayment.qrString;
+      qrImageUrl = providerPayment.qrImageUrl;
+      expiresAt = providerPayment.expiresAt;
     }
     if (intent.payment_status === "pending" && !qrString && !qrImageUrl) {
       const failure = checkoutQrMissing(intent.order_id);
       return NextResponse.json(failure, { status: failure.status, headers: noStoreHeaders() });
     }
+    structuredLog("info", "checkout_completed", requestId, { orderId: intent.order_id, paymentId: intent.payment_id, paymentStatus: intent.payment_status, replayed: intent.replayed });
     return NextResponse.json({ orderId: intent.order_id, orderNumber: intent.order_number, totalIdr: intent.amount_idr, qrString, qrImageUrl, expiresAt, paymentId: intent.payment_id, status: intent.payment_status, replayed: intent.replayed }, { status: intent.replayed ? 200 : 201, headers: noStoreHeaders() });
   } catch (error) {
-    console.error("checkout_failed", error instanceof Error ? error.message : "unknown");
+    structuredLog("error", "checkout_failed", requestId, { errorType: error instanceof Error ? error.name : "unknown" });
     const failure = checkoutUnexpectedFailure("customer");
     return NextResponse.json(failure, { status: failure.status, headers: noStoreHeaders() });
   }

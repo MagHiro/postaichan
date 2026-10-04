@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
-import { Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, LogOut, Minus, Package, Plus, Power, QrCode, ReceiptText, RefreshCw, Search, Settings, ShoppingBag, Store, TrendingUp, Wallet, X } from "lucide-react";
+import { AlertTriangle, Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, LogOut, Minus, Package, Plus, Power, QrCode, ReceiptText, RefreshCw, Search, Settings, ShoppingBag, Store, TrendingUp, Wallet, X } from "lucide-react";
 import { formatCompactIDR, formatCountdown, formatIDR } from "@/lib/format";
 import type { CartItem, Category, Order, Product } from "@/lib/types";
 import { ALL_CATEGORIES_ID } from "@/components/order/constants";
@@ -104,6 +104,16 @@ function isActiveOrder(order: Order) {
   return !["Completed", "Cancelled", "Refunded"].includes(order.status);
 }
 
+function paymentIsCaptured(status: Order["paymentStatus"]) {
+  return status === "Paid" || status === "Partially refunded" || status === "Refunded";
+}
+
+function paymentStatusDetail(status: Order["paymentStatus"]) {
+  if (status === "Paid") return null;
+  if (status === "Pending") return "Menunggu pembayaran";
+  return status;
+}
+
 export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   const [nav, setNav] = useState<NavItem>("Overview");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -163,12 +173,12 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
     const known = paidOrderIds.current;
     // Seed silently on the first load so history does not chime.
     if (known.size === 0 && orders.length === 0) {
-      for (const order of next) known.set(order.id, order.paymentStatus === "Paid");
+      for (const order of next) known.set(order.id, paymentIsCaptured(order.paymentStatus));
       return;
     }
     let fresh = false;
     for (const order of next) {
-      const isPaid = order.paymentStatus === "Paid";
+      const isPaid = paymentIsCaptured(order.paymentStatus);
       if (isPaid && known.get(order.id) !== true && !localOrderIds.current.has(order.id)) fresh = true;
       known.set(order.id, isPaid);
     }
@@ -239,7 +249,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        if (response.status === 409 && order.paymentStatus !== "Paid") {
+        if (response.status === 409 && !paymentIsCaptured(order.paymentStatus)) {
           showNotice(`Pesanan ${order.number} belum lunas.`);
           return;
         }
@@ -256,7 +266,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   }
 
   function advanceOrderGuarded(order: Order) {
-    if (order.paymentStatus !== "Paid") {
+    if (!paymentIsCaptured(order.paymentStatus)) {
       showNotice(`Pesanan ${order.number} masih menunggu pembayaran.`);
       return;
     }
@@ -860,7 +870,7 @@ function LiveOverview({
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-medium leading-tight text-[#1C1917]">{order.number}</span>
                       <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]">
-                        <MetaInline parts={[order.table ?? "Tanpa meja", `${order.items} item`, order.time, order.paymentStatus !== "Paid" ? "Belum bayar" : null]} />
+                        <MetaInline parts={[order.table ?? "Tanpa meja", `${order.items} item`, order.time, paymentStatusDetail(order.paymentStatus)]} />
                       </span>
                       <span className="mt-1 block text-[13px] leading-none tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</span>
                     </span>
@@ -893,7 +903,7 @@ function LiveOverview({
                         {order.number} <MetaDot /> <span className="font-normal text-[#A8A29E]">{STATUS_LABEL[order.status]}</span>
                       </p>
                       <p className="mt-0.5 truncate text-xs text-[#A8A29E]">
-                        <MetaInline parts={[order.table ?? "Tanpa meja", `${order.items} item`, order.time, order.paymentStatus !== "Paid" ? "Belum bayar" : null]} />
+                        <MetaInline parts={[order.table ?? "Tanpa meja", `${order.items} item`, order.time, paymentStatusDetail(order.paymentStatus)]} />
                       </p>
                       <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</p>
                     </button>
@@ -2480,6 +2490,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
             <ReportMetric icon={Wallet} label="Penjualan bersih" value={formatCompactIDR(report.netRevenueIdr)} detail={`${report.orderCount} pesanan lunas`} />
             <ReportMetric icon={Banknote} label="Penjualan kotor" value={formatCompactIDR(report.grossRevenueIdr)} detail="Settlement periode ini" />
             <ReportMetric icon={History} label="Refund" value={formatCompactIDR(report.refundsIdr)} detail="Diproses periode ini" />
+            <ReportMetric icon={AlertTriangle} label="Perlu rekonsiliasi" value={formatCompactIDR(report.orphanedSettlementAmountIdr)} detail={`${report.orphanedSettlementCount} settlement orphan`} />
           </div>
 
           {report.dailyBreakdown.length > 1 && <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft"><div className="px-5 pb-4 pt-5 sm:px-6"><h3 className="text-sm font-medium text-[#1C1917]">Per hari</h3><p className="mt-1 text-[13px] text-[#78716C]">Ringkasan settlement per tanggal</p></div><div className="divide-y divide-[#E9E1D1]">{report.dailyBreakdown.map((day) => <div key={day.date} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6"><div><p className="text-[13px] font-medium text-[#1C1917]">{day.date}</p><p className="mt-0.5 text-xs text-[#A8A29E]"><MetaInline parts={[`${day.paidOrderCount} pesanan`, `refund ${formatCompactIDR(day.refundsIdr)}`]} /></p></div><span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(day.netRevenueIdr)}</span></div>)}</div></section>}

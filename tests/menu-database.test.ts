@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 
-test("categories can be hidden and deleted with products while preserving history", { skip: !process.env.DATABASE_URL }, async () => {
-  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+test("categories can be hidden and deleted with products while preserving history", async () => {
+  const databaseUrl = process.env.DATABASE_TEST_URL;
+  assert.ok(databaseUrl, "DATABASE_TEST_URL must point to the isolated PostgreSQL test database");
+  const client = new pg.Client({ connectionString: databaseUrl });
   await client.connect();
   await client.query("begin");
   try {

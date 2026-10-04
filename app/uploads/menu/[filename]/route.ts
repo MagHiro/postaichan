@@ -20,7 +20,7 @@ export async function GET(_request: Request, { params }: Context) {
       },
     });
   } catch (error) {
-    console.error("menu_image_read_failed", error);
+    console.error("menu_image_read_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     return new Response(null, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 }

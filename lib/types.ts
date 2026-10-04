@@ -68,7 +68,7 @@ export type Order = {
   items: number;
   total: number;
   payment: "QRIS" | "Cash";
-  paymentStatus: "Paid" | "Pending";
+  paymentStatus: "Paid" | "Pending" | "Failed" | "Expired" | "Partially refunded" | "Refunded" | "Needs reconciliation" | "Unavailable";
   status: "Pending" | "New" | "Accepted" | "Preparing" | "Ready" | "Completed" | "Cancelled" | "Refunded";
   time: string;
   customer?: string;

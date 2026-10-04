@@ -1,11 +1,20 @@
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
+import { getServerConfig } from "../config-values.mjs";
 
 export function requestAddress(request: Request) {
-  // Only enable behind an ingress that replaces these headers and blocks direct access.
-  if (process.env.TRUST_PROXY_HEADERS !== "true") return "unknown";
-  const address = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip")?.trim();
-  return address && isIP(address) ? address : "unknown";
+  const config = getServerConfig();
+  if (config.clientIpStrategy === "none") return null;
+  if (config.clientIpStrategy === "trusted_header") {
+    const value = request.headers.get(config.trustedClientIpHeader)?.trim();
+    return value && isIP(value) ? value : null;
+  }
+  const chain = request.headers.get("x-forwarded-for")?.split(",").map((part) => part.trim()).filter(Boolean) ?? [];
+  if (chain.length < config.trustedProxyHops) return null;
+  // Each trusted proxy appends the address of the peer it observed. Walk back
+  // exactly the configured proxy count; values further left are untrusted.
+  const address = chain[chain.length - config.trustedProxyHops];
+  return address && isIP(address) ? address : null;
 }
 
 export function rateLimitKey(scope: string, identity: string) {
@@ -15,10 +24,10 @@ export function rateLimitKey(scope: string, identity: string) {
 export function sameOrigin(request: Request) {
   if (request.headers.get("sec-fetch-site") === "cross-site") return false;
   const origin = request.headers.get("origin");
-  if (!origin) return true; // Non-browser clients have no ambient browser credentials.
+  if (!origin) return false; // Mutations use cookie-bound sessions and must prove their origin.
   try {
     const supplied = new URL(origin);
-    const expected = new URL(process.env.APP_ORIGIN || request.url);
+    const expected = new URL(getServerConfig().appOrigin);
     return ["http:", "https:"].includes(supplied.protocol) && supplied.origin === expected.origin && !supplied.username && !supplied.password;
   } catch { return false; }
 }
@@ -55,6 +64,13 @@ export async function readBoundedBody(request: Request, maxBytes: number) {
 export async function readJsonBody(request: Request) {
   try {
     // Enough for the maximum 50-line cart, with a hard cap even for chunked requests.
-    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await readBoundedBody(request, 128 * 1024))) as unknown;
-  } catch { return null; }
+    const bytes = await readBoundedBody(request, 128 * 1024);
+    const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    return JSON.parse(source) as unknown;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return Response.json({ code: "REQUEST_BODY_TOO_LARGE", error: "Request body exceeds the allowed size." }, { status: 413, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
+    }
+    return Response.json({ code: "INVALID_JSON", error: "Request body must contain valid UTF-8 JSON." }, { status: 400, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
+  }
 }

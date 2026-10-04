@@ -1,0 +1,9 @@
+# Security audit policy
+
+CI runs a production dependency audit with `pnpm audit --prod --audit-level high`; any high or critical production finding fails. It also inspects the complete dependency graph and fails on every unreviewed finding. `scripts/audit-dependencies.mjs` recognizes one exact, documented development-tooling advisory while it has no patched upstream release.
+
+As of 2026-10-04, the full pnpm audit reports GHSA-vfj7-8cjw-p6xm (CVE-2026-93687), a high-severity uncontrolled-recursion issue in `braces` versions through 3.0.3. GitHub lists no patched version. In this repository it enters only through `eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces`; all of these are development dependencies. The production-only audit reports zero vulnerabilities. The app does not import or run ESLint, and the lint command uses repository-controlled file patterns, so an unauthenticated application request cannot supply a brace pattern to this dependency.
+
+The allowlist is intentionally limited to the exact advisory, high severity, `braces`, and its current development-only dependency path. The script also requires the production audit to pass. Any new package, advisory, severity, or production finding fails CI and requires a fresh assessment. Remove this documented exception once upstream publishes a patched release and the lockfile is updated.
+
+`eslint-config-next` is updated to match Next 16.3.8. ESLint core remains pinned to 9.39.5 because the current Next lint dependency tree still fails at runtime under ESLint 10.11.0: its bundled React rules use removed rule-context APIs and its TypeScript parser returns a scope manager without ESLint 10's required `addGlobals` method. The exact v10 attempt was reverted after `pnpm run lint` failed; upgrade core ESLint when the matched Next lint stack supports it.

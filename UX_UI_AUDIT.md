@@ -2,6 +2,8 @@
 
 Status: implemented fixes on `codex/ux-ui-audit-fixes`.
 
+Historical note: The npm commands below record the package manager used when this UX audit was performed. The current project uses pnpm 12.9.1 and `pnpm-lock.yaml` for installs and CI.
+
 ## Scope
 
 Inspected the repository structure, package scripts, Next.js App Router guidance, shared styles, route layouts, server/API handlers, authentication, database-backed data flows, public customer ordering UI, POS workspace, admin screens, QR flows, menu management, staff management, report controls, image handling, and the existing test/build setup.

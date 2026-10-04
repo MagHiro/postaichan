@@ -14,7 +14,11 @@ const loginSchema = z.object({
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
-  const parsed = loginSchema.safeParse(await readJsonBody(request));
+  const body = await readJsonBody(request);
+
+  if (body instanceof Response) return body;
+
+  const parsed = loginSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Email atau password tidak cocok." }, { status: 401, headers: noStoreHeaders() });
   try {
     if (!(await consumeRateLimit(request, "staff-login-ip", 40, 300)) || !(await consumeIdentityRateLimit("staff-login-account", parsed.data.email, 8, 300))) return NextResponse.json({ error: "Terlalu banyak percobaan. Coba lagi sebentar." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "300" } });
@@ -34,7 +38,7 @@ export async function POST(request: Request) {
     await createStaffSession(user.id);
     return NextResponse.json({ ok: true }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("staff_login_failed", error instanceof Error ? error.message : "unknown");
+    console.error("staff_login_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Login belum dapat diproses. Coba lagi sebentar." }, { status: 503, headers: noStoreHeaders() });
   }
 }

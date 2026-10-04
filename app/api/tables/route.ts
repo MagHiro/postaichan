@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { noStoreHeaders } from "@/lib/security/request";
+import { getServerConfig } from "@/lib/config";
+import { publicTableDirectory } from "@/lib/security/public-ordering";
 
 export const runtime = "nodejs";
 
@@ -11,9 +13,9 @@ export async function GET() {
     const result = await query<{ id: string; label: string }>(
       "select id, label from public.restaurant_tables where active = true order by code asc",
     );
-    return NextResponse.json({ tables: result.rows }, { headers: noStoreHeaders() });
+    return NextResponse.json({ tables: publicTableDirectory(result.rows, getServerConfig().requireOrderingQr) }, { headers: noStoreHeaders() });
   } catch (error) {
-    console.error("public_tables_failed", error instanceof Error ? error.message : "unknown");
+    console.error("public_tables_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Meja belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });
   }
 }

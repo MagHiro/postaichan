@@ -3,23 +3,30 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@12.9.1",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test": "pnpm run test:unit",
+    "test:unit": "node --experimental-strip-types --test tests/domain.test.ts tests/config-security.test.ts tests/midtrans-security.test.ts tests/http-security.test.ts",
+    "test:db": "node --experimental-strip-types --test tests/database.integration.test.ts tests/menu-database.test.ts",
+    "test:csp-smoke": "node scripts/csp-smoke.mjs",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
-    "db:migrate": "node scripts/migrate.mjs",
-    "db:seed": "node scripts/seed.mjs",
-    "db:setup": "npm run db:up && npm run db:migrate && npm run db:seed"
+    "db:migrate": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/migrate.mjs",
+    "db:seed": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed.mjs",
+    "db:setup": "pnpm db:up && pnpm db:migrate && pnpm db:seed"
   },
   "dependencies": {
     "clsx": "2.1.1",
     "lucide-react": "1.47.0",
-    "next": "16.3.5",
+    "next": "^16.3.8",
     "pdfkit": "^0.20.2",
     "pg": "^8.23.0",
     "qrcode": "^1.5.4",
@@ -36,12 +43,9 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "19.2.0",
     "@types/react-dom": "19.2.0",
-    "eslint": "^9.39.5",
-    "eslint-config-next": "^16.3.5",
+    "eslint": "9.39.5",
+    "eslint-config-next": "^16.3.8",
     "tailwindcss": "4.3.3",
     "typescript": "^6.0.2"
-  },
-  "allowScripts": {
-    "unrs-resolver@1.12.2": true
   }
 }

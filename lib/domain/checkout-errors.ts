@@ -31,6 +31,7 @@ export function checkoutDatabaseFailure(error: unknown, audience: "customer" | "
   if (code === "DUPLICATE_MODIFIER") return { code, error: withCode("Pilihan varian atau tambahan terduplikasi. Pilih ulang item tersebut.", code), status: 409, action: "refresh" };
   if (code === "INVALID_QUANTITY") return { code, error: withCode("Jumlah item tidak valid atau melebihi batas. Kurangi jumlah lalu coba lagi.", code), status: 409, action: "refresh" };
   if (code === "MONEY_LIMIT") return { code, error: withCode("Total pesanan melewati batas yang diizinkan.", code), status: 409 };
+  if (code === "QR_RESERVATION_CAPACITY") return { code, error: withCode("Jumlah pembayaran QR yang masih aktif mencapai batas keamanan. Tunggu beberapa saat lalu coba lagi.", code), status: 429, retryable: true, action: "retry" };
   if (code === "EMPTY_OR_LARGE_CART") return { code, error: withCode("Keranjang kosong atau terlalu besar untuk diproses.", code), status: 400, action: "refresh" };
   if (code === "INVALID_NOTE") return { code, error: withCode("Catatan pesanan tidak valid. Hapus atau pendekkan catatan lalu coba lagi.", code), status: 409, action: "refresh" };
   if (code === "QRIS_DISABLED") return { code, error: withCode("QRIS sedang dinonaktifkan oleh restoran. Pilih metode pembayaran lain atau hubungi kasir.", code), status: 409 };

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { databaseErrorCode, query } from "@/lib/db";
-import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
+import { authFailureMessage, authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { modifierOptionMutationSchema } from "@/lib/menu-schema";
 import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 
@@ -14,11 +14,13 @@ function optionId(id: string) {
 
 export async function PATCH(request: Request, { params }: Context) {
   const auth = await authorizeStaff("admin");
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!optionId(id)) return NextResponse.json({ error: "Opsi tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
-  const parsed = modifierOptionMutationSchema.partial().omit({ groupId: true }).safeParse(await readJsonBody(request));
+  const body = await readJsonBody(request);
+  if (body instanceof Response) return body;
+  const parsed = modifierOptionMutationSchema.partial().omit({ groupId: true }).safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Perubahan opsi tidak valid." }, { status: 400, headers: noStoreHeaders() });
   const input = parsed.data;
   if (!input.kind) return NextResponse.json({ error: "Jenis opsi (variant/addon) wajib diisi." }, { status: 400, headers: noStoreHeaders() });
@@ -33,14 +35,15 @@ export async function PATCH(request: Request, { params }: Context) {
     if (databaseErrorCode(error) === "23505") return NextResponse.json({ error: "Nama opsi sudah dipakai di grup ini." }, { status: 409, headers: noStoreHeaders() });
     const message = error instanceof Error ? error.message.split(":")[0] : "";
     if (message === "INVALID_MODIFIER") return NextResponse.json({ error: "Perubahan opsi tidak valid." }, { status: 400, headers: noStoreHeaders() });
-    console.error("admin_modifier_option_update_failed", message || "unknown");
+    if (message === "MODIFIER_GROUP_UNSATISFIABLE") return NextResponse.json({ code: message, error: "Pilihan ini dibutuhkan agar semua produk aktif tetap dapat dipesan." }, { status: 409, headers: noStoreHeaders() });
+    console.error("admin_modifier_option_update_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     return NextResponse.json({ error: "Perubahan opsi belum tersimpan." }, { status: 503, headers: noStoreHeaders() });
   }
 }
 
 export async function DELETE(request: Request, { params }: Context) {
   const auth = await authorizeStaff("admin");
-  if (!auth.allowed) return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
+  if (!auth.allowed) return NextResponse.json({ error: authFailureMessage(auth, "Administrator authorization required.", "Authentication required.") }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
   if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: noStoreHeaders() });
   const { id } = await params;
   if (!optionId(id)) return NextResponse.json({ error: "Opsi tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
@@ -55,7 +58,8 @@ export async function DELETE(request: Request, { params }: Context) {
     return NextResponse.json({ deleted: true }, { headers: noStoreHeaders() });
   } catch (error) {
     const message = error instanceof Error ? error.message.split(":")[0] : "";
-    console.error("admin_modifier_option_delete_failed", message || "unknown");
+    if (message === "MODIFIER_GROUP_UNSATISFIABLE") return NextResponse.json({ code: message, error: "Pilihan ini dibutuhkan agar semua produk aktif tetap dapat dipesan." }, { status: 409, headers: noStoreHeaders() });
+    console.error("admin_modifier_option_delete_failed", { errorType: error instanceof Error ? error.name : "unknown" });
     return NextResponse.json({ error: "Opsi belum berhasil dihapus." }, { status: 503, headers: noStoreHeaders() });
   }
 }
