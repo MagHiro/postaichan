@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { productMutationSchema } from "@/lib/menu-schema";
 import { readJsonBody, noStoreHeaders, sameOrigin } from "@/lib/security/request";
-import { isMenuImagePath, removeMenuImage } from "@/lib/uploads/menu-storage";
 
 export const runtime = "nodejs";
 
@@ -11,12 +10,6 @@ async function adminAuth() { return authorizeStaff("admin"); }
 
 function failure(auth: Awaited<ReturnType<typeof authorizeStaff>>) {
   return NextResponse.json({ error: auth.authenticated ? "Administrator authorization required." : "Authentication required." }, { status: authFailureStatus(auth), headers: noStoreHeaders() });
-}
-
-async function cleanupImage(imagePath: string | null | undefined) {
-  if (!imagePath || !isMenuImagePath(imagePath)) return;
-  const references = await query("select id from public.products where image_path = $1 limit 1", [imagePath]);
-  if (references.rowCount === 0) await removeMenuImage(imagePath);
 }
 
 export async function GET() {
@@ -50,10 +43,10 @@ export async function POST(request: Request) {
       [input.categoryId, input.name, input.description ?? null, input.imagePath ?? null, input.priceIdr, input.estimatedCostIdr, input.available, input.stockTracked, input.stockQuantity, auth.actorId],
     );
     const product = result.rows[0];
-    if (!product) { await cleanupImage(input.imagePath); return NextResponse.json({ error: "Menu belum berhasil dibuat." }, { status: 503, headers: noStoreHeaders() }); }
+    if (!product) { return NextResponse.json({ error: "Menu belum berhasil dibuat." }, { status: 503, headers: noStoreHeaders() }); }
     return NextResponse.json({ product }, { status: 201, headers: noStoreHeaders() });
   } catch (error) {
-    await cleanupImage(input.imagePath).catch(() => undefined);
+    console.error("admin_menu_create_failed", error);
     const message = error instanceof Error ? error.message.split(":")[0] : "";
     return NextResponse.json({ error: message === "CATEGORY_NOT_AVAILABLE" ? "Kategori tidak tersedia." : "Menu belum berhasil dibuat." }, { status: message === "CATEGORY_NOT_AVAILABLE" ? 409 : 503, headers: noStoreHeaders() });
   }

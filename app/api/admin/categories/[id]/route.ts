@@ -29,7 +29,6 @@ export async function PATCH(request: Request, { params }: Context) {
   } catch (error) {
     if (databaseErrorCode(error) === "23505") return NextResponse.json({ error: "Nama kategori sudah digunakan." }, { status: 409, headers: noStoreHeaders() });
     const message = error instanceof Error ? error.message.split(":")[0] : "";
-    if (message === "CATEGORY_IN_USE") return NextResponse.json({ error: "Kategori masih dipakai produk aktif. Pindahkan produk dulu sebelum menonaktifkan." }, { status: 409, headers: noStoreHeaders() });
     if (message === "INVALID_CATEGORY") return NextResponse.json({ error: "Perubahan kategori tidak valid." }, { status: 400, headers: noStoreHeaders() });
     console.error("admin_category_update_failed", message || "unknown");
     return NextResponse.json({ error: "Perubahan kategori belum tersimpan." }, { status: 503, headers: noStoreHeaders() });
@@ -43,15 +42,14 @@ export async function DELETE(request: Request, { params }: Context) {
   const { id } = await params;
   if (!categoryId(id)) return NextResponse.json({ error: "Kategori tidak ditemukan." }, { status: 400, headers: noStoreHeaders() });
   try {
-    const result = await query<{ deactivated: boolean } | { deactivate_category: boolean }>("select public.deactivate_category($1::uuid, $2::uuid) as deactivated", [id, auth.actorId]);
-    const row = result.rows[0] as { deactivated?: boolean; deactivate_category?: boolean } | undefined;
-    if (row?.deactivated !== true && row?.deactivate_category !== true) return NextResponse.json({ error: "Kategori tidak ditemukan." }, { status: 404, headers: noStoreHeaders() });
-    return NextResponse.json({ deactivated: true }, { headers: noStoreHeaders() });
+    const result = await query<{ deleted: boolean }>("select public.delete_category($1::uuid, $2::uuid) as deleted", [id, auth.actorId]);
+    const row = result.rows[0];
+    if (row?.deleted !== true) return NextResponse.json({ error: "Kategori tidak ditemukan." }, { status: 404, headers: noStoreHeaders() });
+    return NextResponse.json({ deleted: true }, { headers: noStoreHeaders() });
   } catch (error) {
     const message = error instanceof Error ? error.message.split(":")[0] : "";
-    if (message === "CATEGORY_IN_USE") return NextResponse.json({ error: "Kategori masih dipakai produk aktif. Pindahkan produk dulu sebelum menonaktifkan." }, { status: 409, headers: noStoreHeaders() });
-    console.error("admin_category_deactivate_failed", message || "unknown");
-    return NextResponse.json({ error: "Kategori belum berhasil dinonaktifkan." }, { status: 503, headers: noStoreHeaders() });
+    console.error("admin_category_delete_failed", message || "unknown");
+    return NextResponse.json({ error: "Kategori belum berhasil dihapus." }, { status: 503, headers: noStoreHeaders() });
   }
 }
 

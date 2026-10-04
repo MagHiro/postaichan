@@ -14,6 +14,7 @@ export async function GET() {
       `select c.id, c.name, c.description, c.display_order as "displayOrder", c.active,
               (select count(*)::integer from public.products p where p.category_id = c.id and p.active = true) as product_count
        from public.categories c
+       where c.deleted_at is null
        order by c.display_order asc, c.name asc`,
     );
     return NextResponse.json({ categories: result.rows }, { headers: noStoreHeaders() });

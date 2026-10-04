@@ -43,11 +43,11 @@ export async function PATCH(request: Request, context: Context) {
     const row = result.rows[0];
     if (!row) return NextResponse.json({ error: "Product not found." }, { status: 404, headers: noStoreHeaders() });
     const nextPath = input.imagePath === undefined ? current.image_path : input.imagePath;
-    if (current.image_path && current.image_path !== nextPath) await cleanupIfUnreferenced(current.image_path, id);
+    if (current.image_path && current.image_path !== nextPath) await cleanupIfUnreferenced(current.image_path, id).catch((error) => console.error("menu_image_cleanup_failed", error));
     return NextResponse.json({ product: row }, { headers: noStoreHeaders() });
   } catch (error) {
+    console.error("admin_menu_update_failed", error);
     const message = error instanceof Error ? error.message.split(":")[0] : "";
-    if (input.imagePath && input.imagePath !== undefined && isMenuImagePath(input.imagePath)) await cleanupIfUnreferenced(input.imagePath, id).catch(() => undefined);
     return NextResponse.json({ error: message === "CATEGORY_NOT_AVAILABLE" ? "Kategori tidak tersedia." : message === "STOCK_RESERVED" ? "Stok tidak boleh di bawah jumlah yang sedang dipesan." : "Perubahan menu belum tersimpan." }, { status: ["CATEGORY_NOT_AVAILABLE", "STOCK_RESERVED"].includes(message) ? 409 : 503, headers: noStoreHeaders() });
   }
 }

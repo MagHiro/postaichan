@@ -16,6 +16,13 @@ export class MenuImageError extends Error {
   }
 }
 
+export class MenuImageStorageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MenuImageStorageError";
+  }
+}
+
 export function isMenuImagePath(value: unknown): value is string {
   return typeof value === "string" && MENU_PATH_PATTERN.test(value);
 }
@@ -50,13 +57,14 @@ export async function storeMenuImage(file: File) {
     throw new MenuImageError("File gambar tidak valid atau rusak.");
   }
 
-  await mkdir(MENU_UPLOAD_DIRECTORY, { recursive: true });
   const imagePath = `/uploads/menu/${randomUUID()}.webp`;
   const absolutePath = absolutePathForMenuImage(imagePath);
   try {
+    await mkdir(MENU_UPLOAD_DIRECTORY, { recursive: true });
     await writeFile(absolutePath, output, { flag: "wx", mode: 0o644 });
-  } catch {
-    throw new MenuImageError("Gambar belum dapat disimpan. Coba lagi.");
+  } catch (error) {
+    console.error("menu_image_storage_failed", error);
+    throw new MenuImageStorageError("Penyimpanan gambar tidak tersedia. Periksa izin folder public/uploads/menu di server.");
   }
   return { imagePath, absolutePath };
 }

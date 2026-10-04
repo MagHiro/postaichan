@@ -4,7 +4,7 @@ import { authFailureStatus, authorizeStaff } from "@/lib/auth/authorize-staff";
 import { readJsonBody, consumeRateLimit, noStoreHeaders, sameOrigin } from "@/lib/security/request";
 import { z } from "zod";
 import { query } from "@/lib/db";
-import { isMenuImagePath, MenuImageError, MENU_UPLOAD_MAX_BYTES, removeMenuImage, storeMenuImage } from "@/lib/uploads/menu-storage";
+import { isMenuImagePath, MenuImageError, MenuImageStorageError, MENU_UPLOAD_MAX_BYTES, removeMenuImage, storeMenuImage } from "@/lib/uploads/menu-storage";
 
 export const runtime = "nodejs";
 
@@ -17,7 +17,12 @@ export async function POST(request: Request) {
   try {
     if (!(await consumeRateLimit(request, "menu-upload", 12, 300, auth.actorId ?? "dev"))) return NextResponse.json({ error: "Terlalu banyak upload. Coba lagi sebentar." }, { status: 429, headers: { ...noStoreHeaders(), "Retry-After": "300" } });
     const bytes = await readBoundedBody(request, MENU_UPLOAD_MAX_BYTES + 256_000);
-    const form = await new Response(bytes, { headers: { "content-type": request.headers.get("content-type") ?? "" } }).formData();
+    let form: FormData;
+    try {
+      form = await new Response(bytes, { headers: { "content-type": request.headers.get("content-type") ?? "" } }).formData();
+    } catch {
+      return NextResponse.json({ code: "INVALID_IMAGE_UPLOAD", error: "Upload gambar tidak valid. Pilih gambar lalu coba lagi." }, { status: 400, headers: noStoreHeaders() });
+    }
     const value = form.get("image");
     if (!(value instanceof File)) return NextResponse.json({ error: "Pilih file gambar terlebih dahulu." }, { status: 400, headers: noStoreHeaders() });
     const stored = await storeMenuImage(value);
@@ -25,8 +30,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof RequestBodyTooLargeError) return NextResponse.json({ error: "Ukuran gambar maksimal 5 MB." }, { status: 413, headers: noStoreHeaders() });
     if (error instanceof MenuImageError) return NextResponse.json({ error: error.message }, { status: 400, headers: noStoreHeaders() });
+    if (error instanceof MenuImageStorageError) return NextResponse.json({ code: "MENU_IMAGE_STORAGE_UNAVAILABLE", error: error.message }, { status: 503, headers: noStoreHeaders() });
     console.error("menu_image_upload_failed", error instanceof Error ? error.message : "unknown");
-    return NextResponse.json({ error: "Gambar belum dapat diunggah. Coba lagi." }, { status: 503, headers: noStoreHeaders() });
+    return NextResponse.json({ code: "MENU_IMAGE_UPLOAD_FAILED", error: "Gambar belum dapat diunggah. Coba lagi." }, { status: 503, headers: noStoreHeaders() });
   }
 }
 

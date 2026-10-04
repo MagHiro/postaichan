@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Plus, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/lib/types";
 
@@ -94,7 +94,7 @@ export function CategoryManager({ onChanged }: { onChanged?: () => void }) {
 
   async function toggle(category: ManagedCategory) {
     const action = category.active === false ? "aktifkan" : "nonaktifkan";
-    if (!window.confirm(`${action === "aktifkan" ? "Aktifkan" : "Nonaktifkan"} kategori "${category.name}"?`)) return;
+    if (!window.confirm(`${action === "aktifkan" ? "Aktifkan" : "Nonaktifkan"} kategori "${category.name}"?${category.active !== false ? " Produk dalam kategori ini akan disembunyikan dari menu." : ""}`)) return;
     setWorking(category.id);
     try {
       const response = await fetch(`/api/admin/categories/${category.id}`, {
@@ -108,6 +108,23 @@ export function CategoryManager({ onChanged }: { onChanged?: () => void }) {
       setNotice(`Kategori ${action}.`);
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Kategori belum berhasil diubah.");
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  async function remove(category: ManagedCategory) {
+    if (!window.confirm(`Hapus kategori "${category.name}"? Produk dalam kategori ini akan disembunyikan dari menu. Produk dan riwayat pesanan tetap tersimpan.`)) return;
+    setWorking(category.id);
+    try {
+      const response = await fetch(`/api/admin/categories/${category.id}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error ?? "Kategori belum berhasil dihapus.");
+      if (editing?.id === category.id) closeEdit();
+      await load(); onChanged?.();
+      setNotice("Kategori berhasil dihapus.");
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : "Kategori belum berhasil dihapus.");
     } finally {
       setWorking(null);
     }
@@ -206,6 +223,7 @@ export function CategoryManager({ onChanged }: { onChanged?: () => void }) {
                     type="button"
                     onClick={() => openEdit(category)}
                     aria-label={`Ubah ${category.name}`}
+                    disabled={working !== null}
                     className="flex h-9 items-center rounded-full bg-[#F3EFE6] px-3.5 text-xs font-medium text-[#78716C] active:scale-95"
                   >
                     Ubah
@@ -216,13 +234,22 @@ export function CategoryManager({ onChanged }: { onChanged?: () => void }) {
                     aria-checked={category.active !== false}
                     aria-label={`${category.active === false ? "Aktifkan" : "Nonaktifkan"} ${category.name}`}
                     onClick={() => void toggle(category)}
-                    disabled={working === category.id}
+                    disabled={working !== null}
                     className={cn(
                       "flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition disabled:opacity-40",
                       category.active === false ? "justify-start bg-[#EDE8DB]" : "justify-end bg-[#FDBD2C]",
                     )}
                   >
                     <span className="h-5 w-5 rounded-full bg-[#FFFEFB] shadow-xs" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void remove(category)}
+                    disabled={working !== null}
+                    aria-label={`Hapus ${category.name}`}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F3EFE6] text-[#B91C1C] active:scale-95 disabled:opacity-40"
+                  >
+                    <Trash2 size={15} />
                   </button>
                 </div>
               ))
