@@ -10,7 +10,7 @@ import { WarmSelect } from "@/components/warm-select";
 import { MetaDot, MetaInline } from "@/components/meta";
 import { CategoryDropdown } from "@/components/category-filter";
 import { CategoryManager } from "@/components/category-manager";
-import { ModifierManager, ProductModifierPicker } from "@/components/modifier-manager";
+import { ProductOptionsEditor } from "@/components/product-options-editor";
 import { ALL_CATEGORIES_ID } from "@/components/order/constants";
 import { useDialogFocus } from "@/components/use-dialog-focus";
 import type { Category } from "@/lib/types";
@@ -32,14 +32,14 @@ type AdminProduct = {
   variantGroupIds: string[];
   addonGroupIds: string[];
 };
-type FormState = { name: string; description: string; imagePath: string; categoryId: string; priceIdr: string; estimatedCostIdr: string; available: boolean; stockTracked: boolean; stockQuantity: string; variantGroupIds: string[]; addonGroupIds: string[] };
+type FormState = { name: string; description: string; imagePath: string; categoryId: string; priceIdr: string; estimatedCostIdr: string; available: boolean; stockTracked: boolean; stockQuantity: string };
 
-const blankForm: FormState = { name: "", description: "", imagePath: "", categoryId: "", priceIdr: "", estimatedCostIdr: "", available: true, stockTracked: false, stockQuantity: "0", variantGroupIds: [], addonGroupIds: [] };
+const blankForm: FormState = { name: "", description: "", imagePath: "", categoryId: "", priceIdr: "", estimatedCostIdr: "", available: true, stockTracked: false, stockQuantity: "0" };
 
 export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) => void }) {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [section, setSection] = useState<"menu" | "categories" | "modifiers">("menu");
+  const [section, setSection] = useState<"menu" | "categories">("menu");
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_CATEGORIES_ID);
   const [showArchived, setShowArchived] = useState(false);
@@ -96,7 +96,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
   }
   function openEdit(product: AdminProduct) {
     void cleanupPendingImages();
-    setForm({ name: product.name, description: product.description ?? "", imagePath: product.imageUrl ?? "", categoryId: product.categoryId, priceIdr: String(product.priceIdr), estimatedCostIdr: String(product.estimatedCostIdr), available: product.available, stockTracked: product.stockTracked, stockQuantity: String(product.stockQuantity), variantGroupIds: product.variantGroupIds, addonGroupIds: product.addonGroupIds });
+    setForm({ name: product.name, description: product.description ?? "", imagePath: product.imageUrl ?? "", categoryId: product.categoryId, priceIdr: String(product.priceIdr), estimatedCostIdr: String(product.estimatedCostIdr), available: product.available, stockTracked: product.stockTracked, stockQuantity: String(product.stockQuantity) });
     setEditor(product);
   }
 
@@ -128,11 +128,14 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
       if (!response.ok) throw new Error(payload.error ?? "Menu belum berhasil disimpan.");
       const productId = isCreate ? String(payload.product?.id ?? "") : (editor as AdminProduct).id;
       if (!productId) throw new Error("Menu belum berhasil disimpan.");
-      const modifierResponse = await fetch(`/api/admin/menu/${productId}/modifiers`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ variantGroupIds: form.variantGroupIds, addonGroupIds: form.addonGroupIds }) });
-      const modifierPayload = await modifierResponse.json().catch(() => null);
-      if (!modifierResponse.ok) throw new Error(modifierPayload?.error ?? "Opsi produk belum tersimpan.");
-      await cleanupPendingImages();
-      setEditor(null); await loadMenu(); onShowNotice(isCreate ? "Produk dibuat." : "Produk diperbarui.");
+      if (isCreate && payload.product?.id) {
+        await cleanupPendingImages();
+        setEditor({ ...(payload.product as AdminProduct), id: String(payload.product.id), name: form.name.trim(), description: form.description || null, imageUrl: form.imagePath || null, categoryId: form.categoryId, categoryName: "", priceIdr: Number(form.priceIdr), estimatedCostIdr: Number(form.estimatedCostIdr), available: form.available, sellable: true, active: true, stockTracked: form.stockTracked, stockQuantity: form.stockTracked ? Number(form.stockQuantity) : 0, variantGroupIds: [], addonGroupIds: [] });
+      } else {
+        await cleanupPendingImages();
+        setEditor(null);
+      }
+      await loadMenu(); onShowNotice(isCreate ? "Produk dibuat. Tambahkan opsi di bawah bila perlu." : "Produk diperbarui.");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Menu belum berhasil disimpan."); }
     finally { setSaving(false); }
   }
@@ -189,9 +192,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           <p className="text-[13px] text-[#78716C]">
             {section === "categories"
               ? (<>{categories.length} kategori <MetaDot /> urutan tampil mengikuti angka urutan</>)
-              : section === "modifiers"
-                ? (<>Level pedas & tambahan <MetaDot /> berlaku langsung di checkout</>)
-                : showArchived ? `${products.filter((product) => !product.active).length} produk diarsipkan` : (<>{activeCount} produk aktif <MetaDot /> perubahan berlaku saat checkout</>)}
+              : showArchived ? `${products.filter((product) => !product.active).length} produk diarsipkan` : (<>{activeCount} produk aktif <MetaDot /> ketuk produk untuk ubah opsi</>)}
           </p>
           {section === "menu" && (
             <button
@@ -209,7 +210,6 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
             [
               { key: "menu", label: "Menu" },
               { key: "categories", label: "Kategori" },
-              { key: "modifiers", label: "Opsi" },
             ] as const
           ).map(({ key, label }) => (
             <button
@@ -353,10 +353,6 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           )}
         </div>
           </>
-        ) : section === "modifiers" ? (
-          <div className="mt-5">
-            <ModifierManager onChanged={() => void loadMenu()} />
-          </div>
         ) : (
           <div className="mt-5">
             <CategoryManager onChanged={() => void loadMenu()} />
@@ -377,6 +373,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
           uploading={uploading}
           onClose={closeEditor}
           onSave={() => void saveProduct()}
+          onOptionsChanged={() => void loadMenu()}
           onUpload={(file) => void uploadImage(file)}
           onArchive={
             editor === "create" || !(editor as AdminProduct).active
@@ -398,7 +395,7 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
   );
 }
 
-function ProductEditor({ editor, form, setForm, categories, error, saving, uploading, onClose, onSave, onUpload, onArchive, onRestore }: { editor: "create" | AdminProduct; form: FormState; setForm: (form: FormState) => void; categories: Category[]; error: string | null; saving: boolean; uploading: boolean; onClose: () => void; onSave: () => void; onUpload: (file: File) => void; onArchive?: (product: AdminProduct) => void; onRestore?: (product: AdminProduct) => void }) {
+function ProductEditor({ editor, form, setForm, categories, error, saving, uploading, onClose, onSave, onOptionsChanged, onUpload, onArchive, onRestore }: { editor: "create" | AdminProduct; form: FormState; setForm: (form: FormState) => void; categories: Category[]; error: string | null; saving: boolean; uploading: boolean; onClose: () => void; onSave: () => void; onOptionsChanged: () => void; onUpload: (file: File) => void; onArchive?: (product: AdminProduct) => void; onRestore?: (product: AdminProduct) => void }) {
   const isCreate = editor === "create";
   const isArchived = !isCreate && onRestore !== undefined;
   const dialogRef = useRef<HTMLElement>(null);
@@ -406,11 +403,11 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
   const canSave = !saving && !uploading && form.name.trim() !== "" && form.categoryId !== "" && form.priceIdr !== "" && (!form.stockTracked || form.stockQuantity !== "");
   const activeCategory = categories.find((category) => category.id === form.categoryId)?.name;
   return createPortal(
-    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30 p-0 sm:items-center sm:p-5" onClick={onClose}>
+    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30 p-0 sm:items-center sm:p-5 lg:p-8" onClick={onClose}>
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className="ord-sheet flex max-h-[92dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-[#FFFEFB] text-[#1C1917] sm:rounded-[28px] lg:max-w-[560px]"
+        className="ord-sheet flex max-h-[92dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-[#FFFEFB] text-[#1C1917] sm:max-w-[760px] sm:rounded-[28px] lg:max-w-[920px]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -431,108 +428,111 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
         </div>
 
         <form onSubmit={(event) => { event.preventDefault(); onSave(); }} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-8 overflow-y-auto px-5 py-5">
-            {error && <p role="alert" className="rounded-2xl border border-[#EFE7D6] bg-[#FAF7F1] px-4 py-3 text-center text-[13px] leading-relaxed text-[#78716C]">{error}</p>}
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-8 sm:px-10 sm:py-10 lg:px-14">
+            {error && <p role="alert" className="mx-auto mb-10 w-full max-w-[680px] rounded-2xl border border-[#EFE7D6] bg-[#FAF7F1] px-4 py-3 text-center text-[13px] leading-relaxed text-[#78716C]">{error}</p>}
 
-            <EditorSection title="Info dasar" hint="Nama, kategori, dan deskripsi tampil di menu pelanggan.">
-              <Field label="Nama produk" htmlFor="product-name">
-                <input id="product-name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Sate Taichan 10 Tusuk" maxLength={80} className="input" />
-              </Field>
-              <Field label="Kategori" htmlFor="product-category">
-                <WarmSelect id="product-category" label="Kategori" required value={form.categoryId} onChange={(next) => setForm({ ...form, categoryId: next })} placeholder="Pilih kategori" options={categories.map((category) => ({ value: category.id, label: category.name }))} />
-              </Field>
-              <Field label="Deskripsi" hint={`${form.description.length}/160`} htmlFor="product-description">
-                <textarea id="product-description" rows={2} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value.slice(0, 160) })} placeholder="Deskripsi singkat, mis. pedas gurih dengan sambal." maxLength={160} className="input resize-none" />
-              </Field>
-            </EditorSection>
-
-            <EditorSection title="Foto" hint={<>Opsional <MetaDot /> JPEG, PNG, atau WebP hingga 5 MB.</>}>
-              {form.imagePath ? (
-                <div className="relative overflow-hidden rounded-2xl bg-[#F3EFE6]">
-                  <img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/10] w-full object-cover" />
-                  <button type="button" onClick={() => setForm({ ...form, imagePath: "" })} aria-label="Hapus foto" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#FFFEFB]/90 text-[#78716C] backdrop-blur transition active:scale-95">
-                    <X size={15} />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex aspect-[16/10] items-center justify-center rounded-2xl border border-dashed border-[#E5DCC8] bg-[#F3EFE6] px-4 text-center text-[13px] text-[#A8A29E]">Belum ada foto — menu tetap bisa disimpan.</div>
-              )}
-              <label className="flex h-11 cursor-pointer items-center justify-center rounded-full bg-[#F3EFE6] px-4 text-[13px] font-medium text-[#1C1917] transition active:scale-[0.98]">
-                {uploading ? "Mengunggah…" : form.imagePath ? "Ganti foto" : "Upload foto"}
-                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = ""; }} className="sr-only" />
-              </label>
-            </EditorSection>
-
-            <EditorSection title="Harga" hint="Modal hanya untuk internal, tidak tampil ke pelanggan.">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Harga jual" htmlFor="product-price">
-                  <input id="product-price" required type="number" min="0" max="100000000" value={form.priceIdr} onChange={(event) => setForm({ ...form, priceIdr: event.target.value })} placeholder="28000" inputMode="numeric" className="input tabular-nums" />
+            <div className="mx-auto w-full max-w-[680px] space-y-12 sm:space-y-14">
+              <EditorSection title="Info dasar" hint="Nama, kategori, dan deskripsi tampil di menu pelanggan.">
+                <Field label="Nama produk" htmlFor="product-name">
+                  <input id="product-name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Sate Taichan 10 Tusuk" maxLength={80} className="input" />
                 </Field>
-                <Field label="Est. modal" htmlFor="product-cost">
-                  <input id="product-cost" type="number" min="0" max="100000000" value={form.estimatedCostIdr} onChange={(event) => setForm({ ...form, estimatedCostIdr: event.target.value })} placeholder="10500" inputMode="numeric" className="input tabular-nums" />
+                <Field label="Kategori" htmlFor="product-category">
+                  <WarmSelect id="product-category" label="Kategori" required value={form.categoryId} onChange={(next) => setForm({ ...form, categoryId: next })} placeholder="Pilih kategori" options={categories.map((category) => ({ value: category.id, label: category.name }))} />
                 </Field>
-              </div>
-            </EditorSection>
+                <Field label="Deskripsi" hint={`${form.description.length}/160`} htmlFor="product-description">
+                  <textarea id="product-description" rows={2} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value.slice(0, 160) })} placeholder="Deskripsi singkat, mis. pedas gurih dengan sambal." maxLength={160} className="input resize-none" />
+                </Field>
+              </EditorSection>
 
-            <EditorSection title="Opsi" hint={<>Level pedas & tambahan <MetaDot /> tampil di halaman pesan.</>}>
-              <ProductModifierPicker
-                variantGroupIds={form.variantGroupIds}
-                addonGroupIds={form.addonGroupIds}
-                onChange={(next) => setForm({ ...form, variantGroupIds: next.variantGroupIds, addonGroupIds: next.addonGroupIds })}
-              />
-            </EditorSection>
-
-            <EditorSection title="Ketersediaan" hint="Atur stok dan apakah produk bisa dipesan.">
-              <fieldset className="border-0 p-0">
-                <legend className="mb-2 text-[13px] font-medium">Mode stok</legend>
-                <div className="flex rounded-full bg-[#F3EFE6] p-1" role="group" aria-label="Mode stok">
-                  {(
-                    [
-                      { key: false, label: "Unlimited" },
-                      { key: true, label: "Track stok" },
-                    ] as const
-                  ).map(({ key, label }) => (
-                    <button
-                      type="button"
-                      key={label}
-                      onClick={() => setForm({ ...form, stockTracked: key })}
-                      aria-pressed={form.stockTracked === key}
-                      className={cn(
-                        "h-11 flex-1 rounded-full text-center text-[13px] transition active:scale-[0.98]",
-                        form.stockTracked === key ? "border border-[#EFE7D6] bg-[#FFFEFB] font-medium text-[#1C1917] shadow-xs" : "font-normal text-[#78716C]",
-                      )}
-                    >
-                      {label}
+              <EditorSection title="Foto" hint={<>Opsional <MetaDot /> JPEG, PNG, atau WebP hingga 5 MB.</>}>
+                {form.imagePath ? (
+                  <div className="relative overflow-hidden rounded-2xl bg-[#F3EFE6]">
+                    <img src={form.imagePath} alt={`Pratinjau ${form.name || "menu"}`} className="aspect-[16/10] w-full object-cover" />
+                    <button type="button" onClick={() => setForm({ ...form, imagePath: "" })} aria-label="Hapus foto" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#FFFEFB]/90 text-[#78716C] backdrop-blur transition active:scale-95">
+                      <X size={15} />
                     </button>
-                  ))}
-                </div>
-                {form.stockTracked && (
-                  <div className="mt-3">
-                    <label htmlFor="product-stock" className="mb-2 block text-[13px] font-medium">Sisa stok</label>
-                    <input id="product-stock" required type="number" min="0" max="1000000" value={form.stockQuantity} onChange={(event) => setForm({ ...form, stockQuantity: event.target.value })} inputMode="numeric" className="input tabular-nums" placeholder="24" />
                   </div>
+                ) : (
+                  <div className="flex aspect-[16/10] items-center justify-center rounded-2xl border border-dashed border-[#E5DCC8] bg-[#F3EFE6] px-4 text-center text-[13px] text-[#A8A29E]">Belum ada foto — menu tetap bisa disimpan.</div>
                 )}
-              </fieldset>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={form.available}
-                aria-label="Tersedia dipesan"
-                onClick={() => setForm({ ...form, available: !form.available })}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[#F3EFE6] px-4 py-3 text-left transition active:scale-[0.99]"
-              >
-                <span className="min-w-0">
-                  <span className="block text-[13px] font-medium">Tersedia dipesan</span>
-                  <span className="mt-0.5 block truncate text-xs text-[#A8A29E]">{form.available ? "Tampil dan bisa dipesan" : "Disembunyikan dari checkout"}</span>
-                </span>
-                <span aria-hidden="true" className={cn("flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition", form.available ? "justify-end bg-[#FDBD2C]" : "justify-start bg-[#EDE8DB]")}>
-                  <span className="h-5 w-5 rounded-full bg-[#FFFEFB] shadow-xs" />
-                </span>
-              </button>
-            </EditorSection>
+                <label className="flex h-11 cursor-pointer items-center justify-center rounded-full bg-[#F3EFE6] px-4 text-[13px] font-medium text-[#1C1917] transition active:scale-[0.98]">
+                  {uploading ? "Mengunggah…" : form.imagePath ? "Ganti foto" : "Upload foto"}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = ""; }} className="sr-only" />
+                </label>
+              </EditorSection>
+
+              <EditorSection title="Harga" hint="Modal hanya untuk internal, tidak tampil ke pelanggan.">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Harga jual" htmlFor="product-price">
+                    <input id="product-price" required type="number" min="0" max="100000000" value={form.priceIdr} onChange={(event) => setForm({ ...form, priceIdr: event.target.value })} placeholder="28000" inputMode="numeric" className="input tabular-nums" />
+                  </Field>
+                  <Field label="Est. modal" htmlFor="product-cost">
+                    <input id="product-cost" type="number" min="0" max="100000000" value={form.estimatedCostIdr} onChange={(event) => setForm({ ...form, estimatedCostIdr: event.target.value })} placeholder="10500" inputMode="numeric" className="input tabular-nums" />
+                  </Field>
+                </div>
+              </EditorSection>
+
+              <EditorSection title="Opsi produk" hint={<>Pilihan & tambahan <MetaDot /> hanya untuk produk ini.</>}>
+                {isCreate ? (
+                  <p className="text-[13px] leading-relaxed text-[#78716C]">Simpan produk dulu, lalu opsi (mis. Level pedas, Tambahan) bisa ditambahkan di sini.</p>
+                ) : (
+                  <ProductOptionsEditor productId={(editor as AdminProduct).id} onChanged={onOptionsChanged} />
+                )}
+              </EditorSection>
+
+              <EditorSection title="Ketersediaan" hint="Atur stok dan apakah produk bisa dipesan.">
+                <fieldset className="border-0 p-0">
+                  <legend className="mb-2 text-[13px] font-medium">Mode stok</legend>
+                  <div className="flex rounded-full bg-[#F3EFE6] p-1" role="group" aria-label="Mode stok">
+                    {(
+                      [
+                        { key: false, label: "Unlimited" },
+                        { key: true, label: "Track stok" },
+                      ] as const
+                    ).map(({ key, label }) => (
+                      <button
+                        type="button"
+                        key={label}
+                        onClick={() => setForm({ ...form, stockTracked: key })}
+                        aria-pressed={form.stockTracked === key}
+                        className={cn(
+                          "h-11 flex-1 rounded-full text-center text-[13px] transition active:scale-[0.98]",
+                          form.stockTracked === key ? "border border-[#EFE7D6] bg-[#FFFEFB] font-medium text-[#1C1917] shadow-xs" : "font-normal text-[#78716C]",
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {form.stockTracked && (
+                    <div className="mt-3">
+                      <label htmlFor="product-stock" className="mb-2 block text-[13px] font-medium">Sisa stok</label>
+                      <input id="product-stock" required type="number" min="0" max="1000000" value={form.stockQuantity} onChange={(event) => setForm({ ...form, stockQuantity: event.target.value })} inputMode="numeric" className="input tabular-nums" placeholder="24" />
+                    </div>
+                  )}
+                </fieldset>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={form.available}
+                  aria-label="Tersedia dipesan"
+                  onClick={() => setForm({ ...form, available: !form.available })}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[#F3EFE6] px-4 py-3 text-left transition active:scale-[0.99]"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-medium">Tersedia dipesan</span>
+                    <span className="mt-0.5 block truncate text-xs text-[#A8A29E]">{form.available ? "Tampil dan bisa dipesan" : "Disembunyikan dari checkout"}</span>
+                  </span>
+                  <span aria-hidden="true" className={cn("flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition", form.available ? "justify-end bg-[#FDBD2C]" : "justify-start bg-[#EDE8DB]")}>
+                    <span className="h-5 w-5 rounded-full bg-[#FFFEFB] shadow-xs" />
+                  </span>
+                </button>
+              </EditorSection>
+            </div>
           </div>
 
-          <div className="shrink-0 border-t border-[#EFE7D6] bg-[#FAF7F1]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+          <div className="shrink-0 border-t border-[#EFE7D6] bg-[#FAF7F1]/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:px-8">
+            <div className="sm:mx-auto sm:w-full sm:max-w-[520px]">
             {isArchived && onRestore ? (
               <div className="space-y-2">
                 <button
@@ -571,6 +571,7 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
                 </div>
               </div>
             )}
+            </div>
           </div>
         </form>
       </section>
@@ -581,10 +582,10 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
 
 function EditorSection({ title, hint, children }: { title: string; hint?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section aria-label={title} className="border-t border-[#E9E1D1] pt-5 first:border-t-0 first:pt-0">
-      <h3 className="text-sm font-medium text-[#1C1917]">{title}</h3>
-      {hint && <p className="mt-1 text-xs leading-relaxed text-[#A8A29E]">{hint}</p>}
-      <div className="mt-4 space-y-4">{children}</div>
+    <section aria-label={title} className="border-t border-[#E9E1D1] pt-8 first:border-t-0 first:pt-0 sm:pt-10 sm:first:pt-0">
+      <h3 className="text-[15px] font-medium text-[#1C1917]">{title}</h3>
+      {hint && <p className="mt-1.5 text-[13px] leading-relaxed text-[#A8A29E]">{hint}</p>}
+      <div className="mt-5 space-y-5">{children}</div>
     </section>
   );
 }
