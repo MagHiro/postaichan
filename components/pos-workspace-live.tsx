@@ -1259,18 +1259,18 @@ function LiveOrders({
               {filtered.map((order) => <MobileOrderRow key={order.id} order={order} opening={openingId === order.id} onOpen={() => void openDetail(order)} />)}
             </div>
             <div className="hidden overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft lg:block">
-              <div className="hidden grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_auto] gap-4 bg-[#FFFEFB] px-6 py-3 text-xs text-[#A8A29E] lg:grid">
-                <span>Pesanan</span>
-                <span>Detail</span>
-                <span>Total</span>
-                <span>Status</span>
+              <div className="hidden grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_132px] items-center gap-4 bg-[#FFFEFB] px-6 py-3 text-xs text-[#A8A29E] lg:grid">
+                <span className="text-left">Pesanan</span>
+                <span className="text-left">Detail</span>
+                <span className="text-left">Total</span>
+                <span className="text-left">Status</span>
                 <span className="text-right">Aksi</span>
               </div>
               <div className="divide-y divide-[#E9E1D1]">
                 {filtered.map((order) => {
                   const statusTone = orderStatusTone(order.status);
                   return (
-                    <div key={order.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 px-4 py-4 sm:px-5 lg:grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_auto] lg:items-center lg:gap-4 lg:px-6">
+                    <div key={order.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 px-4 py-4 sm:px-5 lg:grid-cols-[1.1fr_1.45fr_.8fr_1.1fr_132px] lg:items-center lg:gap-4 lg:px-6">
                       <button
                         type="button"
                         onClick={() => void openDetail(order)}
@@ -1282,14 +1282,14 @@ function LiveOrders({
                         <p className="truncate text-[14px] font-medium text-[#1C1917]">{order.number}</p>
                         <p className="mt-1 truncate text-xs text-[#A8A29E]"><MetaInline parts={[formatShortDate(jakartaToday()), order.time]} /></p>
                       </button>
-                      <div className="flex min-w-0 items-center gap-3">
+                      <div className="min-w-0">
                         <div className="min-w-0">
                           <p className="truncate text-[13px] font-medium text-[#1C1917]">{order.table ?? "Tanpa meja"}</p>
                           <p className="mt-0.5 truncate text-xs text-[#A8A29E]"><MetaInline parts={[`${order.items} item`]} /></p>
                         </div>
                       </div>
-                      <p className="self-center text-[13px] font-medium tabular-nums text-[#1C1917]">{formatCompactIDR(order.total)}</p>
-                      <span className={cn("inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-medium", statusTone)}><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />{STATUS_LABEL[order.status]}</span>
+                      <p className="min-w-0 truncate text-left text-[13px] font-medium tabular-nums text-[#1C1917]">{formatCompactIDR(order.total)}</p>
+                      <span className={cn("min-w-0 inline-flex w-fit items-center gap-2 justify-self-start rounded-full px-3 py-2 text-xs font-medium", statusTone)}><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />{STATUS_LABEL[order.status]}</span>
                       <div className="flex justify-end">
                         {!cashierOpen || order.status === "Pending" ? (
                           <button type="button" onClick={() => void openDetail(order)} className="h-11 rounded-full bg-[#F3EFE6] px-5 text-[13px] font-medium text-[#78716C] active:scale-[0.98]">Lihat</button>
