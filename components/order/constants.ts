@@ -16,4 +16,4 @@ export function matchesOrderCategory(product: Product, category: OrderCategory) 
 }
 
 export type ProductBadge = { label: string; className: string };
-export function badgeFor(product: Product): ProductBadge | null { return !product.available ? { label: "Habis", className: "bg-white/90 text-neutral-500" } : null; }
+export function badgeFor(product: Product): ProductBadge | null { return !product.available ? { label: "Habis", className: "bg-[#FFFEFB]/90 text-[#78716C]" } : null; }

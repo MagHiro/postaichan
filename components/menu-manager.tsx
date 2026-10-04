@@ -6,6 +6,7 @@ import { Archive, Package, Plus, Search, X } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ConfirmSheet, type ConfirmState } from "@/components/pos-confirm-sheet";
+import { WarmSelect } from "@/components/warm-select";
 import { MetaDot, MetaInline } from "@/components/meta";
 import { CategoryDropdown } from "@/components/category-filter";
 import { CategoryManager } from "@/components/category-manager";
@@ -256,7 +257,6 @@ export function MenuManager({ onShowNotice }: { onShowNotice: (message: string) 
                 categories={categories}
                 onChange={setCategoryFilter}
                 allLabel="Semua kategori"
-                dark
               />
             </div>
 
@@ -439,10 +439,7 @@ function ProductEditor({ editor, form, setForm, categories, error, saving, uploa
                 <input id="product-name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Sate Taichan 10 Tusuk" maxLength={80} className="input" />
               </Field>
               <Field label="Kategori" htmlFor="product-category">
-                <select id="product-category" required value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })} className="select">
-                  <option value="" disabled>Pilih kategori</option>
-                  {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                </select>
+                <WarmSelect id="product-category" label="Kategori" required value={form.categoryId} onChange={(next) => setForm({ ...form, categoryId: next })} placeholder="Pilih kategori" options={categories.map((category) => ({ value: category.id, label: category.name }))} />
               </Field>
               <Field label="Deskripsi" hint={`${form.description.length}/160`} htmlFor="product-description">
                 <textarea id="product-description" rows={2} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value.slice(0, 160) })} placeholder="Deskripsi singkat, mis. pedas gurih dengan sambal." maxLength={160} className="input resize-none" />

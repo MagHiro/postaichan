@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     }
     const code = result.rows[0];
     if (!code) return NextResponse.json({ error: "QR umum belum dapat dibuat." }, { status: 503, headers: noStoreHeaders() });
-    return NextResponse.json({ code, orderingUrl: `/order/g/${rawToken}` }, { status: 201, headers: noStoreHeaders() });
+    return NextResponse.json({ code, orderingUrl: `/?g=${rawToken}` }, { status: 201, headers: noStoreHeaders() });
   } catch (error) {
     console.error("general_qr_create_failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "QR umum belum dapat dibuat." }, { status: 503, headers: noStoreHeaders() });

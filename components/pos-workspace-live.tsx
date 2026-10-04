@@ -12,6 +12,7 @@ import type { DailyReport } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 import { MetaDot, MetaInline } from "@/components/meta";
 import { CategoryDropdown } from "@/components/category-filter";
+import { WarmSelect } from "@/components/warm-select";
 import { MenuManager } from "@/components/menu-manager";
 import { ProductSheet } from "@/components/order/ProductSheet";
 import { formatShiftOpenedAt, ShiftCloseSheet, ShiftOpenSheet, useShiftStatus, type CloseRecap } from "@/components/pos-shift";
@@ -1861,13 +1862,10 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
               {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-11 flex-1 rounded-full text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "bg-[#FFFEFB] font-medium text-[#1C1917] shadow-xs" : "text-[#78716C]")}>{method.label}</button>)}
             </div>
             {orderType === "dine_in" && (
-              <label htmlFor="cashier-table" className="block text-[13px] font-medium text-[#1C1917] sm:col-span-2 xl:col-span-1">
-                Meja <MetaDot /> <span className="font-normal text-[#A8A29E]">opsional</span>
-                <select id="cashier-table" value={tableId ?? ""} onChange={(event) => setTableId(event.target.value || null)} className="select mt-2 h-12 rounded-2xl">
-                  <option value="">Tanpa meja / walk-in</option>
-                  {tables.map((table) => <option key={table.id} value={table.id}>{table.label}</option>)}
-                </select>
-              </label>
+              <div className="block text-[13px] font-medium text-[#1C1917] sm:col-span-2 xl:col-span-1">
+                <span id="cashier-table-label">Meja <MetaDot /> <span className="font-normal text-[#A8A29E]">opsional</span></span>
+                <WarmSelect id="cashier-table" label="Meja" value={tableId ?? ""} onChange={(next) => setTableId(next || null)} placeholder="Tanpa meja / walk-in" className="mt-2" options={[{ value: "", label: "Tanpa meja / walk-in" }, ...tables.map((table) => ({ value: table.id, label: table.label }))]} />
+              </div>
             )}
           </div>
 
@@ -1881,7 +1879,6 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
               categories={categories}
               onChange={setCategory}
               className="mt-3"
-              dark
             />
           </div>
 
@@ -2097,6 +2094,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
           setNote={setNote}
           onClose={() => setSelectedProduct(null)}
           onAdd={addConfiguredProduct}
+          mode="pos"
         />
       )}
 

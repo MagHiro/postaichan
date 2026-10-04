@@ -37,5 +37,5 @@ export async function POST(request: Request) {
   }
   const data = result.rows[0];
   if (!data) return NextResponse.json({ error: "Meja belum dapat dibuat." }, { status: 503, headers: noStoreHeaders() });
-  return NextResponse.json({ table: data, orderingUrl: `/order/t/${rawToken}` }, { status: 201, headers: noStoreHeaders() });
+  return NextResponse.json({ table: data, orderingUrl: `/?table=${rawToken}` }, { status: 201, headers: noStoreHeaders() });
 }

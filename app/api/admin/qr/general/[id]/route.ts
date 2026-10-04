@@ -43,5 +43,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   const code = result.rows[0];
   if (!code) return NextResponse.json({ error: "QR umum tidak ditemukan." }, { status: 404, headers: noStoreHeaders() });
-  return NextResponse.json({ code, orderingUrl: `/order/g/${rawToken}` }, { headers: noStoreHeaders() });
+  return NextResponse.json({ code, orderingUrl: `/?g=${rawToken}` }, { headers: noStoreHeaders() });
 }

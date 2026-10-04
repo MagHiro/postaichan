@@ -116,33 +116,33 @@ export function PaymentView({
   }, [checkPayment, isExpired]);
 
   return (
-    <main className="flex min-h-screen justify-center bg-[#FAFAFA] text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
+    <main className="flex min-h-screen justify-center bg-[#FAF7F1] text-[#1C1917] antialiased selection:bg-[#FDBD2C] selection:text-[#1C1917]">
       <div className="w-full max-w-[440px] px-5 pb-10 pt-[calc(1.25rem+env(safe-area-inset-top))]">
         <button
           type="button"
           onClick={onBack}
-          className="mb-8 flex items-center gap-2 text-[13px] text-neutral-500 transition active:scale-95"
+          className="mb-8 flex items-center gap-2 text-[13px] text-[#78716C] transition active:scale-95"
         >
           <ArrowLeft size={15} /> Kembali
         </button>
         <div className="ord-rise text-center">
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-[#A8A29E]">
             Order {payment.orderNumber} <MetaDot /> {orderType === "Dine in" ? tableLabel : "Takeaway"}
           </p>
-          <h1 className="mt-3 text-[22px] font-medium tracking-tight">
+          <h1 className="mt-3 text-[22px] font-medium leading-snug tracking-tight">
             Bayar pesanan
           </h1>
           <p className="mt-2 text-3xl font-medium tabular-nums tracking-tight">
             {formatIDR(payment.amountIdr)}
           </p>
-          <p className="mt-1 text-[13px] text-neutral-400">
+          <p className="mt-1 text-[13px] text-[#A8A29E]">
             {isExpired
               ? "Kode kedaluwarsa"
               : `Berlaku ${formatCountdown(remainingMs)}`}
           </p>
-          <div className="shadow-soft mx-auto mt-8 w-fit rounded-3xl border border-neutral-100 bg-white p-4">
+          <div className="shadow-soft mx-auto mt-8 w-fit rounded-3xl border border-[#EFE7D6] bg-[#FFFEFB] p-4">
             {payment.qrImageUrl && !isExpired ? (
-              <img src={payment.qrImageUrl} alt={`QRIS pembayaran untuk pesanan ${payment.orderNumber}`} width={220} height={220} decoding="async" className="h-[220px] w-[220px] rounded-2xl bg-white" />
+              <img src={payment.qrImageUrl} alt={`QRIS pembayaran untuk pesanan ${payment.orderNumber}`} width={220} height={220} decoding="async" className="h-[220px] w-[220px] rounded-2xl bg-[#FFFEFB]" />
             ) : qrDataUrl && !isExpired ? (
               <img
                 src={qrDataUrl}
@@ -150,12 +150,12 @@ export function PaymentView({
                 width={220}
                 height={220}
                 decoding="async"
-                className="h-[220px] w-[220px] rounded-2xl bg-white"
+                className="h-[220px] w-[220px] rounded-2xl bg-[#FFFEFB]"
               />
             ) : isExpired ? (
               <div className="flex h-[220px] w-[220px] flex-col items-center justify-center px-6 text-center">
                 <p className="text-sm font-medium">Kode kedaluwarsa</p>
-                <p className="mt-1 text-[13px] leading-relaxed text-neutral-500">
+                <p className="mt-1 text-[13px] leading-relaxed text-[#78716C]">
                   Buat pembayaran baru.
                 </p>
               </div>
@@ -163,7 +163,7 @@ export function PaymentView({
               <div className="ord-skeleton h-[220px] w-[220px] rounded-2xl" />
             )}
           </div>
-          <p className="mt-6 text-[13px] text-neutral-400">
+          <p className="mt-6 text-[13px] text-[#A8A29E]">
             Scan dengan e-wallet apa pun
           </p>
           <div className="mx-auto mt-8 max-w-[280px] space-y-3">
@@ -171,7 +171,7 @@ export function PaymentView({
               <button
                 type="button"
                 onClick={onRetry ?? onBack}
-                className="flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
+                className="flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
               >
                 Buat pembayaran baru
               </button>
@@ -180,17 +180,17 @@ export function PaymentView({
                 type="button"
                 onClick={() => void checkPayment()}
                 disabled={checking}
-                className="flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-60"
+                className="flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-60"
               >
                 {checking ? "Mengecek…" : "Saya sudah bayar"}
               </button>
             )}
-            <p role="status" aria-live="polite" className="text-xs text-neutral-400">{statusMessage}</p>
+            <p role="status" aria-live="polite" className="text-xs text-[#A8A29E]">{statusMessage}</p>
             {!isExpired && (qrDataUrl || payment.qrImageUrl) && (
               <a
                 href={qrDataUrl || payment.qrImageUrl}
                 download={`qris-${payment.orderNumber}.png`}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-neutral-200 text-[13px] font-normal text-neutral-600 transition hover:bg-neutral-50 active:scale-[0.98]"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[#EFE7D6] text-[13px] font-normal text-[#78716C] transition active:scale-[0.98]"
               >
                 <Download size={15} strokeWidth={1.8} />
                 Unduh QR

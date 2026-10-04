@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { formatCompactIDR } from "@/lib/format";
+import { WarmSelect } from "@/components/warm-select";
 import { cn } from "@/lib/utils";
 
 export type ManagedModifierOption = {
@@ -305,10 +306,7 @@ export function ModifierManager({ onChanged }: { onChanged?: () => void }) {
         {kind === "variant" && (
           <label className="block text-[13px] font-medium text-[#1C1917]">
             Mode pilih
-            <select value={groupForm.selection} onChange={(event) => setGroupForm({ ...groupForm, selection: event.target.value as "single" | "multiple" })} className="select mt-2">
-              <option value="single">Pilih satu</option>
-              <option value="multiple">Pilih banyak</option>
-            </select>
+            <WarmSelect label="Mode pilih" value={groupForm.selection} onChange={(next) => setGroupForm({ ...groupForm, selection: next as "single" | "multiple" })} className="mt-2" options={[{ value: "single", label: "Pilih satu" }, { value: "multiple", label: "Pilih banyak" }]} />
           </label>
         )}
         <label className="block text-[13px] font-medium text-[#1C1917]">

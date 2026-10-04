@@ -44,5 +44,5 @@ export async function POST(request: Request, { params }: Context) {
   }
   const data = result.rows[0];
   if (!data) return NextResponse.json({ error: "Meja tidak ditemukan." }, { status: 404, headers: noStoreHeaders() });
-  return NextResponse.json({ table: data, orderingUrl: `/order/t/${rawToken}` }, { headers: noStoreHeaders() });
+  return NextResponse.json({ table: data, orderingUrl: `/?table=${rawToken}` }, { headers: noStoreHeaders() });
 }

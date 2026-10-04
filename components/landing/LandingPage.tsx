@@ -1,76 +1,149 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Gift } from "lucide-react";
+import { formatCompactIDR } from "@/lib/format";
 
-export function LandingPage() {
+type TeaserItem = { id: string; name: string; price: number; imageUrl: string | null };
+
+export function LandingPage({
+  tableLabel,
+  tableInvalid = false,
+  orderHref,
+  teaser,
+  cashierOpen = true,
+}: {
+  tableLabel: string | null;
+  tableInvalid?: boolean;
+  orderHref: string;
+  teaser: TeaserItem[];
+  cashierOpen?: boolean;
+}) {
   return (
-    <main className="flex h-[100dvh] w-full justify-center overflow-hidden bg-[#FAFAFA] text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
-      <div className="flex h-full min-h-0 w-full max-w-[440px] flex-col overflow-hidden bg-[#FAFAFA]">
-        <section className="relative min-h-0 flex-1 overflow-hidden bg-neutral-900 text-white">
-          <Image
-            src="/landing/sate-taichan-hero.png"
-            alt="Sate taichan panggang dengan sambal dan jeruk limau"
-            fill
-            priority
-            sizes="(max-width: 440px) 100vw, 440px"
-            className="object-cover"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-b from-neutral-900/40 via-neutral-900/5 to-neutral-900/80"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-r from-neutral-900/50 via-neutral-900/10 to-transparent"
-          />
-
-          <div className="relative z-10 flex h-full flex-col px-5 pb-12 pt-[calc(1.25rem+env(safe-area-inset-top))]">
-            <div className="mt-auto max-w-[320px]">
-              <p className="text-[13px] font-medium uppercase tracking-[0.12em] text-white/70">
-                Bara &amp; Burn
+    <main className="flex min-h-dvh justify-center bg-[#FAF7F1] text-[#1C1917] antialiased selection:bg-[#FDBD2C] selection:text-[#1C1917]">
+      <div className="w-full max-w-[440px] bg-[#FAF7F1] px-5 pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+        <header className="sticky top-0 z-30 -mx-5 border-b border-[#E9E1D1] bg-[#FAF7F1]/90 px-5 pb-3 pt-[calc(1rem+env(safe-area-inset-top))] backdrop-blur-md">
+          <div className="relative flex items-center justify-center">
+            <Image
+              src="/logo.png"
+              alt="Bara & Burn"
+              width={240}
+              height={44}
+              priority
+              className="h-11 w-auto max-w-[240px] object-contain"
+            />
+            {tableLabel && (
+              <p className="absolute right-0 max-w-[110px] truncate text-xs text-[#A8A29E]">
+                {tableLabel}
               </p>
-              <h1 className="mt-3 text-[44px] font-medium leading-[0.95] tracking-tight">
-                HAI,
-                <br />
-                KAMU.
-              </h1>
-              <p className="mt-4 max-w-[280px] text-[13px] leading-relaxed text-white/90">
-                Sate taichan panas, sambal fresh, siap bikin nagih.
-              </p>
-            </div>
+            )}
           </div>
-        </section>
+        </header>
 
-        <section
-          aria-label="Tentang Bara & Burn"
-          className="flex shrink-0 items-center justify-between gap-4 border-b border-neutral-100 px-5 py-5"
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            <Gift aria-hidden="true" size={20} strokeWidth={2} />
-            <div className="min-w-0">
-              <p className="truncate text-[13px] font-medium">Bara &amp; Burn</p>
-              <p className="mt-0.5 truncate text-xs text-neutral-400">
-                Grilled satay &amp; smash burger
+        <div className="ord-rise">
+          <section aria-label="Sate taichan Bara & Burn" className="mt-6 overflow-hidden rounded-2xl bg-[#F3EFE6]">
+            <Image
+              src="/landing/sate-taichan-hero.png"
+              alt="Sate taichan panggang dengan sambal dan jeruk limau"
+              width={800}
+              height={500}
+              priority
+              sizes="(max-width: 440px) 100vw, 440px"
+              className="aspect-[16/10] w-full object-cover"
+            />
+          </section>
+
+          <h1 className="mt-6 text-[22px] font-medium leading-snug tracking-tight">
+            Sate taichan panas, sambal fresh.
+          </h1>
+          <p className="mt-1 text-[13px] text-[#78716C]">
+            Siap bikin nagih — dibakar fresh saat dipesan.
+          </p>
+
+          {tableLabel ? (
+            <section
+              aria-label="Meja kamu"
+              className="mt-6 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-4 shadow-soft"
+            >
+              <p className="text-xs text-[#A8A29E]">Kamu di</p>
+              <p className="mt-0.5 truncate text-[15px] font-medium tabular-nums">
+                {tableLabel}
+                <span className="text-[#A8A29E]"> · Dine in</span>
               </p>
-            </div>
-          </div>
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-2 text-[11px] font-medium text-neutral-900">
-            <BadgeCheck aria-hidden="true" size={16} strokeWidth={2} />
-            Fresh dibakar
-          </span>
-        </section>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#78716C]">
+                Tetap di mejamu — pesanan diantar ke sini.
+              </p>
+            </section>
+          ) : tableInvalid ? (
+            <p role="alert" className="mt-6 text-center text-[13px] leading-relaxed text-[#78716C]">
+              QR meja sudah tidak aktif. Minta QR terbaru dari kasir, atau lanjut sebagai takeaway.
+            </p>
+          ) : null}
 
-        <section className="shrink-0 px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-6">
-          <Link
-            href="/order"
-            className="group shadow-soft flex h-12 w-full items-center justify-between rounded-full bg-[#FDBD2C] px-5 text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98]"
-          >
-            <span>Pesan sekarang</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-900 text-white transition group-hover:bg-neutral-800">
-              <ArrowRight aria-hidden="true" size={18} strokeWidth={2} />
-            </span>
-          </Link>
-        </section>
+          {!cashierOpen && (
+            <p role="status" className="mt-6 rounded-2xl bg-[#F3EFE6] p-4 text-center text-[13px] leading-relaxed text-[#78716C]">
+              Kasir sedang tutup. Menu bisa dilihat, tapi pesanan belum bisa dibuat.
+            </p>
+          )}
+
+          <div className="mt-6">
+            <Link
+              href={orderHref}
+              className="flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98]"
+            >
+              {tableLabel ? `Mulai pesan · ${tableLabel}` : "Pesan sekarang"}
+            </Link>
+            <p className="mt-3 text-center text-xs text-[#A8A29E]">Bayar via QRIS</p>
+          </div>
+
+          {teaser.length > 0 && (
+            <section aria-label="Menu populer" className="mt-10">
+              <div className="flex items-baseline justify-between">
+                <h2 className="text-sm font-medium">Populer saat ini</h2>
+                <span className="text-xs text-[#A8A29E]">{teaser.length} menu</span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-7">
+                {teaser.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={orderHref}
+                    aria-label={`Pesan ${item.name}`}
+                    className="flex min-w-0 flex-col active:scale-[0.98]"
+                  >
+                    <span className="relative aspect-square w-full overflow-hidden rounded-2xl bg-[#F3EFE6]">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt=""
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span aria-hidden="true" className="flex h-full w-full items-center justify-center text-lg font-medium text-[#A8A29E]">
+                          {item.name.charAt(0)}
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-2 truncate text-[13px] font-medium leading-snug">
+                      {item.name}
+                    </span>
+                    <span className="mt-0.5 text-[13px] tabular-nums text-[#78716C]">
+                      {formatCompactIDR(item.price)}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+              <Link
+                href={orderHref}
+                className="mt-8 flex h-12 w-full items-center justify-center rounded-full text-sm text-[#78716C] transition active:scale-[0.98]"
+              >
+                Lihat semua menu
+              </Link>
+            </section>
+          )}
+
+          <p className="mt-10 text-center text-xs text-[#A8A29E]">
+            Bara &amp; Burn · Grilled satay &amp; smash burger
+          </p>
+        </div>
       </div>
     </main>
   );

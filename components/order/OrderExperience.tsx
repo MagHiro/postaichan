@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Home, ReceiptText, Search, X } from "lucide-react";
+import { Home, ReceiptText, Search, X } from "lucide-react";
 import { MetaDot, MetaInline } from "@/components/meta";
 import { formatCompactIDR } from "@/lib/format";
 import type { CartItem, Category, Product } from "@/lib/types";
@@ -16,11 +16,11 @@ import {
   type PlacedOrder,
 } from "./constants";
 import { PaymentView } from "./PaymentView";
-import { ProductCard } from "./ProductCard";
+import { MenuRow } from "./MenuRow";
 import { ProductSheet } from "./ProductSheet";
 import { SuccessView } from "./SuccessView";
 import { CartSheet } from "./CartSheet";
-import { EmptyState, SkeletonCard } from "./ui";
+import { EmptyState, SkeletonRow } from "./ui";
 import { CategoryDropdown } from "@/components/category-filter";
 
 export function OrderExperience({ tableToken, generalToken }: { tableToken?: string; generalToken?: string }) {
@@ -36,7 +36,6 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const [cart, setCart] = useState<CartItem[]>([]);
   const [placedOrders, setPlacedOrders] = useState<PlacedOrder[]>([]);
   const [activeTab, setActiveTab] = useState<"home" | "orders">("home");
-  const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [step, setStep] = useState<OrderStep>("menu");
   const [orderType, setOrderType] = useState<"Dine in" | "Takeaway">(
@@ -199,22 +198,6 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
   function showToast(message: string) {
     setToast(message);
-  }
-
-  function toggleFavorite(product: Product) {
-    setFavoriteProductIds((current) =>
-      current.includes(product.id)
-        ? current.filter((id) => id !== product.id)
-        : [...current, product.id],
-    );
-  }
-
-  function goBack() {
-    if (activeTab === "orders") {
-      setActiveTab("home");
-      return;
-    }
-    if (window.history.length > 1) window.history.back();
   }
 
   function openProduct(product: Product) {
@@ -439,29 +422,21 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const menuTitle = !category || category === ALL_CATEGORIES_ID ? "Menu" : (activeCategoryName ?? "Menu");
 
   return (
-    <main className="flex min-h-screen justify-center bg-[#FAFAFA] text-neutral-900 antialiased selection:bg-[#FDBD2C] selection:text-neutral-900">
-      <div className="relative flex min-h-screen w-full max-w-[440px] flex-col bg-[#FAFAFA] pb-36">
-        <header className="sticky top-0 z-30 border-b border-neutral-100 bg-[#FAFAFA]/90 backdrop-blur-md">
+    <main className="flex min-h-screen justify-center bg-[#FAF7F1] text-[#1C1917] antialiased selection:bg-[#FDBD2C] selection:text-[#1C1917]">
+      <div className="relative flex min-h-screen w-full max-w-[440px] flex-col bg-[#FAF7F1] pb-36">
+        <header className="sticky top-0 z-30 border-b border-[#E9E1D1] bg-[#FAF7F1]/90 backdrop-blur-md">
           <div className="px-5 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
-            <div className="relative flex h-10 items-center justify-center">
-              <button
-                type="button"
-                onClick={goBack}
-                aria-label="Kembali"
-                className="absolute left-0 flex h-9 w-9 items-center justify-center rounded-full text-neutral-900 transition active:scale-95"
-              >
-                <ArrowLeft size={21} strokeWidth={1.8} />
-              </button>
-              <h1 className="max-w-[230px] truncate text-[18px] font-medium tracking-tight">
-                {menuTitle}
+            <div className="flex h-11 items-center justify-between gap-3">
+              <h1 className="min-w-0 flex-1 truncate text-[18px] font-semibold tracking-tight">
+                {activeTab === "orders" ? "Pesanan" : menuTitle}
               </h1>
               {dineIn && session?.tableLabel && (
-                <p className="absolute right-0 text-xs text-neutral-400">
+                <span className="max-w-[140px] shrink-0 truncate rounded-full bg-[#F3EFE6] px-3 py-1.5 text-[11px] font-medium tabular-nums">
                   {session.tableLabel}
-                </p>
+                </span>
               )}
             </div>
-            <div role="group" aria-label="Jenis pesanan" className="mt-3 flex rounded-full bg-neutral-100 p-1">
+            <div role="group" aria-label="Jenis pesanan" className="mt-3 flex rounded-full bg-[#F3EFE6] p-1">
               <button
                 type="button"
                 onClick={() => { resetCheckoutIntent(); setOrderType("Dine in"); }}
@@ -469,8 +444,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                 className={cn(
                   "flex-1 rounded-full py-1.5 text-center text-[13px] transition",
                   dineIn
-                    ? "bg-white font-medium shadow-xs"
-                    : "text-neutral-500",
+                    ? "border border-[#EFE7D6] bg-[#FFFEFB] font-medium shadow-xs"
+                    : "text-[#78716C]",
                 )}
               >
                 Dine in
@@ -482,30 +457,30 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                 className={cn(
                   "flex-1 rounded-full py-1.5 text-center text-[13px] transition",
                   !dineIn
-                    ? "bg-white font-medium shadow-xs"
-                    : "text-neutral-500",
+                    ? "border border-[#EFE7D6] bg-[#FFFEFB] font-medium shadow-xs"
+                    : "text-[#78716C]",
                 )}
               >
                 Takeaway
               </button>
             </div>
-            {sessionError && <div role="alert" className="mt-3 text-center text-[13px] leading-relaxed text-neutral-500">{sessionError}</div>}
+            {sessionError && <div role="alert" className="mt-3 text-center text-[13px] leading-relaxed text-[#78716C]">{sessionError}</div>}
           </div>
         </header>
 
         {activeTab === "home" ? (
-          <div key="home" className="ord-rise flex-1 px-5 pt-4" aria-busy={menuLoading}>
+          <div key="home" className="ord-rise flex-1 px-5" aria-busy={menuLoading}>
             {!cashierOpen && !menuLoading && (
-              <p role="status" className="mb-4 rounded-2xl bg-neutral-100 p-4 text-center text-[13px] leading-relaxed text-neutral-500">
+              <p role="status" className="mb-4 mt-6 rounded-2xl bg-[#F3EFE6] p-4 text-center text-[13px] leading-relaxed text-[#78716C]">
                 Kasir sedang tutup. Menu bisa dilihat, tapi pesanan belum bisa dibuat.
               </p>
             )}
-            <div className="relative">
+            <div className="relative mt-6">
               <Search
                 aria-hidden="true"
                 size={18}
                 strokeWidth={1.8}
-                className="pointer-events-none absolute inset-y-0 left-4 my-auto text-neutral-400"
+                className="pointer-events-none absolute inset-y-0 left-4 my-auto text-[#A8A29E]"
               />
               <label htmlFor="menu-search" className="sr-only">
                 Cari menu
@@ -515,14 +490,14 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Cari menu"
-                className="h-12 w-full rounded-2xl bg-neutral-100 pl-11 pr-11 text-[13px] outline-none transition placeholder:text-neutral-400 focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
+                className="h-12 w-full rounded-2xl bg-[#F3EFE6] pl-11 pr-11 text-[13px] outline-none transition placeholder:text-[#A8A29E] focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#FDBD2C]/50"
               />
               {search && (
                 <button
                   type="button"
                   aria-label="Hapus pencarian"
                   onClick={() => setSearch("")}
-                  className="absolute inset-y-0 right-3 my-auto flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition active:scale-95"
+                  className="absolute inset-y-0 right-3 my-auto flex h-8 w-8 items-center justify-center rounded-full text-[#A8A29E] transition active:scale-95"
                 >
                   <X size={15} />
                 </button>
@@ -534,39 +509,37 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               value={category}
               categories={categories}
               onChange={setCategory}
-              className="mt-4"
+              className="mt-6"
             />
 
-            <div className="mt-7 flex items-baseline justify-between">
+            <div className="mt-8 flex items-baseline justify-between">
               <h2 className="text-sm font-medium">{menuTitle}</h2>
-              <span className="text-xs text-neutral-400">
+              <span className="text-xs text-[#A8A29E]">
                 {filteredProducts.length} menu
               </span>
             </div>
 
             {menuLoading ? (
-              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-7">
+              <div className="mt-2 divide-y divide-[#E9E1D1]">
                 {[0, 1, 2, 3].map((i) => (
-                  <SkeletonCard key={i} />
+                  <SkeletonRow key={i} />
                 ))}
               </div>
             ) : menuError ? (
               <div>
                 <EmptyState title={menuError} hint="Periksa koneksi lalu coba lagi." />
-                <button type="button" onClick={() => setMenuRetry((attempt) => attempt + 1)} className="mx-auto block h-11 rounded-full bg-neutral-900 px-5 text-[13px] font-medium text-white">Coba lagi</button>
+                <button type="button" onClick={() => setMenuRetry((attempt) => attempt + 1)} className="mx-auto block h-11 rounded-full bg-[#1C1917] px-5 text-[13px] font-medium text-white">Coba lagi</button>
               </div>
             ) : filteredProducts.length === 0 ? (
               <EmptyState title="Tidak ketemu" hint="Coba kata lain atau ganti kategori." />
             ) : (
-              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-7">
+              <div className="mt-2 divide-y divide-[#E9E1D1]">
                 {filteredProducts.map((product) => (
-                  <ProductCard
+                  <MenuRow
                     key={product.id}
                     product={product}
                     onOpen={openProduct}
                     onQuickAdd={quickAdd}
-                    isFavorite={favoriteProductIds.includes(product.id)}
-                    onToggleFavorite={toggleFavorite}
                   />
                 ))}
               </div>
@@ -574,8 +547,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
           </div>
         ) : (
           <div key="orders" className="ord-rise flex-1 px-5 pt-7">
-            <h1 className="text-[22px] font-medium tracking-tight">Pesanan</h1>
-            <p className="mt-1 text-[13px] text-neutral-500">
+            <h1 className="text-[22px] font-semibold leading-snug tracking-tight">Pesanan</h1>
+            <p className="mt-1 text-[13px] text-[#78716C]">
               {dineIn ? (<MetaInline parts={[tableLabel, "Dine in"]} />) : (<MetaInline parts={["Takeaway", "Ambil di kasir"]} />)}
             </p>
 
@@ -588,7 +561,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               <>
                 {cart.length > 0 && (
                   <div className="mt-7">
-                    <p className="text-xs text-neutral-400">
+                    <p className="text-xs text-[#A8A29E]">
                       Keranjang <MetaDot /> {cartCount} item
                     </p>
                     <div className="mt-1">
@@ -606,8 +579,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
                 {placedOrders.length > 0 && (
                   <div className={cn(cart.length > 0 && "mt-10")}>
-                    <p className="text-xs text-neutral-400">Riwayat</p>
-                    <div className="mt-1 divide-y divide-neutral-100">
+                    <p className="text-xs text-[#A8A29E]">Riwayat</p>
+                    <div className="mt-1 divide-y divide-[#E9E1D1]">
                       {placedOrders.map((order) => (
                         <div
                           key={order.orderNumber}
@@ -617,11 +590,11 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                             <p className="text-[13px] font-medium">
                               {order.orderNumber}
                             </p>
-                            <p className="mt-0.5 text-xs text-neutral-400">
+                            <p className="mt-0.5 text-xs text-[#A8A29E]">
                               <MetaInline parts={[order.orderType === "Dine in" ? order.tableLabel : "Takeaway", order.time]} />
                             </p>
                           </div>
-                          <p className="shrink-0 text-[13px] tabular-nums text-neutral-500">
+                          <p className="shrink-0 text-[13px] tabular-nums text-[#78716C]">
                             {formatCompactIDR(order.amountIdr)}
                           </p>
                         </div>
@@ -633,7 +606,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                 {cart.length === 0 && placedOrders.length > 0 && (
                   <button
                     onClick={() => setActiveTab("home")}
-                    className="mt-8 flex h-12 w-full items-center justify-center rounded-full bg-neutral-900 text-sm font-medium text-white transition active:scale-[0.98]"
+                    className="mt-8 flex h-12 w-full items-center justify-center rounded-full bg-[#1C1917] text-sm font-medium text-white transition active:scale-[0.98]"
                   >
                     Pesan lagi
                   </button>
@@ -644,14 +617,14 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         )}
 
         <nav aria-label="Navigasi pemesanan" className="fixed inset-x-0 bottom-0 z-40">
-          <div className="mx-auto flex max-w-[440px] border-t border-neutral-100 bg-[#FAFAFA]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
+          <div className="mx-auto flex max-w-[440px] border-t border-[#EFE7D6] bg-[#FAF7F1]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
             <button
               type="button"
               onClick={() => setActiveTab("home")}
               aria-current={activeTab === "home" ? "page" : undefined}
               className={cn(
                 "flex flex-1 flex-col items-center gap-1 py-2.5 transition",
-                activeTab === "home" ? "text-neutral-900" : "text-neutral-400",
+                activeTab === "home" ? "text-[#1C1917]" : "text-[#A8A29E]",
               )}
             >
               <Home size={20} strokeWidth={activeTab === "home" ? 2 : 1.6} />
@@ -671,8 +644,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               className={cn(
                 "flex flex-1 flex-col items-center gap-1 py-2.5 transition",
                 activeTab === "orders"
-                  ? "text-neutral-900"
-                  : "text-neutral-400",
+                  ? "text-[#1C1917]"
+                  : "text-[#A8A29E]",
               )}
             >
               <span className="relative">
@@ -681,7 +654,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                   strokeWidth={activeTab === "orders" ? 2 : 1.6}
                 />
                 {cartCount > 0 && (
-                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-neutral-900 px-1 text-[10px] font-medium tabular-nums text-white">
+                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#1C1917] px-1 text-[10px] font-medium tabular-nums text-white">
                     {cartCount}
                   </span>
                 )}
@@ -700,7 +673,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
         {toast && (
           <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-5">
-            <p role="status" aria-live="polite" className="ord-toast shadow-soft rounded-full bg-neutral-900 px-4 py-2 text-[13px] text-white">
+            <p role="status" aria-live="polite" className="ord-toast shadow-soft rounded-full bg-[#1C1917] px-4 py-2 text-[13px] text-white">
               {toast}
             </p>
           </div>
@@ -720,8 +693,6 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
           setNote={setNote}
           onClose={() => setStep("menu")}
           onAdd={addToCart}
-          isFavorite={favoriteProductIds.includes(selectedProduct.id)}
-          onToggleFavorite={toggleFavorite}
         />
       )}
     </main>

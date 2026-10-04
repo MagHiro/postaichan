@@ -1,7 +1,7 @@
 ---
 name: Calm Warm Minimal
-source: components/order/*
-font: Poppins (400–500 in order UI; 400–800 loaded)
+source: components/order/*, components/landing/*, components/warm-select.tsx
+font: Poppins (400–800 loaded; 400 body, 500 emphasis, 600 titles)
 accent: "#FDBD2C" (hover "#ECA90F", dark text on accent)
 gray: warm stone derived from accent (canvas "#FAF7F1", ink "#1C1917")
 depth: layered soft (hairline warm border + 2-level shadow + top highlight)
@@ -11,8 +11,37 @@ depth: layered soft (hairline warm border + 2-level shadow + top highlight)
 
 `components/order/*` is the visual source of truth for the customer order
 surface. Routes (`app/order/page.tsx`, `app/order/[accessToken]/page.tsx`,
-`app/order/t/[tableToken]/page.tsx`) all render `OrderExperience`;
-`tableToken` is an optional prop that preselects "Dine in".
+`app/order/t/[tableToken]/page.tsx`, `app/order/g/[token]/page.tsx`) all
+render `OrderExperience`; `tableToken` is an optional prop that preselects
+"Dine in".
+
+## Landing (`/`)
+
+Table QRs point at `/?table=TOKEN` (general QRs at `/?g=TOKEN`);
+`app/page.tsx` resolves the token server-side (hash lookup, no leak),
+fetches a 4-item teaser + shift status, and passes `orderHref` through
+(table → `/order/t/[token]`, general → `/order/g/[token]`, else `/order`).
+Legacy `/order/t/*` and `/order/g/*` links keep working.
+
+- Same canvas/type tokens, `max-w-[440px] px-5`.
+- Header: sticky warm, centered `/logo.png` `h-11`, table label
+  `absolute right-0 text-xs text-[#A8A29E]` (does not shift the logo).
+- Hero: `mt-6 overflow-hidden rounded-2xl bg-[#F3EFE6]`, photo
+  `aspect-[16/10] w-full object-cover` — no gradients, no overlay text.
+- Title `mt-6 text-[22px] font-medium leading-snug tracking-tight` +
+  sub `mt-1 text-[13px] text-[#78716C]`.
+- Table card (QR only): raised `mt-6 rounded-2xl border-[#EFE7D6]
+  bg-[#FFFEFB] shadow-soft p-4` — `xs #A8A29E` "Kamu di", `15px medium
+  tabular` label + `· Dine in`, `13px` reassurance. Invalid QR: quiet
+  centered `13px #78716C` alert, never a dead blank.
+- CTA `mt-6 h-12 rounded-full` accent: "Mulai pesan · {label}" with
+  table, else "Pesan sekarang"; footnote `mt-3 text-xs #A8A29E`
+  ("Bayar via QRIS").
+- Teaser (`mt-10`, when products exist): `h2.text-sm.font-medium` +
+  count `xs #A8A29E`; borderless 2-col grid (`gap-x-3 gap-y-7`),
+  square photo `rounded-2xl bg-[#F3EFE6]`, name `13px medium`,
+  price `13px tabular #78716C`; quiet `h-12` "Lihat semua menu".
+- Footer: centered `xs #A8A29E` brand line.
 
 ## Principles
 
@@ -21,13 +50,18 @@ surface. Routes (`app/order/page.tsx`, `app/order/[accessToken]/page.tsx`,
   on the customer surface. Raised surfaces (POS/admin panels, dialogs,
   QR cards, notices) are warm white (`#FFFEFB`) with hairline warm border
   (`border-[#EFE7D6]`) + layered soft shadow (see Elevation).
-- `font-medium` is the ceiling — no bold/extrabold/black in order UI.
+- `font-semibold` (600) is the ceiling for titles only — `Menu` /
+  `Pesanan` headers, menu row names, product sheet title. Everything
+  else stays `font-medium` (500) for emphasis, `font-normal` (400) for
+  body. No bold/extrabold/black anywhere.
 - One accent (`#FDBD2C`), used sparingly: solid on primary CTAs only,
   soft tint for selections, nothing else. Grays inherit warmth from the
   accent (stone family) so yellow never feels pasted on cool gray.
-- Icons: Home, ReceiptText, X, Plus, Minus, ArrowLeft only on the
-  customer surface. POS additionally allows Search, BookOpen, TrendingUp,
-  Download, RefreshCw for staff speed, plus warm ornaments (see Icon
+- Icons: Home, ReceiptText, X, Plus, Minus, ArrowLeft, Search
+  (search field), Download (QR download), Check (WarmSelect selection)
+  only on the customer surface — no favorites, no promo icons.
+  POS additionally allows BookOpen, TrendingUp,
+  RefreshCw for staff speed, plus warm ornaments (see Icon
   Ornaments) in empties, metrics, and closed cards only.
 - Touch + feedback: key targets min 44px (`h-11`/`h-12`), press shrink
   on every tap (`active:scale`), sticky filter/search blocks on long
@@ -45,7 +79,8 @@ surface. Routes (`app/order/page.tsx`, `app/order/[accessToken]/page.tsx`,
 - Base (`app/globals.css`): `font-family: var(--font-sans), "Poppins",
   sans-serif;` `letter-spacing: 0.011em;` antialiased,
   `-webkit-tap-highlight-color: transparent;`
-- Order UI uses `font-medium` (500) for emphasis, `font-normal` (400) for
+- Order UI uses `font-semibold` (600) for page/food titles,
+  `font-medium` (500) for emphasis, `font-normal` (400) for
   everything else. Prices/counts always `tabular-nums`. `tracking-tight`
   on titles only.
 
@@ -116,15 +151,17 @@ surfaces → `bg-[#FFFEFB]` + `border-[#EFE7D6]`. Canvas
 
 | Element        | Classes                                                        |
 | -------------- | -------------------------------------------------------------- |
-| Page title     | `text-[22px] font-medium tracking-tight` (+ `leading-snug`)    |
+| Page title     | `text-[22px] font-semibold tracking-tight` (+ `leading-snug`)  |
+| Order header   | `text-[18px] font-semibold tracking-tight` (`truncate`)        |
 | Page sub       | `text-[13px] text-[#78716C] mt-1`                            |
 | Section label  | `text-sm font-medium`                                          |
 | List label     | `text-xs text-[#A8A29E]`                                     |
 | Item name      | `text-[13px] font-medium` (`truncate`)                         |
+| Row name       | `text-[14px] font-semibold tracking-tight` (`truncate`)        |
 | Item meta      | `text-xs text-[#A8A29E]` (`truncate`)                        |
 | Item price     | `text-[13px] tabular-nums text-[#78716C]`                    |
 | Total value    | `text-[15px] font-medium tabular-nums`                         |
-| Sheet title    | `text-lg font-medium tracking-tight`                           |
+| Sheet title    | `text-[22px] font-semibold leading-snug tracking-tight`        |
 | Payment amount | `text-3xl font-medium tabular-nums tracking-tight`             |
 | Button         | `text-sm font-medium` (`h-12 rounded-full`)                    |
 | Tab label      | `text-[11px]` + `font-medium` active / `font-normal` inactive  |
@@ -144,11 +181,16 @@ surfaces → `bg-[#FFFEFB]` + `border-[#EFE7D6]`. Canvas
 
 - Wrapper: `sticky top-0 z-30`, `bg-[#FAF7F1]/90 backdrop-blur-md`,
   `px-5 pb-3 pt-4`, `border-b border-[#E9E1D1]`.
-- Logo: `/logo.png` (transparent), centered (`justify-center`),
-  `h-11 w-auto max-w-[240px] object-contain`; text fallback
-  `text-[15px] font-semibold tracking-tight` if the file fails to load.
-- Table label: `absolute right-0 text-xs text-[#A8A29E]` (does not shift
-  the centered logo).
+- Row: `flex h-11 items-center justify-between gap-3` — left title
+  (`text-[18px] font-semibold tracking-tight`, `truncate`), right
+  table chip when dine-in with a session (`max-w-[140px] truncate
+  rounded-full bg-[#F3EFE6] px-3 py-1.5 text-[11px] font-medium
+  tabular-nums`). Title shows the active category name on Home,
+  "Pesanan" on Orders.
+- The `/logo.png` centered-logo header lives on the landing page only
+  (see Landing); `/order` uses the title + table chip header.
+- Table label: `absolute right-0 text-xs text-[#A8A29E]` on landing
+  (does not shift the centered logo).
 
 ## Order Type Toggle
 
@@ -159,35 +201,44 @@ surfaces → `bg-[#FFFEFB]` + `border-[#EFE7D6]`. Canvas
 
 ## Category Dropdown
 
-- Field: `mt-6 h-12 w-full rounded-2xl bg-[#F3EFE6] px-4 text-[13px]` with a
-  visually hidden label, a right-aligned CSS chevron, themed option menu, and
-  the standard accent focus ring.
+- `WarmSelect` (`components/warm-select.tsx`): custom listbox — native
+  `<select>` popups are OS-rendered (blue highlight) and cannot be themed.
+- Field: `h-12 w-full rounded-2xl bg-[#F3EFE6] px-4 text-[13px]` with a
+  visually hidden label, a right-aligned SVG chevron (rotates on open),
+  and the standard accent focus ring (`bg-[#FFFEFB] ring-[#FDBD2C]/50`).
+- Panel: `rounded-2xl border-[#EFE7D6] bg-[#FFFEFB] shadow-soft` via
+  portal (`p-1.5`); options `min-h-[44px] rounded-xl px-3.5 py-2.5
+  text-[13px]`, selected `bg-[#FDBD2C]/20 font-medium text-[#1C1917]`
+  + `Check` 15, rest `text-[#57534E]` with `hover:bg-[#F3EFE6]`.
+  Keyboard: arrows + Enter/Space, ESC closes, Tab dismisses.
+  Smart above/below positioning; outside-click/scroll closes.
 - Categories: "Semua Menu", "Sate Taichan", "Rice Bowl",
   "Gorengan & Kulit", "Minuman Segar", "Paket Hemat" (= `popular` flag).
 
-## Menu Grid
+## Menu List
 
 - Section row: `mt-8 flex items-baseline justify-between` —
   `h2.text-sm.font-medium` + count `text-xs text-[#A8A29E]`.
-- Grid: `mt-4 grid grid-cols-2 gap-x-3 gap-y-7`.
-- Loading: 4 borderless `SkeletonCard`s; empty: `EmptyState`
-  (`py-14 text-center`, title `text-sm font-medium`, hint
+- List: `mt-2 divide-y divide-[#E9E1D1]` of `MenuRow`
+  (`components/order/MenuRow.tsx`).
+- Loading: `SkeletonRow`s (thumb + lines + plus skeleton); empty:
+  `EmptyState` (`py-14 text-center`, title `text-sm font-medium`, hint
   `mt-1 text-[13px] text-[#78716C]`).
 
-## Product Card (borderless)
+## Menu Row
 
-- Wrapper: `flex min-w-0 flex-col` (no border, no shadow).
-- Photo: `aspect-square w-full rounded-2xl bg-[#F3EFE6] overflow-hidden`;
+- Row: `flex items-center gap-3 py-3.5` (no border, no shadow).
+- Thumb: `h-16 w-16 rounded-xl bg-[#F3EFE6] overflow-hidden`;
   real `imageUrl` or initial-letter fallback
   (`text-lg font-medium text-[#A8A29E]`). Unavailable: `opacity-60`.
-- Only badge: "Habis" pill `absolute left-2 top-2 rounded-full
-  bg-[#FFFEFB]/90 px-2 py-0.5 text-[11px] font-medium text-[#78716C]
+- Only badge: "Habis" pill `absolute left-1 top-1 rounded-full
+  bg-[#FFFEFB]/90 px-1.5 py-px text-[10px] font-medium text-[#78716C]
   backdrop-blur`. No promo/spice/emoji badges.
-- Name: `truncate text-[13px] font-medium leading-snug`
-  (descriptions live in the sheet, not the card).
+- Name: `truncate text-[14px] font-semibold leading-snug tracking-tight`.
+- Meta: `truncate text-xs text-[#A8A29E]` (description or category).
 - Price: `mt-0.5 text-[13px] tabular-nums text-[#78716C]`.
-- Add: `h-7 w-7 rounded-full border border-[#E5DCC8]`,
-  `Plus` 13, `active:scale-95`, `disabled:opacity-30`.
+- Add: `h-8 w-8 rounded-full border border-[#E5DCC8]`,
+  `Plus` 14, `active:scale-95`, `disabled:opacity-30`.
   Products with options open the sheet instead of quick-add.
 
 ## Bottom Tabs (only nav)
@@ -206,8 +257,9 @@ surfaces → `bg-[#FFFEFB]` + `border-[#EFE7D6]`. Canvas
 
 ## Orders Tab
 
-- Title `Pesanan` (`text-[22px] font-medium tracking-tight`) + context
-  sub via `MetaInline` (`tableLabel` / `Dine in`, `Takeaway` / `Ambil di kasir`).
+- Title `Pesanan` (`text-[22px] font-semibold leading-snug tracking-tight`)
+  + context sub via `MetaInline` (`tableLabel` / `Dine in`, `Takeaway` /
+  `Ambil di kasir`).
 - Empty state links back to Home.
 - Cart label: `mt-7 text-xs text-[#A8A29E]` ("Keranjang" + dot + "N item").
 - Cart rows: `divide-y divide-[#E9E1D1]`, `py-3.5 flex gap-3`;
@@ -240,38 +292,45 @@ surfaces → `bg-[#FFFEFB]` + `border-[#EFE7D6]`. Canvas
 - Errors: centered `text-[13px] text-[#78716C]` (no red box).
 - Footnote: centered `text-xs text-[#A8A29E]` ("Bayar via QRIS").
 
-## Product Sheet
+## Product Sheet (hero)
 
 - Backdrop: `fixed inset-0 z-50 bg-[#1C1917]/30` (`ord-backdrop`).
-- Panel: `max-h-[92vh] max-w-[440px] overflow-y-auto rounded-t-[28px]
-  bg-[#FFFEFB]` (`ord-sheet`). Grabber: `mx-auto h-1 w-9 rounded-full
-  bg-[#E5DCC8]`.
-- Photo: `aspect-[16/10] w-full rounded-2xl`. Close: `absolute
-  right-3 top-3 h-8 w-8 rounded-full bg-[#FFFEFB]/90 text-[#78716C]`
-  (`X` 15, blur).
-- Title `text-lg font-medium tracking-tight`; price `mt-0.5 text-sm
-  tabular-nums text-[#78716C]`; desc `mt-2 text-[13px] leading-relaxed
-  text-[#78716C]`.
-- Groups `space-y-7`; label `mb-3 text-[13px] font-medium`, hint
+- Panel: full-height hero sheet `h-[100dvh] max-w-[440px] flex-col
+  overflow-hidden bg-[#FFFEFB]` (`ord-sheet`).
+- Photo: `aspect-square w-full` hero top. Close: `absolute left`
+  `h-10 w-10 rounded-full bg-[#FFFEFB]/90 text-[#1C1917]` (`X` 18,
+  blur); "Populer" badge right when `product.popular`
+  (`rounded-full bg-[#FFFEFB]/90 px-3 py-1.5 text-[11px] font-medium`).
+- Content: overlaps via `-mt-8 rounded-t-[32px] bg-[#FFFEFB]`,
+  `px-6 pb-40 pt-8`, scrollable.
+- Title `text-[22px] font-semibold leading-snug tracking-tight`;
+  price `mt-3 text-[15px] tabular-nums text-[#78716C]`; desc `mt-4
+  text-sm leading-relaxed text-[#78716C]`.
+- Groups `mt-10 space-y-10`; label `mb-4 text-sm font-medium`, hint
   `font-normal text-[#A8A29E]` joined by `MetaDot` ("opsional" /
   "wajib N pilihan").
-- Option pills `flex flex-wrap gap-2`: `rounded-full px-3.5 py-2
-  text-[13px]`; active `bg-[#FDBD2C]/20 font-medium text-[#1C1917]`;
+- Option pills `flex flex-wrap gap-2.5`: `rounded-full px-5 py-3
+  text-sm`; active `bg-[#FDBD2C]/20 font-medium text-[#1C1917]`;
   inactive `bg-[#F3EFE6] text-[#78716C]`. No step numbers, no hints
-  per pill (price shown on its own line).
-- Addons: `divide-y divide-[#E9E1D1]` rows `py-3`; name `text-[13px]`
+  per pill (price shown on its own line, `mt-0.5 text-[13px]
+  tabular-nums`).
+- Addons: `divide-y divide-[#E9E1D1]` rows `py-4 gap-4`; name `text-sm`
   (`font-medium` active / `text-[#57534E]` inactive); right side price
-  `text-[13px] tabular-nums text-[#A8A29E]` + dot `h-5 w-5
+  `text-sm tabular-nums text-[#A8A29E]` + dot `h-7 w-7
   rounded-full border` (active `border-[#FDBD2C] bg-[#FDBD2C]
-  text-[#1C1917]` with `Plus` 11; inactive `border-[#E5DCC8]`).
-- Note: label `text-[13px] font-medium` + hint; textarea `rounded-2xl
-  bg-[#F3EFE6] px-4 py-3 text-sm placeholder:text-[#A8A29E]`,
-  `focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#FDBD2C]/50`.
-- Footer: `sticky bottom-0 -mx-5 border-t border-[#EFE7D6]
-  bg-[#FAF7F1]/95 backdrop-blur` + safe-area; qty minus `h-10 w-10
-  rounded-full border border-[#E5DCC8]`, count `w-5 text-sm
-  font-medium tabular-nums`, plus `h-10 w-10 rounded-full
-  bg-[#1C1917] text-white`; CTA `h-12 flex-1 rounded-full` accent.
+  text-[#1C1917]` with `Plus` 13; inactive `border-[#E5DCC8]`).
+- Note: label `mb-3 text-sm font-medium` + hint; textarea `rows={3}
+  rounded-2xl bg-[#F3EFE6] px-4 py-3.5 text-sm
+  placeholder:text-[#A8A29E]`,
+  `focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#FDBD2C]/50`; hint `mt-2`.
+- Footer: `absolute bottom-0 border-t border-[#EFE7D6]
+  bg-[#FAF7F1]/95 backdrop-blur` + safe-area, `px-6 pt-4`; qty minus
+  `h-11 w-11 rounded-full border border-[#E5DCC8]`, count `w-6
+  text-[15px] font-medium tabular-nums`, plus `h-11 w-11 rounded-full
+  bg-[#1C1917] text-white`; total `text-base font-medium tabular-nums`;
+  CTA `h-12 flex-1 rounded-full` accent.
+- POS exception (`mode="pos"`): grid variants + stepper addons +
+  "Dipilih N dari maksimal M" counter (staff speed).
 
 ## Payment View
 
@@ -339,10 +398,8 @@ in wider grids (`lg:`) plus a `266px` sidebar.
   `min-h-[44px] px-3.5 py-2`); active `bg-[#FDBD2C]/20 font-medium`, inactive
   `bg-[#F3EFE6] text-[#78716C]`, `aria-pressed`, counts
   `tabular-nums`.
-- Dropdowns (`.select` in `globals.css`): inherit `.input` fill
-  (`#F3EFE6`, `rounded-2xl`, accent focus ring) with `appearance:
-  none` + right-aligned CSS chevron (`12×8 #A8A29E`). Used for
-  Menu editor category + Kasir table select. All POS dialogs render
+- Dropdowns (`WarmSelect`): category field, menu editor category, Kasir
+  table select, modifier mode, staff roles. All POS dialogs render
   via `createPortal(..., document.body)` so `fixed` positioning is
   never trapped by the `ord-rise` transform ancestor.
 - Loading: `ListSkeleton` rows (`ord-skeleton` bars + pill) instead
@@ -413,13 +470,15 @@ in wider grids (`lg:`) plus a `266px` sidebar.
   cart empty has `ShoppingBag` ornament.
 - Toggles (`Dine in / Takeaway`, `Tunai / QRIS`): `bg-[#F3EFE6]
   p-1 rounded-full`, `h-11 text-[13px]`, active `bg-[#FFFEFB] border-[#EFE7D6] shadow-xs
-  medium`. Table `select.input h-12 rounded-2xl`, label `13px
+  medium`. Table `WarmSelect h-12`, label `13px
   medium + opsional`.
-- Menu grid `grid-cols-2 gap-3`: warm white `p-2.5 border-[#EFE7D6] shadow-soft` cards
-  (POS exception, not borderless); phone shows name + price only
-  (desc `hidden sm:block`); `Habis` pill `left-2 top-2 text-[11px]
-  bg-[#FFFEFB]/90`; qty badge dark `×N`; stock line only when tracked
-  and `≤ 5`; Plus `h-7 border`.
+- Menu grid `grid-cols-2 gap-3` (`sm:3`, `xl:4`): warm white `p-2.5
+  border-[#EFE7D6] shadow-soft` cards (POS exception, not borderless);
+  square photo; phone shows name + price only (desc `hidden sm:block`);
+  `Habis` pill `left-2 top-2 text-[11px] bg-[#FFFEFB]/90`; qty badge
+  dark `×N` (`right-2 top-2 h-7 min-w-7 rounded-full bg-[#1C1917]
+  text-xs medium tabular`); stock line only when tracked and `≤ 5`;
+  Plus `h-7 border` at `bottom-3 right-3`.
 - Floating cart bar (POS exception to "no floating pill"):
   `bottom-[84px+safe] max-w-[440px]`, dark `rounded-2xl
   bg-[#1C1917]`, `xs text-[#A8A29E] + 15px medium tabular`, CTA

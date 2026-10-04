@@ -27,17 +27,17 @@ export function CartSheet({
 
   return (
     <div>
-      <div className="divide-y divide-neutral-100">
+      <div className="divide-y divide-[#E9E1D1]">
         {cart.map((item) => (
           <div key={item.key} className="flex items-center gap-3 py-3.5">
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-medium">
                 {item.product.name}
               </p>
-              <p className="mt-0.5 truncate text-xs text-neutral-400">
+              <p className="mt-0.5 truncate text-xs text-[#A8A29E]">
                 <MetaInline parts={[[...item.variantLabels, ...item.addonLabels].filter(Boolean).join(", ") || "Original", item.note ? `\u201c${item.note}\u201d` : null]} />
               </p>
-              <p className="mt-1 text-[13px] tabular-nums text-neutral-500">
+              <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">
                 {formatCompactIDR(item.unitPrice * item.quantity)}
               </p>
             </div>
@@ -54,7 +54,7 @@ export function CartSheet({
 
       <div className="mt-3">
         <div className="flex items-baseline justify-between">
-          <span className="text-[13px] text-neutral-500">Total</span>
+          <span className="text-[13px] text-[#78716C]">Total</span>
           <span className="text-[15px] font-medium tabular-nums">
             {formatIDR(total)}
           </span>
@@ -62,16 +62,16 @@ export function CartSheet({
         <button
           onClick={onCheckout}
           disabled={checkoutLoading || checkoutDisabled || cart.length === 0}
-          className="mt-3 flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-neutral-900 transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+          className="mt-3 flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
         >
           {checkoutLoading ? "Menyiapkan pembayaran…" : "Bayar"}
         </button>
         {checkoutError && (
-          <p role="alert" className="mt-2 text-center text-[13px] text-neutral-500">
+          <p role="alert" className="mt-2 text-center text-[13px] text-[#78716C]">
             {checkoutError}
           </p>
         )}
-        <p className="mt-2 text-center text-xs text-neutral-400">
+        <p className="mt-2 text-center text-xs text-[#A8A29E]">
           Bayar via QRIS
         </p>
       </div>

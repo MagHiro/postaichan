@@ -15,13 +15,13 @@ alter table public.customer_sessions add column if not exists ordering_qr_token_
 update public.products
 set image_path = null
 where image_path is not null
-  and image_path !~ '^/uploads/menu/[A-Za-z0-9_-]+\\.webp$';
+  and image_path !~ '^/uploads/menu/[A-Za-z0-9_-]+\.webp$';
 
 alter table public.products drop constraint if exists products_stock_quantity_check;
 alter table public.products add constraint products_stock_quantity_check check (stock_quantity >= 0);
 alter table public.products drop constraint if exists products_image_path_check;
 alter table public.products add constraint products_image_path_check
-  check (image_path is null or image_path ~ '^/uploads/menu/[A-Za-z0-9_-]+\\.webp$');
+  check (image_path is null or image_path ~ '^/uploads/menu/[A-Za-z0-9_-]+\.webp$');
 alter table public.customer_sessions
   drop constraint if exists customer_sessions_ordering_qr_reference_check;
 alter table public.customer_sessions add constraint customer_sessions_ordering_qr_reference_check
@@ -643,7 +643,7 @@ language plpgsql security definer set search_path = public, pg_temp
 as $$
 declare v_product public.products%rowtype;
 begin
-  if not public.is_admin_actor(p_actor_id) or p_image_path is not null and p_image_path !~ '^/uploads/menu/[A-Za-z0-9_-]+\\.webp$' or coalesce(p_stock_quantity, 0) < 0 then raise exception 'INVALID_PRODUCT'; end if;
+  if not public.is_admin_actor(p_actor_id) or p_image_path is not null and p_image_path !~ '^/uploads/menu/[A-Za-z0-9_-]+\.webp$' or coalesce(p_stock_quantity, 0) < 0 then raise exception 'INVALID_PRODUCT'; end if;
   if not exists (select 1 from public.categories where id = p_category_id and active = true) then raise exception 'CATEGORY_NOT_AVAILABLE'; end if;
   insert into public.products(category_id, name, description, image_path, price_idr, estimated_cost_idr, available, active, created_by, stock_tracked, stock_quantity)
   values (p_category_id, trim(p_name), nullif(trim(p_description), ''), p_image_path, p_price_idr, p_estimated_cost_idr, coalesce(p_available, true), true, p_actor_id, coalesce(p_stock_tracked, false), coalesce(p_stock_quantity, 0)) returning * into v_product;
@@ -661,7 +661,7 @@ language plpgsql security definer set search_path = public, pg_temp
 as $$
 declare v_product public.products%rowtype; v_old public.products%rowtype; v_reserved integer;
 begin
-  if not public.is_admin_actor(p_actor_id) or p_image_path is not null and p_image_path !~ '^/uploads/menu/[A-Za-z0-9_-]+\\.webp$' or coalesce(p_stock_quantity, 0) < 0 then raise exception 'INVALID_PRODUCT'; end if;
+  if not public.is_admin_actor(p_actor_id) or p_image_path is not null and p_image_path !~ '^/uploads/menu/[A-Za-z0-9_-]+\.webp$' or coalesce(p_stock_quantity, 0) < 0 then raise exception 'INVALID_PRODUCT'; end if;
   if not exists (select 1 from public.categories where id = p_category_id and active = true) then raise exception 'CATEGORY_NOT_AVAILABLE'; end if;
   select * into v_old from public.products where id = p_product_id and active = true for update;
   if not found then raise exception 'PRODUCT_NOT_FOUND'; end if;
