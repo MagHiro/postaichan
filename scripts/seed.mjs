@@ -49,7 +49,7 @@ try {
     );
     const role = preflight.rows[0];
     if (!role?.can_assume_ddl || !role.ddl_role_safe || !role.runtime_role_safe || !role.ddl_owns_schema) {
-      throw new Error("Production seed bootstrap is incomplete; provision the DDL role, schema owner, and admin membership first.");
+      throw new Error("Production seed bootstrap is incomplete; provision the DDL role, schema owner, and DATABASE_URL login membership first.");
     }
   }
   await client.query(`set role "${ddlRole}"`);

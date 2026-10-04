@@ -36,7 +36,7 @@ try {
     );
     const role = preflight.rows[0];
     if (!role?.can_assume_ddl || !role.ddl_role_safe || !role.runtime_role_safe || !role.ddl_owns_schema || !role.ddl_can_create) {
-      throw new Error("Production database bootstrap is incomplete; provision the DDL role, schema owner, database CREATE grant, and admin membership first.");
+      throw new Error("Production database bootstrap is incomplete; provision the DDL role, schema owner, database CREATE grant, and DATABASE_URL login membership first.");
     }
   }
   // pgcrypto's C functions are extension-owned by the bootstrap administrator,

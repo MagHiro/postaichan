@@ -16,7 +16,7 @@ pnpm run dev
 ```
 
 Local defaults are intentionally convenient for development only. Production configuration is validated on server startup and does not fall back to local credentials.
-Use `pnpm dev` with the local `.env.local`. `pnpm start` runs in production mode, so it rejects the local development database credentials; a production-mode smoke test needs its own non-superuser login granted to `postaichan_runtime` and the complete production configuration below.
+Use `pnpm dev` with the local `.env.local`. `pnpm start` runs in production mode, so it rejects the local development database credentials and requires the complete production configuration below.
 
 ## Runtime configuration
 
@@ -24,7 +24,7 @@ Set these variables in the server environment, never in `NEXT_PUBLIC_*` variable
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | Application runtime login. It must be a non-superuser member of `postaichan_runtime`, not the schema/table/function owner. |
+| `DATABASE_URL` | The single database login for application traffic, production migrations, and seed jobs. It must be a non-superuser member of both `postaichan_runtime` and `postaichan_ddl`, and must not directly own application objects. |
 | `DATABASE_POOL_MAX` | Positive pool size from 1 to 40. Choose it with the database connection limit in mind. |
 | `APP_ORIGIN` | Absolute site origin only, such as `https://orders.example.com`; production requires HTTPS. |
 | `MIDTRANS_SERVER_KEY` | Server-side Midtrans key for the selected environment. |
@@ -33,7 +33,6 @@ Set these variables in the server environment, never in `NEXT_PUBLIC_*` variable
 | `TRUSTED_CLIENT_IP_HEADER` | Required for `trusted_header`. Use a single-address header that the ingress overwrites. |
 | `TRUSTED_PROXY_HOPS` | Required for `trusted_proxy`; count the trusted proxies that append to `X-Forwarded-For`. |
 | `REQUIRE_ORDERING_QR` | Explicit production policy. `true` requires a valid opaque table/general QR token. `false` deliberately permits open walk-in sessions. |
-| `DATABASE_ADMIN_URL` | Migration and seed login only. Production scripts require it and assume `postaichan_ddl`; application requests never use it. |
 | `DATABASE_DDL_ROLE` | Must be `postaichan_ddl` for production migrations and seed tasks. |
 
 `ALLOW_DEV_STAFF_BYPASS=true` is accepted only when `NODE_ENV=development`; production and staging startup reject it. Configuration errors name the setting but never print its value.
@@ -46,18 +45,34 @@ With `REQUIRE_ORDERING_QR=true`, table and general ordering routes require opaqu
 
 Migrations 001–027 are historical and stay unchanged. New production fixes are additive migrations. CI starts with an empty PostgreSQL 16 database and applies the entire chain in numeric order.
 
-Use separate owner and runtime logins:
+Use separate privilege groups but a single production login:
 
 - `postaichan_ddl` is a non-login owner role for the `public` schema and application database objects. Migration DDL runs with `SET ROLE postaichan_ddl`.
-- `postaichan_runtime` is a non-login privilege group. The runtime login is not a superuser or object owner, cannot create objects in `public`, and receives only server read access, narrow direct writes, and the RPC execute allowlist.
-- The production login placed in `DATABASE_ADMIN_URL` must be provisioned by the database operator as a member of `postaichan_ddl`. It also needs the database-level rights required to grant/use DDL and the schema must already be owned by `postaichan_ddl` before a clean production install.
-- The production login placed in `DATABASE_URL` must be a member of `postaichan_runtime` only. Do not grant either login to unrelated users or external services.
+- `postaichan_runtime` is a non-login privilege group with the runtime read access, narrow direct writes, and RPC execute allowlist.
+- The one login in `DATABASE_URL` must be a non-superuser member of both groups. It must not directly own application tables, functions, or the `public` schema; those objects stay owned by `postaichan_ddl`.
 
-Provision login credentials through the database provider or secret manager; do not put passwords in migration SQL. A DBA or provider control plane creates the two `NOLOGIN` group roles, creates separate login identities using its credential workflow, grants `postaichan_ddl` to the migration login and `postaichan_runtime` to the app login, grants database `CREATE` to the DDL role, and transfers `public` schema ownership to `postaichan_ddl`. Then store the two connection URLs separately in the deployment's migration-job and application secrets. The migration script checks this bootstrap before applying production migrations and fails without printing either URL.
+Provision the login through the database provider or secret manager; do not put passwords in migration SQL. As a database owner, run this idempotent role setup, substituting the actual login and database role identifiers below:
 
-The migration runner prepares `pgcrypto` through the migration administrator before switching to `postaichan_ddl`: it revokes the extension functions' `PUBLIC` execute grants, grants execution to `postaichan_ddl`, and verifies the ACL. It also transfers legacy public-schema objects to `postaichan_ddl` when the migration login is authorized; otherwise the database owner must transfer them before an upgrade can continue. Some providers preinstall extension functions owned by a provider role; the migration login must be authorized to apply those ACL changes, or the DBA must perform them before migration. Migration 034 refuses a `PUBLIC` function execute grant rather than silently leaving it in place.
+```sql
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postaichan_ddl') THEN
+    CREATE ROLE postaichan_ddl NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postaichan_runtime') THEN
+    CREATE ROLE postaichan_runtime NOLOGIN;
+  END IF;
+END $$;
+GRANT postaichan_runtime TO application_login;
+GRANT postaichan_ddl TO application_login;
+GRANT CREATE ON DATABASE application_database TO postaichan_ddl;
+ALTER SCHEMA public OWNER TO postaichan_ddl;
+```
 
-For each release, take a backup, run `pnpm run db:migrate` as a one-shot job with `NODE_ENV=production`, `DATABASE_ADMIN_URL`, and `DATABASE_DDL_ROLE=postaichan_ddl`, verify readiness, then deploy the app with only `DATABASE_URL`. Run `pnpm run db:seed` only as an explicit administrator operation with `DATABASE_ADMIN_URL`; it is idempotent and is not part of normal application startup.
+Configure the same `DATABASE_URL` for the application and one-shot migration/seed jobs. This single-login setup is less isolated: compromise of the application credential can assume `postaichan_ddl`, so use a strong provider-managed secret, restrict who can read it, and prefer separate logins if the deployment later allows that operational complexity. The migration script checks the role bootstrap before applying production migrations and fails without printing the URL.
+
+The migration runner prepares `pgcrypto` through the `DATABASE_URL` login before switching to `postaichan_ddl`: it revokes the extension functions' `PUBLIC` execute grants, grants execution to `postaichan_ddl`, and verifies the ACL. It also transfers legacy public-schema objects to `postaichan_ddl` when the login is authorized; otherwise the database owner must transfer them before an upgrade can continue. Some providers preinstall extension functions owned by a provider role; the login must be authorized to apply those ACL changes, or the DBA must perform them before migration. Migration 034 refuses a `PUBLIC` function execute grant rather than silently leaving it in place.
+
+For each release, take a backup, run `pnpm run db:migrate` as a one-shot job with `NODE_ENV=production`, `DATABASE_URL`, and `DATABASE_DDL_ROLE=postaichan_ddl`, verify readiness, then deploy the app with the same `DATABASE_URL`. Run `pnpm run db:seed` only as an explicit administrator operation with that same `DATABASE_URL`; it is idempotent and is not part of normal application startup. If `DATABASE_URL` uses a Neon pooled hostname, migration and seed scripts derive its direct hostname for session-level migration behavior while preserving the same credentials and connection options; application traffic retains the configured pooled URL.
 
 ## Security and payment operations
 

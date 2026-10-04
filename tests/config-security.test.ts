@@ -54,11 +54,27 @@ test("both public-ordering policies are deliberate and QR-required listings hide
   assert.deepEqual(publicTableDirectory(rows, true), [{ label: "Table 01" }]);
 });
 
-test("production migration task cannot fall back to runtime or local credentials", () => {
-  assert.throws(() => getMigrationDatabaseUrl({ NODE_ENV: "production", DATABASE_URL: "postgresql://app:secret@db/app" }, "production"), /DATABASE_ADMIN_URL/);
-  assert.equal(getMigrationDatabaseUrl({ NODE_ENV: "production", DATABASE_ADMIN_URL: "postgresql://migrator:secret@db/app" }, "production"), "postgresql://migrator:secret@db/app");
-  assert.throws(() => getMigrationDatabaseUrl({ NODE_ENV: "staging", DATABASE_URL: "postgresql://app:secret@db/app" }, "staging"), /DATABASE_ADMIN_URL/);
+test("production migrations and seeds use the single DATABASE_URL", () => {
+  assert.equal(
+    getMigrationDatabaseUrl({ NODE_ENV: "production", DATABASE_URL: "postgresql://app:secret@db.example/app" }, "production"),
+    "postgresql://app:secret@db.example/app",
+  );
+  assert.throws(() => getMigrationDatabaseUrl({ NODE_ENV: "production", DATABASE_ADMIN_URL: "postgresql://migrator:secret@db/app" }, "production"), /DATABASE_URL/);
+  assert.throws(() => getMigrationDatabaseUrl({ NODE_ENV: "staging", DATABASE_URL: undefined }, "staging"), /DATABASE_URL/);
   assert.throws(() => getServerConfig({ NODE_ENV: "staging" }, "staging"), /DATABASE_URL/);
+});
+
+test("Neon migration URL switches pooled host to direct host without changing credentials or options", () => {
+  const direct = getMigrationDatabaseUrl({
+    NODE_ENV: "production",
+    DATABASE_URL: "postgresql://app:secret@ep-example-pooler.c-4.ap-southeast-1.aws.neon.tech/db?sslmode=require&channel_binding=require",
+  }, "production");
+  const parsed = new URL(direct);
+  assert.equal(parsed.hostname, "ep-example.c-4.ap-southeast-1.aws.neon.tech");
+  assert.equal(parsed.username, "app");
+  assert.equal(parsed.password, "secret");
+  assert.equal(parsed.searchParams.get("sslmode"), "require");
+  assert.equal(parsed.searchParams.get("channel_binding"), "require");
 });
 
 test("trusted client-IP strategies ignore spoofable headers and select the configured proxy hop", () => {
