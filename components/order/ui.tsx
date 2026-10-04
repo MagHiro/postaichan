@@ -112,9 +112,9 @@ export function SkeletonCard({ className }: { className?: string }) {
 
 export function SkeletonRow() {
   return (
-    <div className="flex items-center gap-3 py-3.5">
-      <div className="ord-skeleton h-16 w-16 shrink-0 rounded-xl" />
-      <div className="min-w-0 flex-1 space-y-2">
+    <div className="flex items-center gap-4 py-4">
+      <div className="ord-skeleton h-20 w-20 shrink-0 rounded-2xl" />
+      <div className="min-w-0 flex-1 space-y-2.5">
         <div className="ord-skeleton h-3 w-2/3 rounded-full" />
         <div className="ord-skeleton h-3 w-1/2 rounded-full" />
       </div>

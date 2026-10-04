@@ -190,6 +190,46 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
     });
   }, [menuProducts, category, search]);
 
+  // Group by DB categories (ordered) when viewing all. Falls back to a flat
+  // list when there are no categories, a specific filter is active, or
+  // nothing matches.
+  const groupedSections = useMemo(() => {
+    if (category !== ALL_CATEGORIES_ID) return [];
+    if (categories.length === 0) return [];
+    const query = search.trim().toLowerCase();
+    const matchesQuery = (product: Product) => {
+      if (!query) return true;
+      return `${product.name} ${product.description} ${product.category}`
+        .toLowerCase()
+        .includes(query);
+    };
+    const sections: { id: string; name: string; items: Product[] }[] = [];
+    for (const cat of categories) {
+      const items = menuProducts.filter((product) => {
+        const inCategory = product.categoryId
+          ? product.categoryId === cat.id
+          : product.category === cat.name;
+        return inCategory && matchesQuery(product);
+      });
+      if (items.length > 0) sections.push({ id: cat.id, name: cat.name, items });
+    }
+    const knownIds = new Set(categories.map((item) => item.id));
+    const knownNames = new Set(categories.map((item) => item.name));
+    const leftover = menuProducts.filter((product) => {
+      if (!matchesQuery(product)) return false;
+      if (product.categoryId) return !knownIds.has(product.categoryId);
+      return !knownNames.has(product.category);
+    });
+    if (leftover.length > 0)
+      sections.push({ id: "__other__", name: "Lainnya", items: leftover });
+    return sections;
+  }, [menuProducts, categories, category, search]);
+
+  const isGrouped =
+    category === ALL_CATEGORIES_ID &&
+    categories.length > 0 &&
+    groupedSections.length > 0;
+
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce(
     (sum, item) => sum + item.unitPrice * item.quantity,
@@ -504,20 +544,24 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               )}
             </div>
 
-            <CategoryDropdown
-              id="menu-category"
-              value={category}
-              categories={categories}
-              onChange={setCategory}
-              className="mt-6"
-            />
+            {categories.length > 0 && (
+              <CategoryDropdown
+                id="menu-category"
+                value={category}
+                categories={categories}
+                onChange={setCategory}
+                className="mt-6"
+              />
+            )}
 
-            <div className="mt-8 flex items-baseline justify-between">
-              <h2 className="text-sm font-medium">{menuTitle}</h2>
-              <span className="text-xs text-[#A8A29E]">
-                {filteredProducts.length} menu
-              </span>
-            </div>
+            {!isGrouped && (
+              <div className="mt-8 flex items-baseline justify-between">
+                <h2 className="text-sm font-medium">{menuTitle}</h2>
+                <span className="text-xs text-[#A8A29E]">
+                  {filteredProducts.length} menu
+                </span>
+              </div>
+            )}
 
             {menuLoading ? (
               <div className="mt-2 divide-y divide-[#E9E1D1]">
@@ -532,6 +576,29 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               </div>
             ) : filteredProducts.length === 0 ? (
               <EmptyState title="Tidak ketemu" hint="Coba kata lain atau ganti kategori." />
+            ) : isGrouped ? (
+              <div className="mt-2 space-y-7">
+                {groupedSections.map((section) => (
+                  <section key={section.id} aria-label={section.name}>
+                    <div className="flex items-baseline justify-between">
+                      <h2 className="text-sm font-medium">{section.name}</h2>
+                      <span className="text-xs text-[#A8A29E]">
+                        {section.items.length} menu
+                      </span>
+                    </div>
+                    <div className="mt-2 divide-y divide-[#E9E1D1]">
+                      {section.items.map((product) => (
+                        <MenuRow
+                          key={product.id}
+                          product={product}
+                          onOpen={openProduct}
+                          onQuickAdd={quickAdd}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
             ) : (
               <div className="mt-2 divide-y divide-[#E9E1D1]">
                 {filteredProducts.map((product) => (

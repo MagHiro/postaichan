@@ -69,11 +69,11 @@
   .input::placeholder { color: #a8a29e; }
 
   /* ---- POS workspace: calm minimal motion (same as order UI) ---- */
-  .ord-rise { animation: ord-rise 0.3s cubic-bezier(0.22, 0.8, 0.32, 1) both; }
-  .ord-sheet { animation: ord-sheet-in 0.28s cubic-bezier(0.22, 0.8, 0.32, 1) both; box-shadow: 0 -12px 32px rgba(24, 24, 27, 0.1); }
-  .ord-backdrop { animation: ord-backdrop-in 0.2s ease-out both; }
-  .ord-toast { animation: ord-toast-in 0.2s ease-out both; }
-  .ord-bar { animation: ord-rise 0.25s ease-out both; }
+  .ord-rise { animation: ord-rise 0.3s cubic-bezier(0.22, 0.8, 0.32, 1) backwards; }
+  .ord-sheet { animation: ord-sheet-in 0.28s cubic-bezier(0.22, 0.8, 0.32, 1) backwards; box-shadow: 0 -12px 32px rgba(24, 24, 27, 0.1); }
+  .ord-backdrop { animation: ord-backdrop-in 0.2s ease-out backwards; }
+  .ord-toast { animation: ord-toast-in 0.2s ease-out backwards; }
+  .ord-bar { animation: ord-rise 0.25s ease-out backwards; }
 
   .ord-skeleton {
     background: linear-gradient(90deg, #f3efe6 25%, #fffefb 40%, #f3efe6 55%);

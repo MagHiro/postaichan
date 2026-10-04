@@ -18,18 +18,18 @@ export function MenuRow({
 }) {
   const badge = badgeFor(product);
   return (
-    <article className="flex items-center gap-3 py-3.5">
+    <article className="flex items-center gap-4 py-4">
       <button
         type="button"
         onClick={() => onOpen(product)}
         disabled={!product.available}
         aria-label={`Lihat ${product.name}`}
-        className="relative block h-16 w-16 shrink-0 text-left transition active:scale-95 disabled:cursor-not-allowed"
+        className="relative block h-20 w-20 shrink-0 text-left transition active:scale-95 disabled:cursor-not-allowed"
       >
         <ProductImage
           product={product}
           className={cn(
-            "h-16 w-16 rounded-xl bg-[#F3EFE6]",
+            "h-20 w-20 rounded-2xl bg-[#F3EFE6]",
             !product.available && "opacity-60",
           )}
         />
@@ -45,13 +45,13 @@ export function MenuRow({
         disabled={!product.available}
         className="min-w-0 flex-1 text-left disabled:cursor-not-allowed"
       >
-        <h3 className="truncate text-[14px] font-semibold leading-snug tracking-tight">
+        <h3 className="truncate text-[15px] font-semibold leading-relaxed tracking-tight">
           {product.name}
         </h3>
-        <p className="mt-0.5 truncate text-xs text-[#A8A29E]">
+        <p className="mt-1 truncate text-[13px] leading-relaxed text-[#A8A29E]">
           {product.description || product.category}
         </p>
-        <p className="mt-0.5 text-[13px] tabular-nums text-[#78716C]">
+        <p className="mt-1.5 text-[13px] tabular-nums leading-relaxed text-[#78716C]">
           {formatCompactIDR(product.price)}
         </p>
       </button>

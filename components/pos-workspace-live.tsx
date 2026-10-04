@@ -413,9 +413,11 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
         </main>
       </div>
 
-      {/* Mobile bottom tabs — Kasir is the primary action: bigger yellow circle */}
-      <nav aria-label="Navigasi workspace" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#EFE7D6] bg-[#FAF7F1]/95 px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden">
-        <div className={cn("mx-auto grid w-full max-w-[440px] items-end gap-1", navItems.length === 3 ? "grid-cols-3" : "grid-cols-5")}>
+      {/* Mobile bottom tabs — in-flow (not fixed) so it stays glued to the
+          bottom of the 100dvh shell on mobile/tablet. Fixed bottom-0 drifts
+          on mobile browsers (dynamic toolbar, keyboard, backdrop-filter). */}
+      <nav aria-label="Navigasi workspace" className="z-40 shrink-0 border-t border-[#EFE7D6] bg-[#FAF7F1] px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 lg:hidden">
+        <div className={cn("mx-auto grid w-full max-w-[440px] items-end gap-1 sm:max-w-[560px]", navItems.length === 3 ? "grid-cols-3" : "grid-cols-5")}>
           {navItems.map((item) => {
             const active = nav === item;
             if (item === "POS") {
@@ -637,26 +639,26 @@ function SearchField({ value, onChange, placeholder, id = "workspace-search", on
   );
 }
 
-function QtyStepper({ count, onMinus, onPlus, large = false, itemName }: { count: number; onMinus: () => void; onPlus: () => void; large?: boolean; itemName?: string }) {
-  const size = large ? "h-11 w-11" : "h-9 w-9";
+function QtyStepper({ count, onMinus, onPlus, large = false, itemName, dark = false }: { count: number; onMinus: () => void; onPlus: () => void; large?: boolean; itemName?: string; dark?: boolean }) {
+  const size = large ? "h-9 w-9" : "h-7 w-7";
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
       <button
         type="button"
         onClick={onMinus}
         aria-label={itemName ? `Kurangi ${itemName}` : "Kurangi"}
-        className={cn("flex items-center justify-center rounded-full border border-[#E5DCC8] text-[#78716C] active:scale-95", size)}
+        className={cn("flex items-center justify-center rounded-full border active:scale-95", size, dark ? "border-white/20 text-white/80 hover:border-white/40" : "border-[#E5DCC8] text-[#78716C]")}
       >
-        <Minus size={15} />
+        <Minus size={13} />
       </button>
-      <span aria-live="polite" className={cn("text-center font-medium tabular-nums", large ? "w-6 text-[15px]" : "w-5 text-sm")}>{count}</span>
+      <span aria-live="polite" className={cn("text-center font-semibold tabular-nums", large ? "w-6 text-[15px]" : "w-5 text-[13px]")}>{count}</span>
       <button
         type="button"
         onClick={onPlus}
         aria-label={itemName ? `Tambah ${itemName}` : "Tambah"}
-        className={cn("flex items-center justify-center rounded-full bg-[#1C1917] text-white active:scale-95", size)}
+        className={cn("flex items-center justify-center rounded-full active:scale-95", size, dark ? "bg-[#FDBD2C] text-[#1C1917]" : "bg-[#1C1917] text-white")}
       >
-        <Plus size={15} />
+        <Plus size={13} />
       </button>
     </div>
   );
@@ -1834,10 +1836,10 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
       </div>
 
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="min-w-0 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
-          <div className="p-5 sm:p-6">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.08fr]">
-            <div className="flex rounded-full bg-[#F3EFE6] p-1" role="group" aria-label="Jenis pesanan">
+        <section className="min-w-0 overflow-hidden rounded-3xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
+          <div className="border-b border-[#F1EBDC] bg-[#FAF7F1] p-4 sm:p-5">
+          <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.08fr]">
+            <div className="flex rounded-2xl bg-[#EDE8DB] p-1" role="group" aria-label="Jenis pesanan">
               {(
                 [
                   { key: "dine_in", label: "Dine in" },
@@ -1850,47 +1852,46 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
                   onClick={() => { setOrderType(key); if (key === "takeaway") setTableId(null); }}
                   aria-pressed={orderType === key}
                   className={cn(
-                    "h-11 flex-1 rounded-full text-center text-[13px] transition active:scale-[0.98]",
-                    orderType === key ? "bg-[#FFFEFB] font-medium text-[#1C1917] shadow-xs" : "font-normal text-[#78716C]",
+                    "h-10 flex-1 rounded-xl text-center text-[13px] transition active:scale-[0.98]",
+                    orderType === key ? "bg-[#FFFEFB] font-semibold text-[#1C1917] shadow-xs" : "font-normal text-[#78716C]",
                   )}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <div className="flex rounded-full bg-[#F3EFE6] p-1" role="group" aria-label="Metode pembayaran">
-              {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-11 flex-1 rounded-full text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "bg-[#FFFEFB] font-medium text-[#1C1917] shadow-xs" : "text-[#78716C]")}>{method.label}</button>)}
+            <div className="flex rounded-2xl bg-[#EDE8DB] p-1" role="group" aria-label="Metode pembayaran">
+              {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-10 flex-1 rounded-xl text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "bg-[#FFFEFB] font-semibold text-[#1C1917] shadow-xs" : "text-[#78716C]")}>{method.label}</button>)}
             </div>
             {orderType === "dine_in" && (
               <div className="block text-[13px] font-medium text-[#1C1917] sm:col-span-2 xl:col-span-1">
-                <span id="cashier-table-label">Meja <MetaDot /> <span className="font-normal text-[#A8A29E]">opsional</span></span>
-                <WarmSelect id="cashier-table" label="Meja" value={tableId ?? ""} onChange={(next) => setTableId(next || null)} placeholder="Tanpa meja / walk-in" className="mt-2" options={[{ value: "", label: "Tanpa meja / walk-in" }, ...tables.map((table) => ({ value: table.id, label: table.label }))]} />
+                <WarmSelect id="cashier-table" label="Meja" value={tableId ?? ""} onChange={(next) => setTableId(next || null)} placeholder="Meja — opsional" className="[&_button]:h-12 [&_button]:rounded-2xl [&_button]:bg-[#EDE8DB]" options={[{ value: "", label: "Tanpa meja / walk-in" }, ...tables.map((table) => ({ value: table.id, label: table.label }))]} />
               </div>
             )}
           </div>
 
-          <div className="sticky top-0 z-10 -mx-5 bg-[#FFFEFB]/95 px-5 pb-2 pt-2 backdrop-blur-md sm:-mx-6 sm:px-6">
-            <div className="mt-1">
-              <SearchField value={query} onChange={setQuery} placeholder="Cari menu… (contoh: sate taichan)" />
-            </div>
+          <div className="mt-2.5 grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_220px]">
+            <SearchField value={query} onChange={setQuery} placeholder="Cari menu… (contoh: sate taichan)" />
             <CategoryDropdown
               id="cashier-category"
               value={category}
               categories={categories}
               onChange={setCategory}
-              className="mt-3"
             />
           </div>
+          </div>
 
+          <div className="p-5 sm:p-6">
           {filtered.length ? (
-            <div className="mt-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium tracking-tight text-[#1C1917]">Menu</h3>
-                <span className="text-xs tabular-nums text-[#A8A29E]">{filtered.length} item</span>
+            <div>
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-sm font-semibold tracking-tight text-[#1C1917]">Menu</h3>
+                <span className="rounded-full bg-[#F3EFE6] px-2.5 py-0.5 text-xs font-medium tabular-nums text-[#78716C]">{filtered.length} item</span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-3">
                 {filtered.map((product) => {
                   const qty = cart.filter((item) => item.product.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
+                  const lowStock = product.stockTracked && product.available && (product.stockQuantity ?? 0) <= 5;
                   return (
                     <button
                       type="button"
@@ -1898,32 +1899,41 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
                       onClick={() => add(product)}
                       disabled={!product.available}
                       aria-label={product.available ? `Tambah ${product.name}` : `${product.name} habis`}
-                      className="relative min-w-0 rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-2.5 text-left shadow-soft transition active:scale-[0.98] disabled:opacity-60"
+                      className="group flex min-w-0 flex-col rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-3 text-left shadow-soft transition hover:border-[#E5DCC8] active:scale-[0.98] disabled:opacity-70"
                     >
-                      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-[#F3EFE6]">
+                      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-[#F3EFE6]">
                         {product.imageUrl ? (
                           <img src={product.imageUrl} alt={product.name} loading="lazy" className="h-full w-full object-cover" />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-lg font-medium text-[#A8A29E]">
+                          <div className="flex h-full w-full items-center justify-center text-xl font-medium text-[#A8A29E]">
                             {product.name.slice(0, 1)}
                           </div>
                         )}
+                        {!product.available && <div aria-hidden="true" className="absolute inset-0 bg-[#FFFEFB]/45" />}
                         {qty > 0 && (
-                          <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-[#1C1917] px-2 text-xs font-medium tabular-nums text-white">
+                          <span className="absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#1C1917] px-2 text-[11px] font-semibold tabular-nums text-white shadow-sm">
                             ×{qty}
                           </span>
                         )}
                         {!product.available && (
-                          <span className="absolute left-2 top-2 rounded-full bg-[#FFFEFB]/90 px-2 py-0.5 text-[11px] font-medium text-[#78716C] backdrop-blur">
+                          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#1C1917] px-3 py-1 text-[11px] font-medium text-white">
                             Habis
                           </span>
                         )}
+                        {lowStock && (
+                          <span className="absolute bottom-2 left-2 rounded-full bg-[#FDBD2C] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[#1C1917]">
+                            {product.stockQuantity ?? 0} tersisa
+                          </span>
+                        )}
                       </div>
-                      <p className="mt-2 truncate px-1 text-[13px] font-medium leading-snug text-[#1C1917]">{product.name}</p>
-                      <p className="mt-0.5 hidden truncate px-1 text-xs text-[#A8A29E] sm:block">{product.description || "Menu pilihan"}</p>
-                      <p className="mt-1 px-1 pb-1 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(product.price)}</p>
-                      {product.stockTracked && product.available && (product.stockQuantity ?? 0) <= 5 && <p className="px-1 pb-1 text-xs tabular-nums text-[#A8A29E]">{product.stockQuantity ?? 0} tersisa</p>}
-                      <span aria-hidden="true" className="absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full border border-[#E5DCC8] bg-[#FFFEFB] text-[#1C1917]"><Plus size={13} strokeWidth={2} /></span>
+                      <div className="flex min-w-0 flex-1 flex-col px-0.5 pt-2.5">
+                        <p className="truncate text-sm font-semibold leading-tight text-[#1C1917]">{product.name}</p>
+                        <p className="mt-1 line-clamp-1 text-xs leading-relaxed text-[#A8A29E]">{product.description || product.category}</p>
+                        <p className="mt-1.5 text-sm font-semibold tabular-nums text-[#1C1917]">{formatCompactIDR(product.price)}</p>
+                        <span aria-hidden="true" className="mt-2.5 flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-[#F3EFE6] text-[13px] font-medium text-[#1C1917] transition group-hover:bg-[#1C1917] group-hover:text-white group-active:bg-[#1C1917] group-active:text-white">
+                          <Plus size={14} strokeWidth={2.2} /> Tambah
+                        </span>
+                      </div>
                     </button>
                   );
                 })}
@@ -1936,60 +1946,60 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
         </section>
 
         {/* Cart — desktop */}
-        <aside className="sticky top-6 hidden max-h-[calc(100dvh-7.5rem)] overflow-y-auto rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft p-6 lg:block">
+        <aside className="sticky top-6 hidden max-h-[calc(100dvh-7.5rem)] flex-col overflow-hidden rounded-3xl border border-[#EFE7D6] bg-[#1C1917] p-6 text-white shadow-soft lg:flex">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-medium tracking-tight text-[#1C1917]">Pesanan saat ini</h3>
-            {cart.length > 0 && <button type="button" onClick={clearCart} className="text-[13px] text-[#78716C]">Hapus Semua</button>}
+            <h3 className="text-sm font-semibold tracking-tight">Pesanan saat ini</h3>
+            {cart.length > 0 && <button type="button" onClick={clearCart} className="rounded-full px-2 py-1 text-[13px] text-white/60 transition hover:text-white">Hapus Semua</button>}
           </div>
-          <p className="mt-1 text-[13px] text-[#78716C]">
+          <p className="mt-1 text-[13px] text-white/60">
             <MetaInline parts={[orderType === "dine_in" ? "Dine in" : "Takeaway", paymentMethod === "cash" ? "Tunai" : "QRIS"]} />
           </p>
-          <div className="mt-4">
+          <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
             {cart.length ? (
-              <div className="divide-y divide-[#E9E1D1]">
+              <div className="divide-y divide-white/10">
                 {cart.map((item) => (
-                  <div key={item.key} className="flex gap-3 py-4">
+                  <div key={item.key} className="flex gap-3 py-3.5">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-[#1C1917]">{item.product.name}</p>
-                      <p className="mt-0.5 truncate text-xs text-[#A8A29E]">{[...item.variantLabels, ...item.addonLabels].join(", ") || "Original"}</p>
-                      <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.unitPrice * item.quantity)}</p>
-                      <div className="mt-2">
-                        <QtyStepper itemName={item.product.name} count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
+                      <p className="truncate text-[13px] font-semibold">{item.product.name}</p>
+                      <p className="mt-0.5 truncate text-xs text-white/50">{[...item.variantLabels, ...item.addonLabels].join(", ") || "Original"}</p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <QtyStepper dark itemName={item.product.name} count={item.quantity} onMinus={() => setQty(item.key, -1)} onPlus={() => setQty(item.key, 1)} />
+                        <p className="shrink-0 text-[13px] font-medium tabular-nums">{formatCompactIDR(item.unitPrice * item.quantity)}</p>
                       </div>
                     </div>
-                    <button type="button" onClick={() => setQty(item.key, -item.quantity)} aria-label={`Hapus ${item.product.name}`} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#A8A29E] active:scale-95"><X size={15} /></button>
+                    <button type="button" onClick={() => setQty(item.key, -item.quantity)} aria-label={`Hapus ${item.product.name}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/40 transition hover:text-white active:scale-95"><X size={14} /></button>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center py-8 text-center">
+              <div className="flex flex-col items-center rounded-2xl border border-dashed border-white/15 px-4 py-8 text-center">
                 <Ornament icon={ShoppingBag} />
-                <p className="mt-3 text-sm font-medium text-[#1C1917]">Keranjang kosong.</p>
-                <p className="mt-1 text-[13px] text-[#78716C]">Ketuk menu untuk mulai.</p>
+                <p className="mt-3 text-sm font-medium">Keranjang kosong.</p>
+                <p className="mt-1 text-[13px] text-white/50">Ketuk menu untuk mulai.</p>
               </div>
             )}
           </div>
-          <div className="mt-3 flex items-baseline justify-between border-t border-[#EFE7D6] pt-5">
-            <span className="text-[13px] text-[#78716C]">Total <span className="text-[#A8A29E]">({count} item)</span></span>
-            <span className="text-[15px] font-medium tabular-nums text-[#1C1917]">{formatIDR(total)}</span>
+          <div className="mt-4 flex items-baseline justify-between border-t border-white/10 pt-4">
+            <span className="text-[13px] text-white/60">Total <span className="tabular-nums text-white/40">({count} item)</span></span>
+            <span className="text-lg font-semibold tabular-nums">{formatIDR(total)}</span>
           </div>
           <button
             type="button"
             disabled={!cart.length || saving}
             onClick={() => void createOrder()}
-            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+            className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#FDBD2C] text-sm font-semibold text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
           >
             {saving ? "Membuat…" : "Buat pembayaran"}
           </button>
         </aside>
       </div>
 
-      {/* Cart — mobile bar */}
-      {cart.length > 0 && !cartOpen && (
-        <div className="fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-30 mx-auto max-w-[440px] px-4 lg:hidden">
-                <button
-                  type="button"
-                  onClick={() => setCartOpen(true)}
+      {/* Cart — floating bar (portaled: stays pinned to viewport while menu scrolls) */}
+      {cart.length > 0 && !cartOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-x-0 bottom-[calc(100px+env(safe-area-inset-bottom))] z-30 mx-auto w-full max-w-[440px] px-4 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setCartOpen(true)}
             aria-label={`Buka keranjang, ${count} item, ${formatIDR(total)}`}
             className="shadow-soft flex w-full items-center justify-between gap-3 rounded-2xl border border-[#1C1917] bg-[#1C1917] py-3 pl-4 pr-3 text-white active:scale-[0.99]"
           >
@@ -2001,16 +2011,17 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
               Lihat
             </span>
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Cart — mobile sheet */}
-      {cartOpen && (
-        <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30 lg:hidden" onClick={() => setCartOpen(false)}>
-            <section
+      {/* Cart — mobile sheet (portaled: locked to viewport, bottom sheet on mobile) */}
+      {cartOpen && typeof document !== "undefined" && createPortal(
+        <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30 p-0 sm:items-center sm:p-6 lg:hidden" onClick={() => setCartOpen(false)}>
+          <section
             ref={cartDialogRef}
             tabIndex={-1}
-            className="ord-sheet flex max-h-[88vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-[#FFFEFB]"
+            className="ord-sheet flex max-h-[92dvh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-[28px] bg-[#FFFEFB] sm:max-h-[88dvh] sm:rounded-[28px]"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -2078,7 +2089,8 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
               )}
             </div>
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {selectedProduct && (

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef } from "react";
-import { Minus, Plus, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Check, Minus, Plus, X } from "lucide-react";
 import { MetaDot } from "@/components/meta";
 import { formatCompactIDR } from "@/lib/format";
 import type { ModifierGroup, Product } from "@/lib/types";
@@ -91,50 +92,108 @@ export function ProductSheet({
     changeAddonQuantity(optionId, 1);
   }
 
-  return (
-    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/30" onClick={onClose}>
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="ord-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[#1C1917]/40 p-0 sm:items-center sm:p-6 lg:p-8" onClick={onClose}>
       <div
         ref={dialogRef}
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="ord-sheet flex h-[100dvh] w-full max-w-[440px] flex-col overflow-hidden bg-[#FFFEFB]"
+        className={cn(
+          "ord-sheet flex w-full flex-col overflow-hidden bg-[#FFFEFB] shadow-2xl",
+          // Mobile: locked bottom sheet in viewport. Tablet+: centered dialog, natural height.
+          "max-h-[92dvh] rounded-t-[28px] sm:max-h-[88dvh] sm:rounded-[28px]",
+          mode === "pos" ? "max-w-[440px] sm:max-w-[560px] lg:max-w-[600px]" : "max-w-[440px]",
+        )}
         role="dialog"
         aria-modal="true"
         aria-labelledby="product-sheet-title"
         aria-describedby="product-sheet-description"
       >
-        <div className="relative shrink-0">
-          <ProductImage product={product} eager className="aspect-square w-full" />
-          <div className="absolute inset-x-0 top-[calc(0.75rem+env(safe-area-inset-top))] flex items-center justify-between px-4">
-            <button
-              type="button"
-              aria-label="Tutup"
-              onClick={onClose}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FFFEFB]/90 text-[#1C1917] backdrop-blur transition active:scale-95"
-            >
-              <X size={18} strokeWidth={1.8} />
-            </button>
-            {product.popular && (
-              <span className="rounded-full bg-[#FFFEFB]/90 px-3 py-1.5 text-[11px] font-medium text-[#1C1917] backdrop-blur">
-                Populer
-              </span>
-            )}
-          </div>
+        <div className="relative shrink-0 px-4 pt-4">
+          {mode === "pos" ? (
+            <div className="flex items-center gap-3.5 rounded-2xl border border-[#EFE7D6] bg-[#FAF7F1] p-3">
+              <ProductImage
+                product={product}
+                eager
+                className="h-[72px] w-[72px] shrink-0 rounded-xl"
+              />
+              <div className="min-w-0 flex-1">
+                <h2 id="product-sheet-title" className="truncate text-[17px] font-semibold leading-tight tracking-tight">
+                  {product.name}
+                </h2>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <p className="text-[15px] font-semibold tabular-nums text-[#1C1917]">
+                    {formatCompactIDR(product.price)}
+                  </p>
+                  <p className="truncate text-xs text-[#A8A29E]">
+                    {product.category}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label="Tutup"
+                onClick={onClose}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EDE8DB] text-[#57534E] transition active:scale-95"
+              >
+                <X size={16} strokeWidth={2} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <ProductImage
+                product={product}
+                eager
+                className="aspect-[16/9] w-full rounded-3xl"
+              >
+                <div className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-inset ring-[#1C1917]/5" />
+              </ProductImage>
+              <div className="absolute inset-x-7 top-7 flex items-center justify-between">
+                <button
+                  type="button"
+                  aria-label="Tutup"
+                  onClick={onClose}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1C1917]/55 text-white backdrop-blur transition active:scale-95"
+                >
+                  <X size={17} strokeWidth={2} />
+                </button>
+                {product.popular && (
+                  <span className="rounded-full bg-[#FDBD2C] px-3 py-1.5 text-[11px] font-semibold text-[#1C1917] shadow-sm">
+                    Populer
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="-mt-8 min-h-0 flex-1 overflow-y-auto rounded-t-[32px] bg-[#FFFEFB]">
-          <div className="px-6 pb-40 pt-8">
-            <h2 id="product-sheet-title" className="text-[22px] font-semibold leading-snug tracking-tight">
-              {product.name}
-            </h2>
-            <p className="mt-3 text-[15px] tabular-nums text-[#78716C]">
-              {formatCompactIDR(product.price)}
-            </p>
-            <p id="product-sheet-description" className="mt-4 text-sm leading-relaxed text-[#78716C]">
-              {product.description || "Disiapkan fresh sesuai pesanan."}
-            </p>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className={mode === "pos" ? "px-5 pb-6 pt-4" : "px-6 pb-6 pt-5"}>
+            {mode === "pos" ? (
+              <p id="product-sheet-description" className="line-clamp-2 text-[13px] leading-relaxed text-[#78716C]">
+                {product.description || "Disiapkan fresh sesuai pesanan."}
+              </p>
+            ) : (
+              <>
+                <h2 id="product-sheet-title" className="text-[20px] font-semibold leading-tight tracking-tight">
+                  {product.name}
+                </h2>
+                <div className="mt-1.5 flex items-baseline gap-2">
+                  <p className="text-[16px] font-semibold tabular-nums text-[#1C1917]">
+                    {formatCompactIDR(product.price)}
+                  </p>
+                  <p className="truncate text-xs text-[#A8A29E]">
+                    {product.category}
+                  </p>
+                </div>
+                <p id="product-sheet-description" className="mt-2.5 text-[13.5px] leading-relaxed text-[#78716C]">
+                  {product.description || "Disiapkan fresh sesuai pesanan."}
+                </p>
+              </>
+            )}
 
-            <div className="mt-10 space-y-10">
+            <div className="mt-7 space-y-7">
               {groups.map((group) => (
                 <OptionGroup
                   key={group.id}
@@ -149,7 +208,7 @@ export function ProductSheet({
               ))}
 
               <div>
-                <label htmlFor="product-note" className="mb-3 block text-sm font-medium">
+                <label htmlFor="product-note" className="mb-2.5 block text-sm font-semibold">
                   Catatan <MetaDot /> <span className="font-normal text-[#A8A29E]">opsional</span>
                 </label>
                 <textarea
@@ -157,12 +216,12 @@ export function ProductSheet({
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
                   placeholder="Contoh: sambal dipisah"
-                  rows={3}
+                  rows={2}
                   maxLength={240}
                   aria-describedby="product-note-hint"
-                  className="w-full resize-none rounded-2xl bg-[#F3EFE6] px-4 py-3.5 text-sm outline-none transition placeholder:text-[#A8A29E] focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#FDBD2C]/50"
+                  className="w-full resize-none rounded-2xl border border-[#EFE7D6] bg-[#FAF7F1] px-4 py-3 text-sm outline-none transition placeholder:text-[#A8A29E] focus:border-[#FDBD2C] focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#FDBD2C]/40"
                 />
-                <p id="product-note-hint" className="mt-2 text-xs text-[#A8A29E]">
+                <p id="product-note-hint" className="mt-1.5 text-xs text-[#A8A29E]">
                   Maksimal 240 karakter.
                 </p>
               </div>
@@ -170,47 +229,46 @@ export function ProductSheet({
           </div>
         </div>
 
-        <div className="absolute inset-x-0 bottom-0 border-t border-[#EFE7D6] bg-[#FAF7F1]/95 px-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-[440px] items-center gap-4">
-            <div className="flex shrink-0 items-center gap-2.5">
+        <div className="shrink-0 border-t border-[#EFE7D6] bg-[#FFFEFB] px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3.5">
+          <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-1 rounded-full border border-[#E5DCC8] p-1">
               <button
                 type="button"
                 aria-label="Kurangi jumlah"
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5DCC8] text-[#78716C] transition active:scale-95"
+                disabled={quantity <= 1}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-[#78716C] transition active:scale-95 disabled:opacity-30"
               >
                 <Minus size={15} />
               </button>
-              <span className="w-6 text-center text-[15px] font-medium tabular-nums" aria-live="polite">
+              <span className="w-6 text-center text-[15px] font-semibold tabular-nums" aria-live="polite">
                 {quantity}
               </span>
               <button
                 type="button"
                 aria-label="Tambah jumlah"
                 onClick={() => setQuantity(Math.min(99, quantity + 1))}
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#1C1917] text-white transition active:scale-95"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1C1917] text-white transition active:scale-95"
               >
                 <Plus size={15} />
               </button>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-[#A8A29E]">Total</p>
-              <p className="mt-0.5 truncate text-base font-medium tabular-nums">
-                {formatCompactIDR(total)}
-              </p>
             </div>
             <button
               type="button"
               onClick={onAdd}
               disabled={missingRequired}
-              className="flex h-12 min-w-0 flex-1 items-center justify-center rounded-full bg-[#FDBD2C] px-3 text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
+              className="flex h-[52px] min-w-0 flex-1 items-center justify-between gap-2 rounded-full bg-[#1C1917] px-5 text-sm font-medium text-white transition hover:bg-[#292524] active:scale-[0.98] disabled:opacity-40"
             >
-              {missingRequired ? "Pilih opsi" : "Tambah"}
+              <span className="truncate">{missingRequired ? "Pilih opsi" : "Tambah"}</span>
+              <span className="shrink-0 rounded-full bg-[#FDBD2C] px-3 py-1 text-[13px] font-semibold tabular-nums text-[#1C1917]">
+                {formatCompactIDR(total)}
+              </span>
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -240,18 +298,28 @@ function OptionGroup({
 
   return (
     <fieldset className="min-w-0 border-0 p-0">
-      <legend className="mb-4 text-sm font-medium">
-        {group.name} <MetaDot /> <span className="font-normal text-[#A8A29E]">{hint}</span>
+      <legend className="mb-3 flex items-center gap-2 text-sm">
+        <span className="font-semibold">{group.name}</span>
+        <span
+          className={cn(
+            "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+            group.required
+              ? "bg-[#FDBD2C]/25 text-[#92400E]"
+              : "bg-[#F3EFE6] text-[#A8A29E]",
+          )}
+        >
+          {hint}
+        </span>
       </legend>
       {group.type === "addon" ? (
         mode === "pos" ? (
-          <div className="divide-y divide-[#E9E1D1]">
-            {group.options.map((option) => {
+          <div className="overflow-hidden rounded-2xl border border-[#E5DCC8]">
+            {group.options.map((option, index) => {
               const quantity = selectedAddonIds.filter((id) => id === option.id).length;
               const active = quantity > 0;
               const canIncrease = group.selection === "single" ? quantity < 1 : selectedCount < group.maxSelection;
               return (
-                <div key={option.id} className="flex items-center gap-3 py-3">
+                <div key={option.id} className={cn("flex items-center gap-3 bg-[#FFFEFB] px-4 py-3", index > 0 && "border-t border-[#EFE7D6]", active && "bg-[#FDBD2C]/10")}>
                   <button
                     type="button"
                     onClick={() => onToggle(option.id)}
@@ -259,24 +327,24 @@ function OptionGroup({
                     aria-pressed={active}
                     className="min-w-0 flex-1 text-left disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    <span className={cn("block truncate text-[13px]", active ? "font-medium" : "text-[#57534E]")}>
-                      {option.name}{!option.available ? (<> <MetaDot /> Habis</>) : null}
+                    <span className={cn("block truncate text-sm leading-tight", active ? "font-semibold text-[#1C1917]" : "font-medium text-[#44403C]")}>
+                      {option.name}{!option.available ? (<span className="font-normal text-[#A8A29E]"> · Habis</span>) : null}
+                    </span>
+                    <span className="mt-0.5 block text-xs tabular-nums text-[#A8A29E]">
+                      {option.priceAdjustmentIdr > 0 ? `+${formatCompactIDR(option.priceAdjustmentIdr)}` : "Gratis"}
                     </span>
                   </button>
-                  <span className="shrink-0 text-[13px] tabular-nums text-[#A8A29E]">
-                    {option.priceAdjustmentIdr > 0 ? `+${formatCompactIDR(option.priceAdjustmentIdr)}` : "Gratis"}
-                  </span>
                   <div className="flex shrink-0 items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => onAddonQuantityChange(option.id, quantity - 1)}
                       disabled={!active}
                       aria-label={`Kurangi ${option.name}`}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E5DCC8] text-[#78716C] transition active:scale-95 disabled:opacity-30"
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-[#E5DCC8] text-[#78716C] transition active:scale-95 disabled:opacity-30"
                     >
-                      <Minus size={12} />
+                      <Minus size={13} />
                     </button>
-                    <span className="w-4 text-center text-[13px] font-medium tabular-nums" aria-live="polite">
+                    <span className="w-5 text-center text-sm font-semibold tabular-nums" aria-live="polite">
                       {quantity}
                     </span>
                     <button
@@ -284,9 +352,9 @@ function OptionGroup({
                       onClick={() => onAddonQuantityChange(option.id, quantity + 1)}
                       disabled={!option.available || !canIncrease}
                       aria-label={`Tambah ${option.name}`}
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1C1917] text-white transition active:scale-95 disabled:opacity-30"
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1C1917] text-white transition active:scale-95 disabled:opacity-30"
                     >
-                      <Plus size={12} />
+                      <Plus size={13} />
                     </button>
                   </div>
                 </div>
@@ -294,39 +362,48 @@ function OptionGroup({
             })}
           </div>
         ) : (
-          <div className="divide-y divide-[#E9E1D1]">
-            {group.options.map((option) => {
+          <div className="overflow-hidden rounded-2xl border border-[#EFE7D6]">
+            {group.options.map((option, index) => {
               const active = selectedAddonIds.includes(option.id);
               return (
-                <div key={option.id} className="flex items-center gap-4 py-4">
-                  <p className={cn("min-w-0 flex-1 truncate text-sm", active ? "font-medium" : "text-[#57534E]")}>
-                    {option.name}
-                  </p>
-                  <span className="shrink-0 text-sm tabular-nums text-[#A8A29E]">
-                    {option.priceAdjustmentIdr > 0 ? `+${formatCompactIDR(option.priceAdjustmentIdr)}` : "Gratis"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onAddonDot(option.id)}
-                    disabled={!option.available}
-                    aria-pressed={active}
-                    aria-label={`${active ? "Hapus" : "Tambah"} ${option.name}`}
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => onAddonDot(option.id)}
+                  disabled={!option.available}
+                  aria-pressed={active}
+                  aria-label={`${active ? "Hapus" : "Tambah"} ${option.name}`}
+                  className={cn(
+                    "flex w-full items-center gap-3 px-4 py-3.5 text-left transition active:bg-[#F3EFE6] disabled:cursor-not-allowed disabled:opacity-40",
+                    index > 0 && "border-t border-[#EFE7D6]",
+                    active && "bg-[#FDBD2C]/10",
+                  )}
+                >
+                  <span
                     className={cn(
-                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-30",
+                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition",
                       active
-                        ? "border-[#FDBD2C] bg-[#FDBD2C] text-[#1C1917]"
-                        : "border-[#E5DCC8]",
+                        ? "border-[#1C1917] bg-[#1C1917] text-white"
+                        : "border-[#E5DCC8] text-transparent",
                     )}
                   >
-                    {active && <Plus size={13} />}
-                  </button>
-                </div>
+                    <Check size={13} strokeWidth={3} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={cn("block truncate text-sm", active ? "font-semibold" : "font-normal text-[#44403C]")}>
+                      {option.name}
+                    </span>
+                    <span className="mt-0.5 block text-xs tabular-nums text-[#A8A29E]">
+                      {option.priceAdjustmentIdr > 0 ? `+${formatCompactIDR(option.priceAdjustmentIdr)}` : "Gratis"}
+                    </span>
+                  </span>
+                </button>
               );
             })}
           </div>
         )
       ) : mode === "pos" ? (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {group.options.map((option) => {
             const active = selectedIds.includes(option.id);
             return (
@@ -338,17 +415,18 @@ function OptionGroup({
                 aria-pressed={active}
                 aria-label={`${option.name}${!option.available ? ", habis" : ""}`}
                 className={cn(
-                  "min-h-14 rounded-2xl border px-3 py-2.5 text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
+                  "flex min-h-[56px] flex-col justify-center rounded-2xl border px-3.5 py-2.5 text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
                   active
-                    ? "border-[#FDBD2C] bg-[#FDBD2C]/20 font-medium text-[#1C1917]"
-                    : "border-[#EFE7D6] bg-[#FFFEFB] text-[#78716C]",
+                    ? "border-[#1C1917] bg-[#1C1917] text-white shadow-sm"
+                    : "border-[#E5DCC8] bg-[#FFFEFB] text-[#44403C] hover:border-[#A8A29E]",
                 )}
               >
-                <span className="block truncate text-[13px]">
+                <span className={cn("block truncate text-[13px] leading-tight", active ? "font-semibold" : "font-medium")}>
                   {option.name}
+                  {!option.available ? " · Habis" : ""}
                 </span>
                 {option.priceAdjustmentIdr > 0 && (
-                  <span className="mt-0.5 block text-xs tabular-nums text-[#A8A29E]">
+                  <span className={cn("mt-1 block text-xs tabular-nums", active ? "text-white/70" : "text-[#A8A29E]")}>
                     +{formatCompactIDR(option.priceAdjustmentIdr)}
                   </span>
                 )}
@@ -357,7 +435,7 @@ function OptionGroup({
           })}
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex flex-wrap gap-2">
           {group.options.map((option) => {
             const active = selectedIds.includes(option.id);
             return (
@@ -369,15 +447,15 @@ function OptionGroup({
                 aria-pressed={active}
                 aria-label={`${option.name}${option.priceAdjustmentIdr > 0 ? `, tambah ${formatCompactIDR(option.priceAdjustmentIdr)}` : ""}${!option.available ? ", habis" : ""}`}
                 className={cn(
-                  "rounded-full px-5 py-3 text-left text-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
+                  "min-h-[44px] rounded-2xl border px-4 py-2.5 text-left text-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
                   active
-                    ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]"
-                    : "bg-[#F3EFE6] text-[#78716C]",
+                    ? "border-[#1C1917] bg-[#1C1917] font-medium text-white shadow-sm"
+                    : "border-[#EFE7D6] bg-[#FAF7F1] text-[#57534E]",
                 )}
               >
-                <span className="block">{option.name}</span>
+                <span className="block leading-tight">{option.name}</span>
                 {option.priceAdjustmentIdr > 0 && (
-                  <span className="mt-0.5 block text-[13px] tabular-nums">
+                  <span className={cn("mt-0.5 block text-xs tabular-nums", active ? "text-white/70" : "text-[#A8A29E]")}>
                     +{formatCompactIDR(option.priceAdjustmentIdr)}
                   </span>
                 )}
