@@ -64,7 +64,6 @@ export type CartItem = {
 export type Order = {
   id: string;
   number: string;
-  type: "Dine in" | "Takeaway";
   table?: string;
   items: number;
   total: number;

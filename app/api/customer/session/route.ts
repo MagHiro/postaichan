@@ -24,11 +24,9 @@ export async function POST(request: Request) {
       if (!table?.active) return NextResponse.json({ error: "QR meja sudah tidak berlaku. Scan QR terbaru." }, { status: 410, headers: noStoreHeaders() });
       sourceTableId = table.id;
       sourceTableQrVersion = table.qr_token_version;
-      if (parsed.data.orderType === "dine_in") {
-        tableId = table.id;
-        tableLabel = table.label;
-        tableQrVersion = table.qr_token_version;
-      }
+      tableId = table.id;
+      tableLabel = table.label;
+      tableQrVersion = table.qr_token_version;
     }
     if (parsed.data.generalToken) {
       const codeResult = await query<{ id: string; active: boolean; token_version: number }>("select id, active, token_version from public.ordering_qr_codes where token_hash = $1 limit 1", [hashOpaqueToken(parsed.data.generalToken)]);
@@ -37,14 +35,22 @@ export async function POST(request: Request) {
       orderingQrCodeId = code.id;
       orderingQrTokenVersion = code.token_version;
     }
+    if (parsed.data.tableId) {
+      const manualResult = await query<{ id: string; label: string; active: boolean; qr_token_version: number }>("select id, label, active, qr_token_version from public.restaurant_tables where id = $1 limit 1", [parsed.data.tableId]);
+      const manual = manualResult.rows[0];
+      if (!manual?.active) return NextResponse.json({ error: "Meja yang dipilih sudah tidak aktif. Pilih meja lain atau lanjut tanpa meja." }, { status: 410, headers: noStoreHeaders() });
+      tableId = manual.id;
+      tableLabel = manual.label;
+      tableQrVersion = manual.qr_token_version;
+    }
     const rawToken = createOpaqueToken(32);
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
     await query(
       `insert into public.customer_sessions(access_token_hash, order_type, table_id, table_qr_version, source_table_id, source_table_qr_version, ordering_qr_code_id, ordering_qr_token_version, expires_at)
-       values ($1, $2::public.order_type, $3, $4, $5, $6, $7, $8, $9)`,
-      [hashOpaqueToken(rawToken), parsed.data.orderType, parsed.data.orderType === "dine_in" ? tableId : null, parsed.data.orderType === "dine_in" ? tableQrVersion : null, sourceTableId, sourceTableQrVersion, orderingQrCodeId, orderingQrTokenVersion, expiresAt],
+       values ($1, 'dine_in'::public.order_type, $2, $3, $4, $5, $6, $7, $8)`,
+      [hashOpaqueToken(rawToken), tableId, tableQrVersion, sourceTableId, sourceTableQrVersion, orderingQrCodeId, orderingQrTokenVersion, expiresAt],
     );
-    return NextResponse.json({ sessionToken: rawToken, orderType: parsed.data.orderType, tableLabel: parsed.data.orderType === "dine_in" ? tableLabel : null, expiresAt, hasTable: parsed.data.orderType === "dine_in" && tableId !== null }, { headers: noStoreHeaders() });
+    return NextResponse.json({ sessionToken: rawToken, tableLabel, expiresAt, hasTable: tableId !== null }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("customer_session_failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Pesanan belum dapat dimulai. Scan QR terbaru lalu coba lagi." }, { status: 503, headers: noStoreHeaders() });

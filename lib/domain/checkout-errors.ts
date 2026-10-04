@@ -37,9 +37,7 @@ export function checkoutDatabaseFailure(error: unknown, audience: "customer" | "
   if (code === "CASH_DISABLED") return { code, error: withCode("Pembayaran tunai sedang dinonaktifkan oleh restoran.", code), status: 409 };
   if (code === "CASH_NOT_GUEST") return { code, error: withCode("Pesanan customer tidak dapat menggunakan pembayaran tunai. Pilih QRIS.", code), status: 409 };
   if (code === "ACTIVE_PAYMENT_EXISTS") return { code, error: withCode("Masih ada pembayaran yang belum selesai untuk sesi ini. Lanjutkan QR sebelumnya atau batalkan pesanan pending sebelum membuat pesanan baru.", code), status: 409, action: "resume" };
-  if (code === "ORDER_TYPE_CONFLICT") return { code, error: withCode("Jenis pesanan berubah. Mulai checkout baru untuk Dine in atau Takeaway yang dipilih.", code), status: 409, action: "refresh" };
-  if (code === "TAKEAWAY_TABLE_CONFLICT") return { code, error: withCode("Pesanan Takeaway tidak dapat memakai meja. Pilih Dine in atau hapus meja.", code), status: 409, action: "refresh" };
-  if (code === "TABLE_NOT_AVAILABLE") return { code, error: withCode("Meja sudah tidak aktif atau QR meja sudah berubah. Scan QR meja terbaru.", code), status: 409, action: "refresh" };
+  if (code === "TABLE_NOT_AVAILABLE") return { code, error: withCode("Meja sudah tidak aktif. Pilih meja lain atau lanjut tanpa meja.", code), status: 409, action: "refresh" };
   if (code === "QR_NOT_AVAILABLE") return { code, error: withCode("QR pemesanan sudah tidak aktif. Scan QR terbaru.", code), status: 409, action: "refresh" };
   if (code === "IDEMPOTENCY_KEY_REUSED") return { code, error: withCode("Kunci checkout sudah dipakai untuk keranjang berbeda. Mulai checkout baru.", code), status: 409, action: "refresh" };
   if (code === "ORDER_NOT_RETRYABLE") return { code, error: withCode("Pesanan ini sudah dibatalkan atau selesai dan tidak dapat dicoba ulang. Buat pesanan baru.", code), status: 409, action: "refresh" };

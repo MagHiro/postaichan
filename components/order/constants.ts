@@ -4,7 +4,7 @@ import type { Product } from "@/lib/types";
 
 export type OrderStep = "menu" | "configure" | "payment" | "success";
 export type PaymentAttempt = { orderId: string; orderNumber: string; amountIdr: number; qrString?: string; qrImageUrl?: string; expiresAt: string };
-export type PlacedOrder = { orderNumber: string; amountIdr: number; orderType: "Dine in" | "Takeaway"; tableLabel: string; time: string };
+export type PlacedOrder = { orderNumber: string; amountIdr: number; tableLabel: string | null; time: string };
 /** Category filter is a DB category id, or "all" for every menu item. */
 export type OrderCategory = string;
 export const ALL_CATEGORIES_ID = "all";

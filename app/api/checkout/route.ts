@@ -10,9 +10,8 @@ import { checkoutDatabaseFailure, checkoutIntentMissing, checkoutQrMissing, chec
 
 export const runtime = "nodejs";
 
-function fingerprint(input: { orderType: string; items: Array<{ productId: string; quantity: number; variantOptionIds: string[]; addonOptionIds: string[]; note?: string }> }) {
+function fingerprint(input: { items: Array<{ productId: string; quantity: number; variantOptionIds: string[]; addonOptionIds: string[]; note?: string }> }) {
   const canonical = {
-    orderType: input.orderType,
     items: input.items
       .map((item) => ({ ...item, variantOptionIds: [...item.variantOptionIds].sort(), addonOptionIds: [...item.addonOptionIds].sort() }))
       .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
@@ -36,8 +35,8 @@ export async function POST(request: Request) {
     let intentResult;
     try {
       intentResult = await query<{ order_id: string; order_number: string; payment_id: string; payment_status: string; amount_idr: number; provider_order_id: string; qr_string: string | null; expires_at: string | null; replayed: boolean }>(
-        `select * from public.create_checkout_intent($1::uuid, $2, $3, $4::public.order_type, $5::uuid, $6::uuid, $7::public.payment_method, $8::jsonb)`,
-        [input.idempotencyKey, fingerprint({ orderType: input.orderType, items: input.items }), sessionHash, input.orderType, null, null, "qris", JSON.stringify(input.items)],
+        `select * from public.create_checkout_intent($1::uuid, $2, $3, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`,
+        [input.idempotencyKey, fingerprint({ items: input.items }), sessionHash, null, null, "qris", JSON.stringify(input.items)],
       );
     } catch (error) {
       const failure = checkoutDatabaseFailure(error, "customer");

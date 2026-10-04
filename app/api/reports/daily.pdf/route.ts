@@ -26,12 +26,10 @@ function makePdf(report: Awaited<ReturnType<typeof getReport>>) {
       ["Paid orders", String(report.orderCount)],
     ];
     summary.forEach(([label, value]) => { document.moveDown(0.35).fillColor("#7e7770").font("Helvetica").fontSize(10).text(label, 56, document.y, { continued: true }).fillColor("#211d1a").font("Helvetica-Bold").text(`  ${value}`); });
-    document.moveDown(1).fillColor("#211d1a").fontSize(12).font("Helvetica-Bold").text("Order mix");
-    document.moveDown(0.35).fillColor("#7e7770").font("Helvetica").fontSize(10).text(`Dine in: ${formatIDR(report.dineInRevenueIdr)}    Takeaway: ${formatIDR(report.takeawayRevenueIdr)}`);
     document.moveDown(1).fillColor("#211d1a").fontSize(12).font("Helvetica-Bold").text("Best sellers");
     report.bestSellers.forEach((item, index) => { document.moveDown(0.3).fillColor("#211d1a").font("Helvetica").fontSize(10).text(`${index + 1}. ${item.name} — ${item.quantity} portions — ${formatIDR(item.revenueIdr)}`); });
     document.moveDown(1).fillColor("#211d1a").fontSize(12).font("Helvetica-Bold").text("Paid orders");
-    report.orders.forEach((order) => { document.moveDown(0.3).fillColor("#7e7770").font("Helvetica").fontSize(9).text(`${order.orderNumber}  ${order.type.replace("_", " ")}  ${formatIDR(order.totalIdr)}  ${order.status}`); });
+    report.orders.forEach((order) => { document.moveDown(0.3).fillColor("#7e7770").font("Helvetica").fontSize(9).text(`${order.orderNumber}  ${formatIDR(order.totalIdr)}  ${order.status}`); });
     document.moveDown(1.5).fillColor("#9b9189").font("Helvetica-Oblique").fontSize(8).text("Period uses payment settlement time in Asia/Jakarta. Refunds use their processed time.");
     document.end();
   });

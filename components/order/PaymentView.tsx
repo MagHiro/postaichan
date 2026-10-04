@@ -10,7 +10,6 @@ import type { PaymentAttempt } from "./constants";
 export function PaymentView({
   payment,
   sessionToken,
-  orderType,
   tableLabel,
   onBack,
   onPaid,
@@ -19,8 +18,7 @@ export function PaymentView({
 }: {
   payment: PaymentAttempt;
   sessionToken: string;
-  orderType: string;
-  tableLabel: string;
+  tableLabel: string | null;
   onBack: () => void;
   onPaid: () => void;
   onRetry?: () => void;
@@ -127,7 +125,7 @@ export function PaymentView({
         </button>
         <div className="ord-rise text-center">
           <p className="text-xs text-[#A8A29E]">
-            Order {payment.orderNumber} <MetaDot /> {orderType === "Dine in" ? tableLabel : "Takeaway"}
+            Order {payment.orderNumber} <MetaDot /> {tableLabel ?? "Tanpa meja"}
           </p>
           <h1 className="mt-3 text-[22px] font-medium leading-snug tracking-tight">
             Bayar pesanan

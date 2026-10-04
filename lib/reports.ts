@@ -15,7 +15,7 @@ type PaymentRow = {
 };
 
 type RefundRow = { id: string; payment_id: string; amount_idr: number; processed_at: string; reason?: string | null };
-type OrderRow = { id: string; order_number: string; order_type: string; status: string; total_idr: number; created_at: string };
+type OrderRow = { id: string; order_number: string; status: string; total_idr: number; created_at: string };
 type ItemRow = { order_id: string; product_name_snapshot: string; quantity: number; line_total_idr: number };
 
 export type ReportDay = { date: string; grossRevenueIdr: number; refundsIdr: number; netRevenueIdr: number; paidOrderCount: number };
@@ -31,12 +31,10 @@ export type DailyReport = {
   netRevenueIdr: number;
   revenueIdr: number;
   orderCount: number;
-  dineInRevenueIdr: number;
-  takeawayRevenueIdr: number;
   paymentMethodMix: Array<{ method: string; amountIdr: number; orderCount: number }>;
   dailyBreakdown: ReportDay[];
   bestSellers: Array<{ name: string; quantity: number; revenueIdr: number }>;
-  orders: Array<{ orderNumber: string; createdAt: string; settledAt: string; type: string; totalIdr: number; status: string }>;
+  orders: Array<{ orderNumber: string; createdAt: string; settledAt: string; totalIdr: number; status: string }>;
 };
 
 export function netRecognizedPayment(payment: { status: string; amount_idr: number; refunded_amount_idr?: number | null; orphaned_settlement?: boolean | null }) {
@@ -130,7 +128,7 @@ export async function getReport(fromValue?: string, toValue?: string, shiftId?: 
       [range.start, range.end],
     ),
     candidateOrderIds.length
-      ? query<OrderRow>("select id, order_number, order_type, status, total_idr, created_at from public.orders where id = any($1::uuid[])", [candidateOrderIds])
+      ? query<OrderRow>("select id, order_number, status, total_idr, created_at from public.orders where id = any($1::uuid[])", [candidateOrderIds])
       : Promise.resolve({ rows: [] as OrderRow[] }),
   ]);
 
@@ -153,7 +151,7 @@ export async function getReport(fromValue?: string, toValue?: string, shiftId?: 
   const relevantOrders = new Map(orders.rows.map((order) => [order.id, order]));
   const missingOrderIds = allRelevantOrderIds.filter((id) => !relevantOrders.has(id));
   if (missingOrderIds.length) {
-    const extraOrders = await query<OrderRow>("select id, order_number, order_type, status, total_idr, created_at from public.orders where id = any($1::uuid[])", [missingOrderIds]);
+    const extraOrders = await query<OrderRow>("select id, order_number, status, total_idr, created_at from public.orders where id = any($1::uuid[])", [missingOrderIds]);
     for (const order of extraOrders.rows) relevantOrders.set(order.id, order);
   }
   const items = allRelevantOrderIds.length
@@ -175,27 +173,6 @@ export async function getReport(fromValue?: string, toValue?: string, shiftId?: 
     byProduct.set(item.product_name_snapshot, { quantity: previous.quantity + item.quantity, revenueIdr: previous.revenueIdr + item.line_total_idr });
   }
   const bestSellers = [...byProduct.entries()].sort((a, b) => b[1].quantity - a[1].quantity || b[1].revenueIdr - a[1].revenueIdr).slice(0, 8).map(([name, values]) => ({ name, ...values }));
-
-  const refundByOrder = new Map<string, number>();
-  for (const refund of validRefunds) {
-    const orderId = paymentById.get(refund.payment_id)?.order_id;
-    if (orderId) refundByOrder.set(orderId, (refundByOrder.get(orderId) ?? 0) + refund.amount_idr);
-  }
-  let dineInRevenueIdr = 0;
-  let takeawayRevenueIdr = 0;
-  for (const row of settlementRows) {
-    const order = relevantOrders.get(row.order_id);
-    const net = row.amount_idr - (refundByOrder.get(row.order_id) ?? 0);
-    if (order?.order_type === "dine_in") dineInRevenueIdr += net;
-    else takeawayRevenueIdr += net;
-  }
-  for (const refund of validRefunds) {
-    const payment = paymentById.get(refund.payment_id);
-    const order = payment ? relevantOrders.get(payment.order_id) : undefined;
-    if (settlementOrderIds.has(payment?.order_id ?? "")) continue;
-    if (order?.order_type === "dine_in") dineInRevenueIdr -= refund.amount_idr;
-    else takeawayRevenueIdr -= refund.amount_idr;
-  }
 
   const paymentMix = new Map<string, { amountIdr: number; orderCount: number }>();
   for (const row of settlementRows) {
@@ -230,8 +207,6 @@ export async function getReport(fromValue?: string, toValue?: string, shiftId?: 
     netRevenueIdr,
     revenueIdr: netRevenueIdr,
     orderCount: settlementRows.length,
-    dineInRevenueIdr,
-    takeawayRevenueIdr,
     paymentMethodMix: [...paymentMix.entries()].map(([method, values]) => ({ method, ...values })),
     dailyBreakdown: [...daily.values()],
     bestSellers,
@@ -241,7 +216,6 @@ export async function getReport(fromValue?: string, toValue?: string, shiftId?: 
         orderNumber: order?.order_number ?? row.order_id,
         createdAt: order?.created_at ?? row.settled_at!,
         settledAt: row.settled_at!,
-        type: order?.order_type ?? "unknown",
         totalIdr: row.amount_idr - (refundsByPayment.get(row.id) ?? 0),
         status: order?.status ?? "unknown",
       };

@@ -3,15 +3,13 @@
 import { formatIDR } from "@/lib/format";
 
 export function SuccessView({
-  orderType,
   tableLabel,
   amount,
   orderNumber,
   onHome,
   onViewOrders,
 }: {
-  orderType: string;
-  tableLabel: string;
+  tableLabel: string | null;
   amount: number;
   orderNumber: string;
   onHome: () => void;
@@ -26,7 +24,7 @@ export function SuccessView({
             Pesanan diterima
           </h1>
           <p className="mt-2 text-[13px] leading-relaxed text-[#78716C]">
-            {orderType === "Dine in"
+            {tableLabel
               ? `Tetap di ${tableLabel}, pesananmu sedang disiapkan.`
               : "Pesananmu sedang disiapkan. Tunggu panggilan di kasir."}
           </p>

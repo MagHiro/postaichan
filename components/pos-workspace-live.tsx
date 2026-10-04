@@ -18,12 +18,12 @@ import { ProductSheet } from "@/components/order/ProductSheet";
 import { formatShiftOpenedAt, ShiftCloseSheet, ShiftOpenSheet, useShiftStatus, type CloseRecap } from "@/components/pos-shift";
 import { useDialogFocus } from "@/components/use-dialog-focus";
 import { ConfirmSheet, type ConfirmState } from "@/components/pos-confirm-sheet";
+import { playNewOrderSound, unlockOrderSound } from "@/lib/sound";
 
 type NavItem = "Overview" | "Orders" | "POS" | "Menu" | "Reports";
 type Detail = {
   order: {
     order_number: string;
-    order_type: string;
     status: string;
     subtotal_idr: number;
     total_idr: number;
@@ -115,6 +115,10 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   const date = jakartaToday();
   const activeCount = orders.filter(isActiveOrder).length;
   const noticeTimer = useRef<number | null>(null);
+  const paidOrderIds = useRef<Map<string, boolean>>(new Map());
+  const localOrderIds = useRef<Set<string>>(new Set());
+  const soundEnabled = useRef(true);
+  const [muted, setMuted] = useState(false);
   const { shift, refresh: refreshShift } = useShiftStatus(showNotice);
   const [shiftSheet, setShiftSheet] = useState<"open" | "close" | null>(null);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -147,6 +151,35 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
     if (window.matchMedia("(max-width: 1023px)").matches) setNav("Orders");
   }, []);
 
+  useEffect(() => {
+    // Browsers block audio until a user gesture; warm up the context once so
+    // the first verified-order chime is actually audible.
+    function unlock() { unlockOrderSound(); }
+    window.addEventListener("pointerdown", unlock, { once: true });
+    return () => window.removeEventListener("pointerdown", unlock);
+  }, []);
+
+  function noteNewPaidOrders(next: Order[]) {
+    const known = paidOrderIds.current;
+    // Seed silently on the first load so history does not chime.
+    if (known.size === 0 && orders.length === 0) {
+      for (const order of next) known.set(order.id, order.paymentStatus === "Paid");
+      return;
+    }
+    let fresh = false;
+    for (const order of next) {
+      const isPaid = order.paymentStatus === "Paid";
+      if (isPaid && known.get(order.id) !== true && !localOrderIds.current.has(order.id)) fresh = true;
+      known.set(order.id, isPaid);
+    }
+    if (fresh && soundEnabled.current) playNewOrderSound();
+  }
+
+  function markLocalOrder(orderId: string, paid: boolean) {
+    localOrderIds.current.add(orderId);
+    paidOrderIds.current.set(orderId, paid);
+  }
+
   async function loadOperations(silent = false) {
     if (!silent) setLoading(true);
     try {
@@ -158,7 +191,11 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
         window.location.href = "/login";
         return;
       }
-      if (ordersResponse.ok) setOrders(ordersPayload.orders ?? []);
+      if (ordersResponse.ok) {
+        const next = (ordersPayload.orders ?? []) as Order[];
+        noteNewPaidOrders(next);
+        setOrders(next);
+      }
       if (reportResponse?.ok) setSummary(reportPayload);
       if (!ordersResponse.ok || reportResponse?.ok === false) {
         setWorkspaceError("Sebagian data belum termuat. Coba muat ulang.");
@@ -341,6 +378,23 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
             <div className="flex items-center gap-5">
               <button
                 type="button"
+                onClick={() => {
+                  const next = !muted;
+                  setMuted(next);
+                  soundEnabled.current = !next;
+                }}
+                aria-pressed={!muted}
+                title={muted ? "Nyalakan bunyi pesanan" : "Matikan bunyi pesanan"}
+                className={cn(
+                  "flex items-center gap-2 rounded-full px-3 py-2 text-xs",
+                  muted ? "bg-[#F3EFE6] text-[#78716C]" : "bg-[#FDBD2C]/20 font-medium text-[#1C1917]",
+                )}
+              >
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+                {muted ? "Bunyi mati" : "Bunyi nyala"}
+              </button>
+              <button
+                type="button"
                 onClick={() => setShiftSheet(cashierOpen ? "close" : "open")}
                 className={cn(
                   "hidden items-center gap-2 rounded-full px-3 py-2 text-xs xl:flex",
@@ -406,7 +460,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
               />
             )}
             {nav === "Orders" && <LiveOrders orders={orders} isAdmin={role === "admin"} cashierOpen={cashierOpen} onAdvance={advanceOrderGuarded} advancingId={advancingId} loading={loading} onShowNotice={showNotice} onRefresh={() => loadOperations(true)} onNewOrder={() => (cashierOpen ? setNav("POS") : setShiftSheet("open"))} onOpenShift={() => setShiftSheet("open")} />}
-            {nav === "POS" && <LiveCashier cashierOpen={cashierOpen} onShowNotice={showNotice} onOrderCreated={() => loadOperations(true)} onOpenShift={() => setShiftSheet("open")} />}
+            {nav === "POS" && <LiveCashier cashierOpen={cashierOpen} onShowNotice={showNotice} onOrderCreated={(orderId) => { if (orderId) markLocalOrder(orderId, true); return loadOperations(true); }} onOpenShift={() => setShiftSheet("open")} />}
             {nav === "Menu" && role === "admin" && <MenuManager onShowNotice={showNotice} />}
             {nav === "Reports" && role === "admin" && <LiveReports initialReport={summary} onShowNotice={showNotice} />}
           </div>
@@ -806,7 +860,7 @@ function LiveOverview({
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-medium leading-tight text-[#1C1917]">{order.number}</span>
                       <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]">
-                        <MetaInline parts={[order.table ?? order.type, `${order.items} item`, order.time, order.paymentStatus !== "Paid" ? "Belum bayar" : null]} />
+                        <MetaInline parts={[order.table ?? "Tanpa meja", `${order.items} item`, order.time, order.paymentStatus !== "Paid" ? "Belum bayar" : null]} />
                       </span>
                       <span className="mt-1 block text-[13px] leading-none tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</span>
                     </span>
@@ -839,7 +893,7 @@ function LiveOverview({
                         {order.number} <MetaDot /> <span className="font-normal text-[#A8A29E]">{STATUS_LABEL[order.status]}</span>
                       </p>
                       <p className="mt-0.5 truncate text-xs text-[#A8A29E]">
-                        <MetaInline parts={[order.table ?? order.type, `${order.items} item`, order.time, order.paymentStatus !== "Paid" ? "Belum bayar" : null]} />
+                        <MetaInline parts={[order.table ?? "Tanpa meja", `${order.items} item`, order.time, order.paymentStatus !== "Paid" ? "Belum bayar" : null]} />
                       </p>
                       <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</p>
                     </button>
@@ -1018,7 +1072,7 @@ function MobileOrderRow({ order, opening, onOpen }: { order: Order; opening: boo
     >
       <span className="min-w-0">
         <span className="block truncate text-[13px] font-medium leading-tight text-[#1C1917]">{order.number}</span>
-        <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]"><MetaInline parts={[order.type, `${order.items} item`, order.time]} /></span>
+        <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]"><MetaInline parts={[order.table ?? "Tanpa meja", `${order.items} item`, order.time]} /></span>
         <span className="mt-1 block text-[13px] leading-none tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</span>
       </span>
       <span className={cn("rounded-full px-3 py-1.5 text-[11px] font-medium leading-none", mobileOrderStatusTone(order.status))}>
@@ -1230,8 +1284,8 @@ function LiveOrders({
                       </button>
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-[13px] font-medium text-[#1C1917]">{order.type}</p>
-                          <p className="mt-0.5 truncate text-xs text-[#A8A29E]"><MetaInline parts={[order.table ?? null, `${order.items} item`]} /></p>
+                          <p className="truncate text-[13px] font-medium text-[#1C1917]">{order.table ?? "Tanpa meja"}</p>
+                          <p className="mt-0.5 truncate text-xs text-[#A8A29E]"><MetaInline parts={[`${order.items} item`]} /></p>
                         </div>
                       </div>
                       <p className="self-center text-[13px] font-medium tabular-nums text-[#1C1917]">{formatCompactIDR(order.total)}</p>
@@ -1454,7 +1508,7 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
             <p className="mt-1 text-[13px] text-[#78716C]"><MetaInline parts={[createdAt.day, createdAt.time]} /></p>
             <div className="mt-5 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-2 rounded-full bg-[#F3EFE6] px-4 py-2 text-[13px] text-[#78716C]">
-                {detail.order.order_type === "dine_in" ? (table ?? "Dine in") : "Takeaway"}
+                {table ?? "Tanpa meja"}
               </span>
               <span className="inline-flex items-center gap-2 rounded-full bg-[#F3EFE6] px-4 py-2 text-[13px] text-[#78716C]">
                 {totalItems} porsi
@@ -1678,7 +1732,7 @@ function ResumeQrOverlay({ qrString, qrImageUrl, expiresAt, orderNumber, totalId
 
 type CartLine = CartItem;
 
-function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }: { cashierOpen: boolean; onShowNotice: (message: string) => void; onOrderCreated?: () => Promise<void>; onOpenShift: () => void }) {
+function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }: { cashierOpen: boolean; onShowNotice: (message: string) => void; onOrderCreated?: (orderId?: string) => Promise<void>; onOpenShift: () => void }) {
   const [menu, setMenu] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"qris" | "cash">("qris");
@@ -1693,7 +1747,6 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
   const [tableId, setTableId] = useState<string | null>(null);
   const [category, setCategory] = useState<string>(ALL_CATEGORIES_ID);
   const [query, setQuery] = useState("");
-  const [orderType, setOrderType] = useState<"dine_in" | "takeaway">("dine_in");
   const [payment, setPayment] = useState<{ orderId: string; qrString?: string; qrImageUrl?: string; orderNumber: string; totalIdr: number; expiresAt: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -1787,6 +1840,21 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
     if (!cart.length || saving) return;
     if (paymentMethod === "qris" && !paymentSettings.qrisEnabled) { onShowNotice("QRIS sedang tidak tersedia."); return; }
     if (paymentMethod === "cash" && !paymentSettings.cashEnabled) { onShowNotice("Pembayaran tunai sedang tidak tersedia."); return; }
+    if (paymentMethod === "cash") {
+      const tableName = tableId ? (tables.find((table) => table.id === tableId)?.label ?? "Meja") : "Tanpa meja / walk-in";
+      setConfirm({
+        title: `Buat pesanan tunai ${formatIDR(total)}?`,
+        description: `${count} item · ${tableName}. Pesanan langsung lunas dan masuk antrean dapur.`,
+        confirmLabel: "Buat pesanan",
+        onConfirm: () => void submitOrder(),
+      });
+      return;
+    }
+    await submitOrder();
+  }
+
+  async function submitOrder() {
+    if (!cart.length || saving) return;
     setSaving(true);
     try {
       const response = await fetch("/api/pos/orders", {
@@ -1794,8 +1862,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           idempotencyKey: intentKey.current ?? (intentKey.current = crypto.randomUUID()),
-          orderType,
-          tableId: orderType === "dine_in" ? tableId : null,
+          tableId,
           paymentMethod,
           items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity, variantOptionIds: item.variantOptionIds, addonOptionIds: item.addonOptionIds, note: item.note })),
         }),
@@ -1806,12 +1873,12 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
         return;
       }
       if (paymentMethod === "cash") {
-        setCart([]); intentKey.current = null; setCartOpen(false); await onOrderCreated?.(); onShowNotice(`${payload.orderNumber} lunas tunai.`); return;
+        setCart([]); intentKey.current = null; setCartOpen(false); await onOrderCreated?.(payload.orderId); onShowNotice(`${payload.orderNumber} lunas tunai.`); return;
       }
       setPayment({ orderId: payload.orderId, qrString: payload.qrString ?? undefined, qrImageUrl: payload.qrImageUrl ?? undefined, orderNumber: payload.orderNumber, totalIdr: payload.totalIdr, expiresAt: payload.expiresAt });
       setCart([]);
       setCartOpen(false);
-      await onOrderCreated?.();
+      await onOrderCreated?.(payload.orderId);
     } catch {
       onShowNotice("Koneksi ke server checkout terputus. Tidak diketahui apakah pesanan dibuat; cek daftar pesanan sebelum mencoba lagi.");
     } finally {
@@ -1832,42 +1899,19 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
   return (
     <div>
       <div className="hidden lg:block">
-        <PageHead title="Kasir" sub={<MetaInline parts={[orderType === "dine_in" ? "Dine in" : "Takeaway", paymentMethod === "cash" ? "Tunai" : "QRIS"]} />} />
+        <PageHead title="Kasir" sub={<MetaInline parts={[tableId ? (tables.find((table) => table.id === tableId)?.label ?? "Meja") : "Tanpa meja / walk-in", paymentMethod === "cash" ? "Tunai" : "QRIS"]} />} />
       </div>
 
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="min-w-0 overflow-hidden rounded-3xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
           <div className="border-b border-[#F1EBDC] bg-[#FAF7F1] p-4 sm:p-5">
-          <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.08fr]">
-            <div className="flex rounded-2xl bg-[#EDE8DB] p-1" role="group" aria-label="Jenis pesanan">
-              {(
-                [
-                  { key: "dine_in", label: "Dine in" },
-                  { key: "takeaway", label: "Takeaway" },
-                ] as const
-              ).map(({ key, label }) => (
-                <button
-                  type="button"
-                  key={key}
-                  onClick={() => { setOrderType(key); if (key === "takeaway") setTableId(null); }}
-                  aria-pressed={orderType === key}
-                  className={cn(
-                    "h-10 flex-1 rounded-xl text-center text-[13px] transition active:scale-[0.98]",
-                    orderType === key ? "bg-[#FFFEFB] font-semibold text-[#1C1917] shadow-xs" : "font-normal text-[#78716C]",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+          <div className="grid gap-2.5 sm:grid-cols-2">
             <div className="flex rounded-2xl bg-[#EDE8DB] p-1" role="group" aria-label="Metode pembayaran">
               {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-10 flex-1 rounded-xl text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "bg-[#FFFEFB] font-semibold text-[#1C1917] shadow-xs" : "text-[#78716C]")}>{method.label}</button>)}
             </div>
-            {orderType === "dine_in" && (
-              <div className="block text-[13px] font-medium text-[#1C1917] sm:col-span-2 xl:col-span-1">
-                <WarmSelect id="cashier-table" label="Meja" value={tableId ?? ""} onChange={(next) => setTableId(next || null)} placeholder="Meja — opsional" className="[&_button]:h-12 [&_button]:rounded-2xl [&_button]:bg-[#EDE8DB]" options={[{ value: "", label: "Tanpa meja / walk-in" }, ...tables.map((table) => ({ value: table.id, label: table.label }))]} />
-              </div>
-            )}
+            <div className="block text-[13px] font-medium text-[#1C1917]">
+              <WarmSelect id="cashier-table" label="Meja" value={tableId ?? ""} onChange={(next) => setTableId(next || null)} placeholder="Meja — opsional" className="[&_button]:h-12 [&_button]:rounded-2xl [&_button]:bg-[#EDE8DB]" options={[{ value: "", label: "Tanpa meja / walk-in" }, ...tables.map((table) => ({ value: table.id, label: table.label }))]} />
+            </div>
           </div>
 
           <div className="mt-2.5 grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_220px]">
@@ -1952,7 +1996,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
             {cart.length > 0 && <button type="button" onClick={clearCart} className="rounded-full px-2 py-1 text-[13px] text-white/60 transition hover:text-white">Hapus Semua</button>}
           </div>
           <p className="mt-1 text-[13px] text-white/60">
-            <MetaInline parts={[orderType === "dine_in" ? "Dine in" : "Takeaway", paymentMethod === "cash" ? "Tunai" : "QRIS"]} />
+            <MetaInline parts={[tableId ? (tables.find((table) => table.id === tableId)?.label ?? "Meja") : "Tanpa meja / walk-in", paymentMethod === "cash" ? "Tunai" : "QRIS"]} />
           </p>
           <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
             {cart.length ? (
@@ -2032,7 +2076,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
             <div className="flex items-start justify-between px-5 pb-3 pt-2">
               <div>
                 <p className="text-xs text-[#A8A29E]">
-                  Pesanan berjalan <MetaDot /> {orderType === "dine_in" ? "Dine in" : "Takeaway"}
+                  Pesanan berjalan <MetaDot /> {tableId ? (tables.find((table) => table.id === tableId)?.label ?? "Meja") : "Tanpa meja / walk-in"}
                 </p>
                 <h2 id="cashier-cart-title" className="mt-1 text-lg font-medium tabular-nums tracking-tight">
                   {count} item <MetaDot /> {formatIDR(total)}
@@ -2438,27 +2482,6 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
             <ReportMetric icon={History} label="Refund" value={formatCompactIDR(report.refundsIdr)} detail="Diproses periode ini" />
           </div>
 
-          <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
-            <div className="px-5 pb-4 pt-5 sm:px-6">
-              <h3 className="text-sm font-medium text-[#1C1917]">Rincian Laporan</h3>
-              <p className="mt-1 text-[13px] text-[#78716C]">Berdasarkan sumber penjualan</p>
-            </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-[#FFFEFB] px-5 py-3 text-xs text-[#A8A29E] sm:px-6">
-              <span>Komposisi</span>
-              <span>Total</span>
-            </div>
-            <div className="divide-y divide-[#E9E1D1]">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
-                <span className="truncate text-[13px] font-medium text-[#1C1917]">Dine in</span>
-                <span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(report.dineInRevenueIdr)}</span>
-              </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3.5 sm:px-6">
-                <span className="truncate text-[13px] font-medium text-[#1C1917]">Takeaway</span>
-                <span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(report.takeawayRevenueIdr)}</span>
-              </div>
-            </div>
-          </section>
-
           {report.dailyBreakdown.length > 1 && <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft"><div className="px-5 pb-4 pt-5 sm:px-6"><h3 className="text-sm font-medium text-[#1C1917]">Per hari</h3><p className="mt-1 text-[13px] text-[#78716C]">Ringkasan settlement per tanggal</p></div><div className="divide-y divide-[#E9E1D1]">{report.dailyBreakdown.map((day) => <div key={day.date} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6"><div><p className="text-[13px] font-medium text-[#1C1917]">{day.date}</p><p className="mt-0.5 text-xs text-[#A8A29E]"><MetaInline parts={[`${day.paidOrderCount} pesanan`, `refund ${formatCompactIDR(day.refundsIdr)}`]} /></p></div><span className="text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(day.netRevenueIdr)}</span></div>)}</div></section>}
 
           <section className="mt-6 overflow-hidden rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
@@ -2501,7 +2524,7 @@ function LiveReports({ initialReport, onShowNotice }: { initialReport: DailyRepo
                       <div className="min-w-0">
                         <p className="truncate text-[13px] font-medium text-[#1C1917]">{item.orderNumber}</p>
                         <p className="mt-0.5 text-xs text-[#A8A29E]">
-                          <MetaInline parts={[item.type === "dine_in" ? "Dine in" : "Takeaway", new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(new Date(item.settledAt))]} />
+                          <MetaInline parts={[new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(new Date(item.settledAt))]} />
                         </p>
                       </div>
                       <span className="shrink-0 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(item.totalIdr)}</span>

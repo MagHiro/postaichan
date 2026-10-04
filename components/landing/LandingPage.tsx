@@ -66,7 +66,6 @@ export function LandingPage({
               <p className="text-xs text-[#A8A29E]">Kamu di</p>
               <p className="mt-0.5 truncate text-[15px] font-medium tabular-nums">
                 {tableLabel}
-                <span className="text-[#A8A29E]"> · Dine in</span>
               </p>
               <p className="mt-1 text-[13px] leading-relaxed text-[#78716C]">
                 Tetap di mejamu — pesanan diantar ke sini.
@@ -74,7 +73,7 @@ export function LandingPage({
             </section>
           ) : tableInvalid ? (
             <p role="alert" className="mt-6 text-center text-[13px] leading-relaxed text-[#78716C]">
-              QR meja sudah tidak aktif. Minta QR terbaru dari kasir, atau lanjut sebagai takeaway.
+              QR meja sudah tidak aktif. Minta QR terbaru dari kasir, atau lanjut tanpa meja.
             </p>
           ) : null}
 

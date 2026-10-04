@@ -7,6 +7,7 @@ import { formatCompactIDR } from "@/lib/format";
 import type { CartItem, Category, Product } from "@/lib/types";
 import { buildCartItem } from "@/lib/domain/cart";
 import { cn } from "@/lib/utils";
+import { WarmSelect } from "@/components/warm-select";
 import {
   ALL_CATEGORIES_ID,
   matchesOrderCategory,
@@ -38,14 +39,13 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const [activeTab, setActiveTab] = useState<"home" | "orders">("home");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [step, setStep] = useState<OrderStep>("menu");
-  const [orderType, setOrderType] = useState<"Dine in" | "Takeaway">(
-    tableToken ? "Dine in" : "Takeaway",
-  );
   const [session, setSession] = useState<{
     token: string;
-    orderType: "dine_in" | "takeaway";
+    tableId: string | null;
     tableLabel: string | null;
   } | null>(null);
+  const [tables, setTables] = useState<Array<{ id: string; label: string }>>([]);
+  const [tableId, setTableId] = useState<string | null>(null);
   const [payment, setPayment] = useState<PaymentAttempt | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const [note, setNote] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
-  const tableLabel = session?.tableLabel ?? "Dine in";
+  const tableLabel = session?.tableLabel ?? null;
   const toastTimer = useRef<number | null>(null);
   const checkoutIntentKey = useRef<string | null>(null);
 
@@ -106,44 +106,76 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   }, [menuRetry]);
 
   useEffect(() => {
-    const want = orderType === "Dine in" ? "dine_in" : "takeaway";
     let active = true;
-    const stored = window.sessionStorage.getItem(`tt-session-${want}`);
-    if (stored) {
-      try {
-        const value = JSON.parse(stored) as { token: string; tableToken?: string; generalToken?: string; tableLabel?: string | null; expiresAt?: string };
-        if (value.tableToken === tableToken && value.generalToken === generalToken && (!value.expiresAt || new Date(value.expiresAt).getTime() > Date.now())) {
-          setSessionError(null);
-          setSession({ token: value.token, orderType: want, tableLabel: value.tableLabel ?? null });
-          return () => { active = false; };
-        }
-      } catch { window.sessionStorage.removeItem(`tt-session-${want}`); }
-    }
+    fetch("/api/tables", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (active) setTables(payload?.tables ?? []);
+      })
+      .catch(() => { /* Table picker stays optional when offline. */ });
+    return () => { active = false; };
+  }, []);
+
+  async function createSession(nextTableId: string | null) {
     setSession(null);
     setSessionError(null);
-    fetch("/api/customer/session", {
+    const response = await fetch("/api/customer/session", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ orderType: want, tableToken: want === "dine_in" ? tableToken : undefined, generalToken }),
-    })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(payload?.error ?? "QR pemesanan belum dapat digunakan.");
-        return payload;
-      })
-      .then((payload) => {
-        if (active && payload?.sessionToken) {
-          setSession({ token: payload.sessionToken, orderType: want, tableLabel: payload.tableLabel ?? null });
-          window.sessionStorage.setItem(`tt-session-${want}`, JSON.stringify({ token: payload.sessionToken, tableToken, generalToken, tableLabel: payload.tableLabel ?? null, expiresAt: payload.expiresAt }));
+      body: JSON.stringify({ tableToken: tableToken ?? undefined, generalToken, tableId: nextTableId ?? undefined }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.sessionToken) throw new Error(payload?.error ?? "QR pemesanan belum dapat digunakan.");
+    setSession({ token: payload.sessionToken, tableId: nextTableId, tableLabel: payload.tableLabel ?? null });
+    window.sessionStorage.setItem("tt-session", JSON.stringify({ token: payload.sessionToken, tableToken, generalToken, tableId: nextTableId, tableLabel: payload.tableLabel ?? null, expiresAt: payload.expiresAt }));
+  }
+
+  useEffect(() => {
+    let active = true;
+    const stored = window.sessionStorage.getItem("tt-session");
+    if (stored) {
+      try {
+        const value = JSON.parse(stored) as { token: string; tableToken?: string; generalToken?: string; tableId?: string | null; tableLabel?: string | null; expiresAt?: string };
+        if (value.tableToken === tableToken && value.generalToken === generalToken && (!value.expiresAt || new Date(value.expiresAt).getTime() > Date.now())) {
+          setSessionError(null);
+          setSession({ token: value.token, tableId: value.tableId ?? null, tableLabel: value.tableLabel ?? null });
+          setTableId(value.tableId ?? null);
+          return () => { active = false; };
         }
-      })
-      .catch(() => {
+      } catch { window.sessionStorage.removeItem("tt-session"); }
+    }
+    void (async () => {
+      try {
+        const response = await fetch("/api/customer/session", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ tableToken: tableToken ?? undefined, generalToken }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.sessionToken) throw new Error(payload?.error ?? "QR pemesanan belum dapat digunakan.");
+        if (!active) return;
+        setSession({ token: payload.sessionToken, tableId: null, tableLabel: payload.tableLabel ?? null });
+        window.sessionStorage.setItem("tt-session", JSON.stringify({ token: payload.sessionToken, tableToken, generalToken, tableId: null, tableLabel: payload.tableLabel ?? null, expiresAt: payload.expiresAt }));
+      } catch {
         if (active) { setSession(null); setSessionError("QR pemesanan sudah tidak aktif. Minta QR terbaru dari kasir."); }
-      });
+      }
+    })();
     return () => {
       active = false;
     };
-  }, [orderType, tableToken, generalToken]);
+  }, [tableToken, generalToken]);
+
+  async function changeTable(nextTableId: string | null) {
+    setTableId(nextTableId);
+    resetCheckoutIntent();
+    try {
+      await createSession(nextTableId);
+      setSessionError(null);
+    } catch {
+      setSession(null);
+      setSessionError("Meja belum dapat dipakai. Pilih meja lain atau lanjut tanpa meja.");
+    }
+  }
 
   useEffect(() => {
     if (!session) return;
@@ -306,17 +338,15 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
     setCheckoutLoading(true);
     setCheckoutError(null);
     try {
-      const want = orderType === "Dine in" ? "dine_in" : "takeaway";
-      let activeSessionToken =
-        session && session.orderType === want ? session.token : null;
+      let activeSessionToken = session?.token ?? null;
       if (!activeSessionToken) {
         const sessionResponse = await fetch("/api/customer/session", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            orderType: orderType === "Dine in" ? "dine_in" : "takeaway",
-            tableToken: want === "dine_in" ? tableToken : undefined,
+            tableToken: tableToken ?? undefined,
             generalToken,
+            tableId: tableId ?? undefined,
           }),
         });
         const sessionPayload = await sessionResponse.json();
@@ -325,7 +355,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
             sessionPayload.error ?? "Pesanan belum dapat dimulai. Coba lagi.",
           );
         activeSessionToken = sessionPayload.sessionToken as string;
-          setSession({ token: activeSessionToken as string, orderType: want, tableLabel: sessionPayload.tableLabel ?? null });
+          setSession({ token: activeSessionToken as string, tableId: tableId ?? null, tableLabel: sessionPayload.tableLabel ?? null });
       }
       if (!checkoutIntentKey.current) checkoutIntentKey.current = crypto.randomUUID();
       const response = await fetch("/api/checkout", {
@@ -334,7 +364,6 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         body: JSON.stringify({
           idempotencyKey: checkoutIntentKey.current,
           sessionToken: activeSessionToken,
-          orderType: orderType === "Dine in" ? "dine_in" : "takeaway",
           items: cart.map((item) => ({
             productId: item.product.id,
             quantity: item.quantity,
@@ -391,7 +420,6 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
       <PaymentView
         payment={payment}
         sessionToken={session.token}
-        orderType={orderType}
         tableLabel={tableLabel}
         // Keep the intent key with the cart. Returning to checkout resumes the
         // same server-side payment intent instead of creating a second order.
@@ -407,7 +435,6 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
             {
               orderNumber: payment.orderNumber,
               amountIdr: payment.amountIdr,
-              orderType,
               tableLabel,
               time: new Date().toLocaleTimeString("id-ID", {
                 hour: "2-digit",
@@ -435,7 +462,6 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   if (step === "success") {
     return (
       <SuccessView
-        orderType={orderType}
         tableLabel={tableLabel}
         amount={payment?.amountIdr ?? subtotal}
         orderNumber={payment?.orderNumber ?? "—"}
@@ -457,9 +483,10 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
     );
   }
 
-  const dineIn = orderType === "Dine in";
   const activeCategoryName = categories.find((item) => item.id === category)?.name;
   const menuTitle = !category || category === ALL_CATEGORIES_ID ? "Menu" : (activeCategoryName ?? "Menu");
+  const tableLocked = Boolean(tableToken);
+  const tableOptions = [{ value: "", label: "Tanpa meja / walk-in" }, ...tables.map((table) => ({ value: table.id, label: table.label }))];
 
   return (
     <main className="flex min-h-screen justify-center bg-[#FAF7F1] text-[#1C1917] antialiased selection:bg-[#FDBD2C] selection:text-[#1C1917]">
@@ -470,40 +497,24 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               <h1 className="min-w-0 flex-1 truncate text-[18px] font-semibold tracking-tight">
                 {activeTab === "orders" ? "Pesanan" : menuTitle}
               </h1>
-              {dineIn && session?.tableLabel && (
+              {session?.tableLabel && (
                 <span className="max-w-[140px] shrink-0 truncate rounded-full bg-[#F3EFE6] px-3 py-1.5 text-[11px] font-medium tabular-nums">
                   {session.tableLabel}
                 </span>
               )}
             </div>
-            <div role="group" aria-label="Jenis pesanan" className="mt-3 flex rounded-full bg-[#F3EFE6] p-1">
-              <button
-                type="button"
-                onClick={() => { resetCheckoutIntent(); setOrderType("Dine in"); }}
-                aria-pressed={dineIn}
-                className={cn(
-                  "flex-1 rounded-full py-1.5 text-center text-[13px] transition",
-                  dineIn
-                    ? "border border-[#EFE7D6] bg-[#FFFEFB] font-medium shadow-xs"
-                    : "text-[#78716C]",
-                )}
-              >
-                Dine in
-              </button>
-              <button
-                type="button"
-                onClick={() => { resetCheckoutIntent(); setOrderType("Takeaway"); }}
-                aria-pressed={!dineIn}
-                className={cn(
-                  "flex-1 rounded-full py-1.5 text-center text-[13px] transition",
-                  !dineIn
-                    ? "border border-[#EFE7D6] bg-[#FFFEFB] font-medium shadow-xs"
-                    : "text-[#78716C]",
-                )}
-              >
-                Takeaway
-              </button>
-            </div>
+            {!tableLocked && (
+              <div className="mt-3">
+                <WarmSelect
+                  id="customer-table"
+                  label="Meja"
+                  value={tableId ?? ""}
+                  onChange={(next) => void changeTable(next || null)}
+                  placeholder="Pilih meja — opsional"
+                  options={tableOptions}
+                />
+              </div>
+            )}
             {sessionError && <div role="alert" className="mt-3 text-center text-[13px] leading-relaxed text-[#78716C]">{sessionError}</div>}
           </div>
         </header>
@@ -616,7 +627,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
           <div key="orders" className="ord-rise flex-1 px-5 pt-7">
             <h1 className="text-[22px] font-semibold leading-snug tracking-tight">Pesanan</h1>
             <p className="mt-1 text-[13px] text-[#78716C]">
-              {dineIn ? (<MetaInline parts={[tableLabel, "Dine in"]} />) : (<MetaInline parts={["Takeaway", "Ambil di kasir"]} />)}
+              <MetaInline parts={[tableLabel ?? "Tanpa meja"]} />
             </p>
 
             {cart.length === 0 && placedOrders.length === 0 ? (
@@ -658,7 +669,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                               {order.orderNumber}
                             </p>
                             <p className="mt-0.5 text-xs text-[#A8A29E]">
-                              <MetaInline parts={[order.orderType === "Dine in" ? order.tableLabel : "Takeaway", order.time]} />
+                              <MetaInline parts={[order.tableLabel ?? "Tanpa meja", order.time]} />
                             </p>
                           </div>
                           <p className="shrink-0 text-[13px] tabular-nums text-[#78716C]">

@@ -11,9 +11,8 @@ import { checkoutDatabaseFailure, checkoutIntentMissing, checkoutQrMissing, chec
 
 export const runtime = "nodejs";
 
-function fingerprint(input: { orderType: string; tableId: string | null; paymentMethod: string; items: Array<{ productId: string; quantity: number; variantOptionIds: string[]; addonOptionIds: string[]; note?: string }> }) {
+function fingerprint(input: { tableId: string | null; paymentMethod: string; items: Array<{ productId: string; quantity: number; variantOptionIds: string[]; addonOptionIds: string[]; note?: string }> }) {
   const canonical = {
-    orderType: input.orderType,
     tableId: input.tableId,
     paymentMethod: input.paymentMethod,
     items: input.items
@@ -35,8 +34,8 @@ export async function GET(request: Request) {
       if (error instanceof Error && error.message === "INVALID_REPORT_DATE") return NextResponse.json({ error: "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });
       throw error;
     }
-    const ordersResult = await query<{ id: string; order_number: string; order_type: string; table_id: string | null; status: string; total_idr: number; created_at: string; table_label: string | null; payment_method: string | null; payment_status: string | null; payment_created_at: string | null }>(
-      `select o.id, o.order_number, o.order_type, o.table_id, o.status, o.total_idr, o.created_at, rt.label as table_label,
+    const ordersResult = await query<{ id: string; order_number: string; table_id: string | null; status: string; total_idr: number; created_at: string; table_label: string | null; payment_method: string | null; payment_status: string | null; payment_created_at: string | null }>(
+      `select o.id, o.order_number, o.table_id, o.status, o.total_idr, o.created_at, rt.label as table_label,
               lp.method as payment_method, lp.status as payment_status, lp.created_at as payment_created_at
        from public.orders o
        left join public.restaurant_tables rt on rt.id = o.table_id
@@ -50,7 +49,7 @@ export async function GET(request: Request) {
     const itemCountsResult = orderIds.length ? await query<{ order_id: string; quantity: number }>("select order_id, quantity from public.order_items where order_id = any($1::uuid[])", [orderIds]) : { rows: [] as Array<{ order_id: string; quantity: number }> };
     const counts = new Map<string, number>();
     for (const item of itemCountsResult.rows) counts.set(item.order_id, (counts.get(item.order_id) ?? 0) + item.quantity);
-    return NextResponse.json({ orders: data.map((order) => { const status = order.status === "awaiting_payment" ? "Pending" : order.status === "paid" ? "New" : order.status === "accepted" ? "Accepted" : order.status === "processing" ? "Preparing" : order.status === "ready" ? "Ready" : order.status === "completed" ? "Completed" : order.status === "cancelled" ? "Cancelled" : order.status === "refunded" ? "Refunded" : "Pending"; return { id: order.id, number: order.order_number, type: order.order_type === "dine_in" ? "Dine in" : "Takeaway", table: order.table_label ?? undefined, items: counts.get(order.id) ?? 0, total: order.total_idr, payment: order.payment_method === "cash" ? "Cash" : "QRIS", paymentStatus: order.payment_status === "settled" || order.payment_status === "partially_refunded" || order.payment_status === "refunded" ? "Paid" : "Pending", status, time: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(order.created_at)) }; }) }, { headers: noStoreHeaders() });
+    return NextResponse.json({ orders: data.map((order) => { const status = order.status === "awaiting_payment" ? "Pending" : order.status === "paid" ? "New" : order.status === "accepted" ? "Accepted" : order.status === "processing" ? "Preparing" : order.status === "ready" ? "Ready" : order.status === "completed" ? "Completed" : order.status === "cancelled" ? "Cancelled" : order.status === "refunded" ? "Refunded" : "Pending"; return { id: order.id, number: order.order_number, table: order.table_label ?? undefined, items: counts.get(order.id) ?? 0, total: order.total_idr, payment: order.payment_method === "cash" ? "Cash" : "QRIS", paymentStatus: order.payment_status === "settled" || order.payment_status === "partially_refunded" || order.payment_status === "refunded" ? "Paid" : "Pending", status, time: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(order.created_at)) }; }) }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("pos_orders_failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Pesanan belum dapat dimuat." }, { status: 503, headers: noStoreHeaders() });
@@ -71,8 +70,8 @@ export async function POST(request: Request) {
     let intentResult;
     try {
       intentResult = await query<{ order_id: string; order_number: string; payment_id: string; payment_status: string; amount_idr: number; provider_order_id: string; qr_string: string | null; expires_at: string | null; replayed: boolean }>(
-        `select * from public.create_checkout_intent($1::uuid, $2, $3::text, $4::public.order_type, $5::uuid, $6::uuid, $7::public.payment_method, $8::jsonb)`,
-        [input.idempotencyKey, fingerprint({ orderType: input.orderType, tableId: input.tableId ?? null, paymentMethod: input.paymentMethod, items: input.items }), null, input.orderType, input.tableId ?? null, auth.actorId, input.paymentMethod, JSON.stringify(input.items)],
+        `select * from public.create_checkout_intent($1::uuid, $2, $3::text, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`,
+        [input.idempotencyKey, fingerprint({ tableId: input.tableId ?? null, paymentMethod: input.paymentMethod, items: input.items }), null, input.tableId ?? null, auth.actorId, input.paymentMethod, JSON.stringify(input.items)],
       );
     } catch (error) {
       const failure = checkoutDatabaseFailure(error, "staff");

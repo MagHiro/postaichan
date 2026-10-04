@@ -105,7 +105,7 @@ export function GeneralQrManager() {
       <div className="mx-auto max-w-[820px]">
         <p className="text-xs text-neutral-400">Administrator <MetaDot /> <a href="/admin" className="text-neutral-500">Pengaturan</a></p>
         <h1 className="mt-1 text-[22px] font-medium tracking-tight">QR umum</h1>
-        <p className="mt-1 text-[13px] text-neutral-500">QR ini tidak terkait meja. Customer memilih Dine in tanpa meja atau Takeaway saat memesan.</p>
+        <p className="mt-1 text-[13px] text-neutral-500">QR ini tidak terkait meja. Customer memilih meja atau lanjut tanpa meja saat memesan.</p>
         {notice && <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 shadow-soft text-[13px] text-neutral-500"><span>{notice}</span>{loadError && <button type="button" onClick={() => { setNotice(null); void load(); }} className="h-9 rounded-full bg-neutral-900 px-4 text-xs font-medium text-white">Coba lagi</button>}</div>}
         {preview && <QrPreview label={preview.label} orderingUrl={preview.orderingUrl} qrDataUrl={preview.qrDataUrl} onClose={() => setPreview(null)} onCopy={() => { void navigator.clipboard?.writeText(preview.orderingUrl); setNotice("URL QR disalin."); }} />}
 

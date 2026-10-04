@@ -11,17 +11,19 @@ export const checkoutItemSchema = z.object({
 export const checkoutSchema = z.object({
   idempotencyKey: z.string().uuid(),
   sessionToken: z.string().min(32).max(240),
-  orderType: z.enum(["dine_in", "takeaway"]),
   items: z.array(checkoutItemSchema).min(1).max(50),
 }).strict();
 
 export const customerSessionSchema = z.object({
-  orderType: z.enum(["dine_in", "takeaway"]),
   tableToken: z.string().trim().min(32).max(240).optional(),
   generalToken: z.string().trim().min(32).max(240).optional(),
+  tableId: z.string().uuid().optional(),
 }).strict().superRefine((value, context) => {
   if (value.tableToken && value.generalToken) {
     context.addIssue({ code: "custom", message: "Only one QR context may be supplied.", path: ["tableToken"] });
+  }
+  if (value.tableToken && value.tableId) {
+    context.addIssue({ code: "custom", message: "Table QR already defines the table.", path: ["tableId"] });
   }
 });
 
@@ -38,7 +40,6 @@ export const midtransWebhookSchema = z.object({
 
 export const cashierOrderSchema = z.object({
   idempotencyKey: z.string().uuid(),
-  orderType: z.enum(["dine_in", "takeaway"]),
   tableId: z.string().uuid().nullable().optional(),
   paymentMethod: z.enum(["qris", "cash"]).default("qris"),
   items: z.array(checkoutItemSchema).min(1).max(50),
