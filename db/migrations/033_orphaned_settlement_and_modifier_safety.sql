@@ -1,5 +1,56 @@
--- Enforce one owner per modifier group. Migration 024 already forks historical
--- shared groups; these indexes prevent future assignments from sharing them.
+-- Sharing could recur after migration 024 and before this constraint was added.
+-- Fork remaining shared groups without removing product options or changing
+-- historical order modifier snapshots. Lock assignments until indexes exist.
+lock table public.product_variant_groups, public.product_addon_groups in share row exclusive mode;
+do $fork$
+declare
+  r_group record;
+  v_products uuid[];
+  v_target uuid;
+  v_new_group uuid;
+begin
+  for r_group in
+    select group_id, array_agg(product_id order by product_id) as products
+    from public.product_variant_groups
+    group by group_id having count(*) > 1
+  loop
+    v_products := r_group.products;
+    for i in 2..array_length(v_products, 1) loop
+      v_target := v_products[i];
+      insert into public.variant_groups(name, selection, required, min_selection, max_selection, active, display_order)
+      select name, selection, required, min_selection, max_selection, active, display_order
+      from public.variant_groups where id = r_group.group_id
+      returning id into v_new_group;
+      insert into public.variant_options(group_id, name, price_adjustment_idr, cost_adjustment_idr, available, display_order)
+      select v_new_group, name, price_adjustment_idr, cost_adjustment_idr, available, display_order
+      from public.variant_options where group_id = r_group.group_id;
+      update public.product_variant_groups set group_id = v_new_group
+      where product_id = v_target and group_id = r_group.group_id;
+    end loop;
+  end loop;
+  for r_group in
+    select group_id, array_agg(product_id order by product_id) as products
+    from public.product_addon_groups
+    group by group_id having count(*) > 1
+  loop
+    v_products := r_group.products;
+    for i in 2..array_length(v_products, 1) loop
+      v_target := v_products[i];
+      insert into public.addon_groups(name, required, min_selection, max_selection, active, display_order)
+      select name, required, min_selection, max_selection, active, display_order
+      from public.addon_groups where id = r_group.group_id
+      returning id into v_new_group;
+      insert into public.addon_options(group_id, name, price_adjustment_idr, cost_adjustment_idr, available, display_order)
+      select v_new_group, name, price_adjustment_idr, cost_adjustment_idr, available, display_order
+      from public.addon_options where group_id = r_group.group_id;
+      update public.product_addon_groups set group_id = v_new_group
+      where product_id = v_target and group_id = r_group.group_id;
+    end loop;
+  end loop;
+end;
+$fork$;
+
+-- Enforce one owner per modifier group after repairing historical assignments.
 create unique index if not exists product_variant_groups_one_owner_idx on public.product_variant_groups(group_id);
 create unique index if not exists product_addon_groups_one_owner_idx on public.product_addon_groups(group_id);
 
