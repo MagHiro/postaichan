@@ -120,7 +120,7 @@ test("PostgreSQL 16 production invariants, checkout, provider races, reconciliat
     const publicPrivilege = await admin.query<{ public_schema_create: boolean; public_table_write: boolean; public_function_execute: boolean }>(
       `select exists(select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl, acldefault('n', n.nspowner))) a where n.nspname='public' and a.grantee=0 and a.privilege_type='CREATE') as public_schema_create,
               exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace cross join lateral aclexplode(coalesce(c.relacl, acldefault((case when c.relkind='S' then 'S' else 'r' end)::"char", c.relowner))) a where n.nspname='public' and c.relkind in ('r','p','S','v','m','f') and a.grantee=0 and a.privilege_type in ('INSERT','UPDATE','DELETE','TRUNCATE','USAGE')) as public_table_write,
-              exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where n.nspname='public' and a.grantee=0 and a.privilege_type='EXECUTE') as public_function_execute`,
+              exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where n.nspname='public' and a.grantee=0 and a.privilege_type='EXECUTE' and not exists(select 1 from pg_depend d join pg_extension e on d.refclassid='pg_extension'::regclass and d.refobjid=e.oid where d.classid='pg_proc'::regclass and d.objid=p.oid and d.deptype='e' and e.extname='pgcrypto')) as public_function_execute`,
     );
     assert.equal(publicPrivilege.rows[0].public_schema_create, false);
     assert.equal(publicPrivilege.rows[0].public_table_write, false);

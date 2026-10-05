@@ -83,6 +83,14 @@ begin
     join pg_namespace n on n.oid = p.pronamespace
     cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
     where n.nspname = 'public' and a.grantee = 0 and a.privilege_type = 'EXECUTE'
+      -- Managed providers own pgcrypto and may not allow changing its ACL.
+      -- This exception does not apply to application functions.
+      and not exists (
+        select 1 from pg_depend d join pg_extension e
+          on d.refclassid = 'pg_extension'::regclass and d.refobjid = e.oid
+        where d.classid = 'pg_proc'::regclass and d.objid = p.oid
+          and d.deptype = 'e' and e.extname = 'pgcrypto'
+      )
   ) then
     raise exception 'PUBLIC_FUNCTION_EXECUTE_REMAINS: revoke PUBLIC EXECUTE and grant required extension functions to postaichan_ddl before migrating';
   end if;

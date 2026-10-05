@@ -39,17 +39,19 @@ try {
       throw new Error("Production database bootstrap is incomplete; provision postaichan_ddl and postaichan_runtime, schema ownership, the database CREATE grant, and DATABASE_URL login membership first. See README.md: Database roles and migrations.");
     }
   }
-  // pgcrypto's C functions are extension-owned by the bootstrap administrator,
-  // not by the DDL role. Remove their PUBLIC grants and grant DDL-only access
-  // before entering the schema owner role.
+  // Harden pgcrypto when the login has owner privileges. Managed providers may
+  // own its functions with an inaccessible administrator role; in that case
+  // retain the provider ACL and require execution access for the DDL role.
   await client.query("create extension if not exists pgcrypto");
   const pgcryptoFunctions = await client.query(
-    `select p.oid::regprocedure::text as signature
+    `select p.oid::regprocedure::text as signature,
+            pg_has_role(current_user, p.proowner, 'USAGE') as can_manage_acl
      from pg_proc p join pg_depend d on d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e'
      join pg_extension e on d.refclassid = 'pg_extension'::regclass and d.refobjid = e.oid
      where e.extname = 'pgcrypto' order by p.oid`,
   );
   for (const row of pgcryptoFunctions.rows) {
+    if (!row.can_manage_acl) continue;
     await client.query(`revoke execute on function ${row.signature} from public`);
     await client.query(`grant execute on function ${row.signature} to postaichan_ddl`);
   }
@@ -58,7 +60,8 @@ try {
               select 1 from pg_proc p join pg_depend d on d.classid='pg_proc'::regclass and d.objid=p.oid and d.deptype='e'
               join pg_extension e on d.refclassid='pg_extension'::regclass and d.refobjid=e.oid
               cross join lateral aclexplode(coalesce(p.proacl, acldefault('f',p.proowner))) a
-              where e.extname='pgcrypto' and a.grantee=0 and a.privilege_type='EXECUTE'
+               where e.extname='pgcrypto' and a.grantee=0 and a.privilege_type='EXECUTE'
+                 and pg_has_role(current_user, p.proowner, 'USAGE')
             ) as public_execute,
             exists(
               select 1 from pg_proc p join pg_depend d on d.classid='pg_proc'::regclass and d.objid=p.oid and d.deptype='e'
@@ -67,7 +70,7 @@ try {
             ) as ddl_execute_missing`,
   );
   if (pgcryptoAcl.rows[0]?.public_execute || pgcryptoAcl.rows[0]?.ddl_execute_missing) {
-    throw new Error("pgcrypto privileges are not provisioned; revoke PUBLIC EXECUTE and grant its functions to postaichan_ddl with the database administrator login.");
+    throw new Error("pgcrypto privileges are not provisioned; postaichan_ddl must be able to execute its functions, and login-owned functions must not grant PUBLIC EXECUTE.");
   }
   try {
     await client.query(`do $$
