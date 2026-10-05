@@ -28,15 +28,15 @@ try {
     await client.query(`grant create on database "${String(databaseName).replaceAll('"', '""')}" to postaichan_ddl`);
   } else {
     const preflight = await client.query(
-      `select pg_has_role(current_user, 'postaichan_ddl', 'member') as can_assume_ddl,
+      `select pg_has_role(current_user, (select oid from pg_roles where rolname = 'postaichan_ddl'), 'member') as can_assume_ddl,
               exists(select 1 from pg_roles where rolname = 'postaichan_ddl' and not rolsuper and not rolcanlogin and not rolcreatedb and not rolcreaterole and not rolreplication and not rolbypassrls) as ddl_role_safe,
               exists(select 1 from pg_roles where rolname = 'postaichan_runtime' and not rolsuper and not rolcanlogin and not rolcreatedb and not rolcreaterole and not rolreplication and not rolbypassrls) as runtime_role_safe,
-              exists(select 1 from pg_namespace where nspname = 'public' and nspowner = 'postaichan_ddl'::regrole) as ddl_owns_schema,
-              has_database_privilege('postaichan_ddl', current_database(), 'CREATE') as ddl_can_create`
+              exists(select 1 from pg_namespace where nspname = 'public' and nspowner = (select oid from pg_roles where rolname = 'postaichan_ddl')) as ddl_owns_schema,
+              has_database_privilege((select oid from pg_roles where rolname = 'postaichan_ddl'), current_database(), 'CREATE') as ddl_can_create`
     );
     const role = preflight.rows[0];
     if (!role?.can_assume_ddl || !role.ddl_role_safe || !role.runtime_role_safe || !role.ddl_owns_schema || !role.ddl_can_create) {
-      throw new Error("Production database bootstrap is incomplete; provision the DDL role, schema owner, database CREATE grant, and DATABASE_URL login membership first.");
+      throw new Error("Production database bootstrap is incomplete; provision postaichan_ddl and postaichan_runtime, schema ownership, the database CREATE grant, and DATABASE_URL login membership first. See README.md: Database roles and migrations.");
     }
   }
   // pgcrypto's C functions are extension-owned by the bootstrap administrator,

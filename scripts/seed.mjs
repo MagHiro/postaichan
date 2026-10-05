@@ -42,14 +42,14 @@ await client.connect();
 try {
   if (production) {
     const preflight = await client.query(
-      `select pg_has_role(current_user, 'postaichan_ddl', 'member') as can_assume_ddl,
+      `select pg_has_role(current_user, (select oid from pg_roles where rolname = 'postaichan_ddl'), 'member') as can_assume_ddl,
               exists(select 1 from pg_roles where rolname = 'postaichan_ddl' and not rolsuper and not rolcanlogin and not rolcreatedb and not rolcreaterole and not rolreplication and not rolbypassrls) as ddl_role_safe,
               exists(select 1 from pg_roles where rolname = 'postaichan_runtime' and not rolsuper and not rolcanlogin and not rolcreatedb and not rolcreaterole and not rolreplication and not rolbypassrls) as runtime_role_safe,
-              exists(select 1 from pg_namespace where nspname = 'public' and nspowner = 'postaichan_ddl'::regrole) as ddl_owns_schema`
+              exists(select 1 from pg_namespace where nspname = 'public' and nspowner = (select oid from pg_roles where rolname = 'postaichan_ddl')) as ddl_owns_schema`
     );
     const role = preflight.rows[0];
     if (!role?.can_assume_ddl || !role.ddl_role_safe || !role.runtime_role_safe || !role.ddl_owns_schema) {
-      throw new Error("Production seed bootstrap is incomplete; provision the DDL role, schema owner, and DATABASE_URL login membership first.");
+      throw new Error("Production seed bootstrap is incomplete; provision postaichan_ddl and postaichan_runtime, schema ownership, and DATABASE_URL login membership first. See README.md: Database roles and migrations.");
     }
   }
   await client.query(`set role "${ddlRole}"`);
