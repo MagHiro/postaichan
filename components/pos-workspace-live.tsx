@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
-import { AlertTriangle, Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, LogOut, Minus, Package, Plus, Power, QrCode, ReceiptText, RefreshCw, Search, Settings, ShoppingBag, Store, TrendingUp, Wallet, X } from "lucide-react";
+import { AlertTriangle, Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, LayoutDashboard, LogOut, Minus, Package, Plus, Power, QrCode, ReceiptText, RefreshCw, Search, Settings, ShoppingBag, ShoppingBasket, Store, TrendingUp, UtensilsCrossed, Wallet, X } from "lucide-react";
 import { formatCompactIDR, formatCountdown, formatIDR } from "@/lib/format";
 import type { CartItem, Category, Order, Product } from "@/lib/types";
 import { ALL_CATEGORIES_ID } from "@/components/order/constants";
@@ -11,6 +11,8 @@ import { buildCartItem } from "@/lib/domain/cart";
 import type { DailyReport } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 import { MetaDot, MetaInline } from "@/components/meta";
+import { ManualQrisVerification } from "@/components/manual-qris-verification";
+import { WarmMultiSelect } from "@/components/warm-multi-select";
 import { CategoryDropdown } from "@/components/category-filter";
 import { WarmSelect } from "@/components/warm-select";
 import { MenuManager } from "@/components/menu-manager";
@@ -63,11 +65,11 @@ const NAV_SHORT_LABEL: Record<NavItem, string> = {
 };
 
 const NAV_ICON: Record<NavItem, typeof Home> = {
-  Overview: Home,
+  Overview: LayoutDashboard,
   Orders: ReceiptText,
-  POS: Plus,
-  Menu: BookOpen,
-  Reports: TrendingUp,
+  POS: ShoppingBasket,
+  Menu: UtensilsCrossed,
+  Reports: ChartNoAxesColumn,
 };
 
 const STATUS_LABEL: Record<Order["status"], string> = {
@@ -276,9 +278,9 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   const navItems = (Object.keys(NAV_LABEL) as NavItem[]).filter((item) => role === "admin" || (item !== "Menu" && item !== "Reports"));
 
   return (
-    <div className="flex h-[100dvh] max-h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden bg-[#FAF7F1] text-[#1C1917] antialiased lg:h-auto lg:max-h-none lg:min-h-screen lg:overflow-visible lg:pl-[266px]">
+    <div className="modern-workspace flex h-[100dvh] max-h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden bg-[#FAF7F1] text-[#1C1917] antialiased lg:h-auto lg:max-h-none lg:min-h-screen lg:overflow-visible lg:pl-[288px]">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden h-screen w-[266px] flex-col overflow-y-auto border-r border-[#EFE7D6] bg-[#FAF7F1] px-5 py-8 lg:flex">
+      <aside className="modern-side-nav fixed inset-y-0 left-0 z-40 hidden h-screen w-[288px] flex-col overflow-y-auto bg-[#F4EDE0] px-6 py-9 lg:flex">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-medium tracking-tight">Tempat Taichan</p>
@@ -294,7 +296,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
             {role === "admin" ? "A" : "S"}
           </button>
         </div>
-        <nav aria-label="Navigasi workspace" className="mt-10 space-y-1">
+        <nav aria-label="Navigasi workspace" className="mt-12 space-y-2">
           {navItems.map((item) => {
             const Icon = NAV_ICON[item];
             const active = nav === item;
@@ -1117,6 +1119,7 @@ function LiveOrders({
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
@@ -1125,7 +1128,7 @@ function LiveOrders({
   const counts = FILTERS.map(({ key }) => ({ key, n: key === "All" ? orders.length : orders.filter((o) => o.status === key).length }));
   const filtered = orders.filter(
     (order) =>
-      matchesOrderFilter(order, filter) && `${order.number} ${order.table ?? ""}`.toLowerCase().includes(query.toLowerCase()),
+      (selectedStatuses.length === 0 || selectedStatuses.includes(order.status)) && matchesOrderFilter(order, filter) && `${order.number} ${order.table ?? ""}`.toLowerCase().includes(query.toLowerCase()),
   );
 
   async function openDetail(order: Order) {
@@ -1214,7 +1217,8 @@ function LiveOrders({
           <div className="min-w-0 flex-1">
             <SearchField value={query} onChange={setQuery} placeholder="Cari nomor pesanan atau meja…" />
           </div>
-          {isAdmin && <a href={`/api/reports/daily.pdf?date=${jakartaToday()}`} className="hidden h-11 shrink-0 items-center gap-2 rounded-full border border-[#E5DCC8] px-5 text-[13px] font-normal text-[#78716C] sm:flex"><Download size={15} strokeWidth={1.8} />Unduh PDF</a>}
+          <div className="hidden w-[200px] shrink-0 sm:block"><WarmMultiSelect label="Filter status" options={FILTERS.filter((item) => item.key !== "All").map((item) => ({ value: item.key, label: item.label }))} value={selectedStatuses} onChange={setSelectedStatuses} placeholder="Semua status" /></div>
+          {isAdmin && <a href={`/api/reports/daily.pdf?date=${jakartaToday()}`} className="hidden h-11 shrink-0 items-center gap-2 rounded-2xl bg-[#F1EADB] px-5 text-[13px] font-medium text-[#71675C] sm:flex"><Download size={15} strokeWidth={1.8} />Unduh PDF</a>}
         </div>
 
         <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
@@ -1354,9 +1358,9 @@ function LiveOrders({
   );
 }
 
-function payMethodLabel(method?: string) {
+function payMethodLabel(method?: string, provider?: string) {
   if (!method) return "—";
-  if (method.toLowerCase() === "qris") return "QRIS";
+  if (method.toLowerCase() === "qris") return provider === "manual_qris" ? "QRIS manual" : "QRIS otomatis";
   if (["cash", "tunai"].includes(method.toLowerCase())) return "Tunai";
   return method.toUpperCase();
 }
@@ -1431,6 +1435,7 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
     : "Selesaikan pembayaran untuk melanjutkan pesanan.";
   const [checkingPay, setCheckingPay] = useState(false);
   const [resumeQr, setResumeQr] = useState<{ qrString?: string; qrImageUrl?: string; expiresAt: string } | null>(null);
+  const [verifyManual, setVerifyManual] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
   useDialogFocus(dialogRef, onClose);
   const createdAt = formatCreatedAt(detail.order.created_at);
@@ -1577,7 +1582,7 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
               <div className="flex items-center justify-between gap-4">
                 <span className="text-[13px] text-[#A8A29E]">Metode</span>
                 <span className="text-right text-[13px] text-[#1C1917]">
-                  <MetaInline parts={[payMethodLabel(payment?.method), payment?.provider ?? null]} />
+                  {payMethodLabel(payment?.method, payment?.provider)}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
@@ -1640,7 +1645,12 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
               >
                 {nextActionLabel(detail.order.status)}
               </button>
-              {payment?.status === "pending" && (
+              {payment?.provider === "manual_qris" && payment?.status === "pending" && (
+                <button type="button" onClick={() => setVerifyManual(true)} className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#F5EBD4] text-[13px] font-semibold text-[#684D20]">
+                  <QrCode size={17} /> Verifikasi QRIS manual
+                </button>
+              )}
+              {payment?.provider !== "manual_qris" && payment?.status === "pending" && (
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -1672,6 +1682,13 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
             </>
           )}
         </div>
+        {verifyManual && payment?.provider === "manual_qris" && (
+          <ManualQrisVerification
+            payment={{ orderId: detailId, orderNumber: detail.order.order_number, totalIdr: detail.order.total_idr, expiresAt: payment.expires_at ?? undefined }}
+            onClose={() => setVerifyManual(false)}
+            onVerified={() => { setVerifyManual(false); onSettled?.(detailId); onShowNotice("QRIS manual telah diverifikasi."); }}
+          />
+        )}
         {resumeQr && (
           <ResumeQrOverlay
             qrString={resumeQr.qrString}
@@ -1745,7 +1762,7 @@ type CartLine = CartItem;
 function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }: { cashierOpen: boolean; onShowNotice: (message: string) => void; onOrderCreated?: (orderId?: string) => Promise<void>; onOpenShift: () => void }) {
   const [menu, setMenu] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<"qris" | "cash">("qris");
+  const [paymentMethod, setPaymentMethod] = useState<"qris" | "qris_manual" | "cash">("qris");
   const [paymentSettings, setPaymentSettings] = useState({ qrisEnabled: false, cashEnabled: false });
   const [cart, setCart] = useState<CartLine[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -1758,6 +1775,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
   const [category, setCategory] = useState<string>(ALL_CATEGORIES_ID);
   const [query, setQuery] = useState("");
   const [payment, setPayment] = useState<{ orderId: string; qrString?: string; qrImageUrl?: string; orderNumber: string; totalIdr: number; expiresAt: string } | null>(null);
+  const [manualPayment, setManualPayment] = useState<{ orderId: string; orderNumber: string; totalIdr: number; expiresAt?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const intentKey = useRef<string | null>(null);
@@ -1848,7 +1866,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
 
   async function createOrder() {
     if (!cart.length || saving) return;
-    if (paymentMethod === "qris" && !paymentSettings.qrisEnabled) { onShowNotice("QRIS sedang tidak tersedia."); return; }
+    if (paymentMethod !== "cash" && !paymentSettings.qrisEnabled) { onShowNotice("QRIS sedang tidak tersedia."); return; }
     if (paymentMethod === "cash" && !paymentSettings.cashEnabled) { onShowNotice("Pembayaran tunai sedang tidak tersedia."); return; }
     if (paymentMethod === "cash") {
       const tableName = tableId ? (tables.find((table) => table.id === tableId)?.label ?? "Meja") : "Tanpa meja / walk-in";
@@ -1885,6 +1903,13 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
       if (paymentMethod === "cash") {
         setCart([]); intentKey.current = null; setCartOpen(false); await onOrderCreated?.(payload.orderId); onShowNotice(`${payload.orderNumber} lunas tunai.`); return;
       }
+      if (paymentMethod === "qris_manual") {
+        setManualPayment({ orderId: payload.orderId, orderNumber: payload.orderNumber, totalIdr: payload.totalIdr, expiresAt: payload.expiresAt ?? undefined });
+        setCart([]);
+        setCartOpen(false);
+        await onOrderCreated?.(payload.orderId);
+        return;
+      }
       setPayment({ orderId: payload.orderId, qrString: payload.qrString ?? undefined, qrImageUrl: payload.qrImageUrl ?? undefined, orderNumber: payload.orderNumber, totalIdr: payload.totalIdr, expiresAt: payload.expiresAt });
       setCart([]);
       setCartOpen(false);
@@ -1909,15 +1934,15 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
   return (
     <div>
       <div className="hidden lg:block">
-        <PageHead title="Kasir" sub={<MetaInline parts={[tableId ? (tables.find((table) => table.id === tableId)?.label ?? "Meja") : "Tanpa meja / walk-in", paymentMethod === "cash" ? "Tunai" : "QRIS"]} />} />
+        <PageHead title="Kasir" sub={<MetaInline parts={[tableId ? (tables.find((table) => table.id === tableId)?.label ?? "Meja") : "Tanpa meja / walk-in", paymentMethod === "cash" ? "Tunai" : paymentMethod === "qris_manual" ? "QRIS manual" : "QRIS otomatis"]} />} />
       </div>
 
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="min-w-0 overflow-hidden rounded-3xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
           <div className="border-b border-[#F1EBDC] bg-[#FAF7F1] p-4 sm:p-5">
           <div className="grid gap-2.5 sm:grid-cols-2">
-            <div className="flex rounded-2xl bg-[#EDE8DB] p-1" role="group" aria-label="Metode pembayaran">
-              {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris", label: "QRIS", enabled: paymentSettings.qrisEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-10 flex-1 rounded-xl text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "bg-[#FFFEFB] font-semibold text-[#1C1917] shadow-xs" : "text-[#78716C]")}>{method.label}</button>)}
+            <div className="flex flex-col gap-1 rounded-[20px] bg-[#EDE8DB] p-1 sm:flex-row" role="group" aria-label="Metode pembayaran">
+              {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris_manual", label: "QRIS manual", enabled: paymentSettings.qrisEnabled }, { key: "qris", label: "QRIS otomatis", enabled: paymentSettings.qrisEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-10 flex-1 rounded-xl text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "bg-[#FFFEFB] font-semibold text-[#1C1917] shadow-xs" : "text-[#78716C]")}>{method.label}</button>)}
             </div>
             <div className="block text-[13px] font-medium text-[#1C1917]">
               <WarmSelect id="cashier-table" label="Meja" value={tableId ?? ""} onChange={(next) => setTableId(next || null)} placeholder="Meja — opsional" className="[&_button]:h-12 [&_button]:rounded-2xl [&_button]:bg-[#EDE8DB]" options={[{ value: "", label: "Tanpa meja / walk-in" }, ...tables.map((table) => ({ value: table.id, label: table.label }))]} />
@@ -2006,7 +2031,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
             {cart.length > 0 && <button type="button" onClick={clearCart} className="rounded-full px-2 py-1 text-[13px] text-white/60 transition hover:text-white">Hapus Semua</button>}
           </div>
           <p className="mt-1 text-[13px] text-white/60">
-            <MetaInline parts={[tableId ? (tables.find((table) => table.id === tableId)?.label ?? "Meja") : "Tanpa meja / walk-in", paymentMethod === "cash" ? "Tunai" : "QRIS"]} />
+            <MetaInline parts={[tableId ? (tables.find((table) => table.id === tableId)?.label ?? "Meja") : "Tanpa meja / walk-in", paymentMethod === "cash" ? "Tunai" : paymentMethod === "qris_manual" ? "QRIS manual" : "QRIS otomatis"]} />
           </p>
           <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
             {cart.length ? (
@@ -2164,6 +2189,18 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
         />
       )}
 
+      {manualPayment && (
+        <ManualQrisVerification
+          payment={manualPayment}
+          onClose={() => { setManualPayment(null); intentKey.current = null; }}
+          onVerified={() => {
+            onShowNotice(`${manualPayment.orderNumber} telah diverifikasi.`);
+            void onOrderCreated?.(manualPayment.orderId);
+            setManualPayment(null);
+            intentKey.current = null;
+          }}
+        />
+      )}
       {payment && (
         <CashierPayment
           payment={payment}
