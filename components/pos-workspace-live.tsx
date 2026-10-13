@@ -440,7 +440,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:block lg:min-h-screen">
         {/* Mobile top bar — same typography + structure across all 5 menus */}
-        <header className="shrink-0 border-b border-[#EFE7D6] bg-[#FAF7F1]/90 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md lg:hidden">
+        <header className="relative z-50 shrink-0 border-b border-[#EFE7D6] bg-[#FAF7F1]/90 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md lg:hidden">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-[22px] font-medium leading-snug tracking-tight text-[#1C1917]">{pageTitle(nav)}</h1>

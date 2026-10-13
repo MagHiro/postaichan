@@ -1,6 +1,6 @@
 import test from "node:test";
 import { indonesianOrderAnnouncement } from "../lib/order-alerts.ts";
-import { formatEscPos } from "../lib/receipt-escpos.ts";
+import { formatEscPos, bluetoothUuid } from "../lib/receipt-escpos.ts";
 import type { ReceiptData } from "../lib/receipt-types.ts";
 import { cashierOrderSchema, checkoutSchema, customerNameSchema } from "../lib/schemas.ts";
 import assert from "node:assert/strict";
@@ -157,6 +157,9 @@ test("Indonesian narration and ESC/POS receipt preserve customer, order and paym
     settings: { merchant_name: "Tempat Taichan", address: "Jl. Contoh 10", footer: "Terima kasih",
       paper_width_mm: 58, ble_service_uuid: "ffe0", ble_characteristic_uuid: "ffe1" },
   };
+  assert.equal(bluetoothUuid("ffe0"), 0xffe0);
+  assert.equal(bluetoothUuid("0000ffe1"), 0xffe1);
+  assert.equal(bluetoothUuid("0000ffe0-0000-1000-8000-00805f9b34fb"), "0000ffe0-0000-1000-8000-00805f9b34fb");
   const bytes = formatEscPos(receipt);
   assert.deepEqual(Array.from(bytes.slice(0, 2)), [0x1b, 0x40]);
   assert.deepEqual(Array.from(bytes.slice(-3)), [0x1d, 0x56, 0x00]);

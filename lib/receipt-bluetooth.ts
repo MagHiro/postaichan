@@ -1,6 +1,6 @@
 "use client";
 import type { ReceiptData } from "./receipt-types";
-import { formatEscPos } from "./receipt-escpos";
+import { formatEscPos, bluetoothUuid } from "./receipt-escpos";
 
 type Writer = {
   writeValueWithResponse?: (value: BufferSource) => Promise<void>;
@@ -8,17 +8,17 @@ type Writer = {
   writeValue?: (value: BufferSource) => Promise<void>;
 };
 type BluetoothDevice = {
-  gatt?: { connect: () => Promise<{ getPrimaryService: (uuid: string) => Promise<{ getCharacteristic: (uuid: string) => Promise<Writer> }> }>; disconnect: () => void };
+  gatt?: { connect: () => Promise<{ getPrimaryService: (uuid: string | number) => Promise<{ getCharacteristic: (uuid: string | number) => Promise<Writer> }> }>; disconnect: () => void };
 };
-type BluetoothApi = { requestDevice: (options: { acceptAllDevices: boolean; optionalServices: string[] }) => Promise<BluetoothDevice> };
+type BluetoothApi = { requestDevice: (options: { acceptAllDevices: boolean; optionalServices: Array<string | number> }) => Promise<BluetoothDevice> };
 
 // Call this function DIRECTLY from an onClick handler: device selection requires
 // transient user activation on Chrome Android/Desktop and is unavailable on iOS Safari.
 export async function printBluetoothReceipt(receipt: ReceiptData) {
   const bluetooth = (navigator as Navigator & { bluetooth?: BluetoothApi }).bluetooth;
   if (!bluetooth) throw new Error("Browser ini tidak mendukung Bluetooth LE. Gunakan Cetak biasa (AirPrint/print dialog).");
-  const serviceUuid = receipt.settings.ble_service_uuid;
-  const characteristicUuid = receipt.settings.ble_characteristic_uuid;
+  const serviceUuid = bluetoothUuid(receipt.settings.ble_service_uuid);
+  const characteristicUuid = bluetoothUuid(receipt.settings.ble_characteristic_uuid);
   const device = await bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [serviceUuid] });
   if (!device.gatt) throw new Error("Printer tidak memiliki layanan Bluetooth GATT.");
   const server = await device.gatt.connect();
