@@ -82,6 +82,7 @@ jobs:
         env:
           NODE_ENV: production
           DATABASE_URL: postgresql://postaichan_ci:ci-only-password@127.0.0.1:5432/postaichan_ci_test
+          DATABASE_URL: postgresql://postaichan_ci:ci-only-password@127.0.0.1:5432/postaichan_ci_test
           APP_ORIGIN: https://postaichan.example.test
           MIDTRANS_SERVER_KEY: ci-only-not-a-provider-credential
           MIDTRANS_IS_PRODUCTION: "false"
