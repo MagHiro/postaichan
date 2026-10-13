@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { Poppins } from "next/font/google";
 import "./globals.css";
+import { MotionSystem } from "@/components/motion-system";
 
 const poppins = Poppins({
   variable: "--font-sans",
@@ -30,7 +31,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   await headers();
   return (
     <html lang="id">
-      <body className={`${poppins.variable}`}>{children}</body>
+      <body className={`${poppins.variable}`}><MotionSystem />{children}</body>
     </html>
   );
 }
