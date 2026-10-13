@@ -18,7 +18,7 @@ export async function register() {
      from pg_roles r where r.rolname = current_user`,
   );
   const role = result.rows[0];
-  if (!role || role.is_superuser || !role.owns_public_schema || role.owns_app_objects || !role.runtime_member || !role.ddl_member || !role.runtime_group_safe || !role.ddl_group_safe) {
-    throw new Error("Unsafe production database role configuration; DATABASE_URL must be a non-superuser member of postaichan_runtime and postaichan_ddl, with application objects owned by postaichan_ddl.");
+  if (!role || role.is_superuser || !role.owns_public_schema || role.owns_app_objects || !role.runtime_member || role.ddl_member || !role.runtime_group_safe || !role.ddl_group_safe) {
+    throw new Error("Unsafe production database role configuration; DATABASE_URL must be a non-superuser member of postaichan_runtime, must NOT belong to postaichan_ddl, and application objects must be owned by postaichan_ddl.");
   }
 }
