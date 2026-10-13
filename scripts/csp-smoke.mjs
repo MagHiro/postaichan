@@ -25,18 +25,24 @@ try {
 
   server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", host, "--port", String(port)], {
     env: process.env,
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "pipe"],
   });
+  let startupLog = "";
+  let lastProbe = "not started";
+  for (const stream of [server.stdout, server.stderr]) {
+    stream?.on("data", (chunk) => { startupLog = (startupLog + String(chunk)).slice(-16000); });
+  }
   let ready = false;
   for (let attempt = 0; attempt < 60; attempt += 1) {
     if (server.exitCode !== null) throw new Error("Production server exited before readiness.");
     try {
       const response = await fetch(`${baseUrl}/api/health/live`, { signal: AbortSignal.timeout(1000) });
       if (response.ok) { ready = true; break; }
-    } catch { /* The process is still starting. */ }
+      lastProbe = `HTTP ${response.status} ${await response.text().catch(() => "")}`;
+    } catch (error) { lastProbe = error instanceof Error ? `${error.name}: ${error.message}` : String(error); }
     await delay(500);
   }
-  assert.equal(ready, true, "Production server did not become ready");
+  assert.equal(ready, true, `Production server did not become ready; last probe: ${lastProbe}; server output: ${startupLog}`);
   const health = await fetch(`${baseUrl}/api/health/ready`);
   assert.equal(health.status, 200, "Readiness must pass against the isolated PostgreSQL test DB");
 
