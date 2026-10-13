@@ -18,7 +18,7 @@ export function MenuRow({
 }) {
   const badge = badgeFor(product);
   return (
-    <article className="flex items-center gap-4 py-4">
+    <article className="modern-tile flex items-center gap-4 rounded-[23px] bg-[#FFFEFB] px-3 py-3 sm:px-4 sm:py-4">
       <button
         type="button"
         onClick={() => onOpen(product)}

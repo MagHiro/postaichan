@@ -44,6 +44,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   } | null>(null);
   const [payment, setPayment] = useState<PaymentAttempt | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [paymentChoice, setPaymentChoice] = useState<"qris" | "qris_manual">("qris");
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [variantOptionIds, setVariantOptionIds] = useState<string[]>([]);
@@ -148,8 +149,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         const response = await fetch(`/api/customer/payments/${reference.orderId}`, { method: "POST", headers: { "x-order-access-token": session.token }, cache: "no-store" });
         const payload = await response.json().catch(() => null);
         if (cancelled || !response.ok || !payload) return;
-        if (payload.paymentStatus === "pending" && (payload.qrString || payload.qrImageUrl)) {
-          setPayment({ orderId: reference.orderId!, orderNumber: payload.orderNumber, amountIdr: payload.amountIdr, qrString: payload.qrString ?? undefined, qrImageUrl: payload.qrImageUrl ?? undefined, expiresAt: payload.expiresAt });
+        if (payload.paymentStatus === "pending" && (payload.qrString || payload.qrImageUrl || payload.provider === "manual_qris")) {
+          setPayment({ orderId: reference.orderId!, orderNumber: payload.orderNumber, amountIdr: payload.amountIdr, qrString: payload.qrString ?? undefined, qrImageUrl: payload.qrImageUrl ?? undefined, expiresAt: payload.expiresAt, provider: payload.provider === "manual_qris" ? "manual_qris" : "midtrans" });
           setStep("payment");
         } else if (payload.paymentStatus === "settled") {
           setPayment({ orderId: reference.orderId!, orderNumber: payload.orderNumber, amountIdr: payload.amountIdr, expiresAt: payload.expiresAt });
@@ -321,6 +322,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         body: JSON.stringify({
           idempotencyKey: checkoutIntentKey.current,
           sessionToken: activeSessionToken,
+          paymentChoice,
           items: cart.map((item) => ({
             productId: item.product.id,
             quantity: item.quantity,
@@ -333,7 +335,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
       const payload = await response.json();
       if (!response.ok)
         throw new Error(payload.error ?? "Pembayaran belum dapat dibuat. Coba lagi.");
-      if (!payload.qrString && !payload.qrImageUrl) throw new Error("Pembayaran belum siap. Coba lagi dengan tombol yang sama.");
+      if (paymentChoice !== "qris_manual" && !payload.qrString && !payload.qrImageUrl) throw new Error("Pembayaran belum siap. Coba lagi dengan tombol yang sama.");
       setPayment({
         orderId: payload.orderId,
         orderNumber: payload.orderNumber,
@@ -341,6 +343,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         qrString: payload.qrString ?? undefined,
         qrImageUrl: payload.qrImageUrl ?? undefined,
         expiresAt: payload.expiresAt,
+        provider: payload.provider === "manual_qris" ? "manual_qris" : "midtrans",
       });
       setStep("payment");
       window.sessionStorage.setItem("tt-active-payment", JSON.stringify({ orderId: payload.orderId, idempotencyKey: checkoutIntentKey.current }));
@@ -444,12 +447,12 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const menuTitle = !category || category === ALL_CATEGORIES_ID ? "Menu" : (activeCategoryName ?? "Menu");
 
   return (
-    <main className="flex min-h-screen justify-center bg-[#FAF7F1] text-[#1C1917] antialiased selection:bg-[#FDBD2C] selection:text-[#1C1917]">
-      <div className="relative flex min-h-screen w-full max-w-[440px] flex-col bg-[#FAF7F1] pb-36">
-        <header className="sticky top-0 z-30 border-b border-[#E9E1D1] bg-[#FAF7F1]/90 backdrop-blur-md">
+    <main className="modern-order flex min-h-screen justify-center bg-[#FAF7F1] text-[#1C1917] antialiased selection:bg-[#FDBD2C] selection:text-[#1C1917]">
+      <div className="relative flex min-h-screen w-full max-w-[960px] flex-col bg-[#FAF7F1] pb-36">
+        <header className="sticky top-0 z-30 bg-[#FAF7F1]/95 backdrop-blur-xl">
           <div className="px-5 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
             <div className="flex h-11 items-center justify-between gap-3">
-              <h1 className="min-w-0 flex-1 truncate text-[18px] font-semibold tracking-tight">
+              <h1 className="min-w-0 flex-1 truncate text-[25px] font-semibold tracking-[-.055em]">
                 {activeTab === "orders" ? "Pesanan" : menuTitle}
               </h1>
               {session?.tableLabel && (
@@ -518,7 +521,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
             )}
 
             {menuLoading ? (
-              <div className="mt-2 divide-y divide-[#E9E1D1]">
+              <div className="mt-4 grid gap-3 lg:grid-cols-2 lg:gap-5">
                 {[0, 1, 2, 3].map((i) => (
                   <SkeletonRow key={i} />
                 ))}
@@ -540,7 +543,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                         {section.items.length} menu
                       </span>
                     </div>
-                    <div className="mt-2 divide-y divide-[#E9E1D1]">
+                    <div className="mt-4 grid gap-3 lg:grid-cols-2 lg:gap-5">
                       {section.items.map((product) => (
                         <MenuRow
                           key={product.id}
@@ -554,7 +557,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                 ))}
               </div>
             ) : (
-              <div className="mt-2 divide-y divide-[#E9E1D1]">
+              <div className="mt-4 grid gap-3 lg:grid-cols-2 lg:gap-5">
                 {filteredProducts.map((product) => (
                   <MenuRow
                     key={product.id}
@@ -593,6 +596,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                         checkoutLoading={checkoutLoading}
                         checkoutError={checkoutError}
                         checkoutDisabled={Boolean((tableToken || generalToken) && !session)}
+                        paymentChoice={paymentChoice}
+                        onPaymentChoiceChange={(choice) => { setPaymentChoice(choice); resetCheckoutIntent(); }}
                       />
                     </div>
                   </div>
@@ -638,7 +643,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         )}
 
         <nav aria-label="Navigasi pemesanan" className="fixed inset-x-0 bottom-0 z-40">
-          <div className="mx-auto flex max-w-[440px] border-t border-[#EFE7D6] bg-[#FAF7F1]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
+          <div className="mx-auto flex max-w-[960px] rounded-t-[24px] bg-[#FFFEFB]/95 shadow-[0_-12px_35px_-19px_rgba(83,52,26,.22)] pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
             <button
               type="button"
               onClick={() => setActiveTab("home")}
