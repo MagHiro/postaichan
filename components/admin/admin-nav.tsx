@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, QrCode, Tags, Users, ShieldAlert } from "lucide-react";
+import { LayoutGrid, QrCode, Tags, Users, ShieldAlert, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ADMIN_NAV = [
   { href: "/admin/tables", label: "Meja & QR", icon: LayoutGrid },
   { href: "/admin/general-qr", label: "QR umum", icon: QrCode },
   { href: "/admin/staff", label: "Akun staff", icon: Users },
+  { href: "/admin/receipt", label: "Struk & printer", icon: Printer },
   { href: "/admin/categories", label: "Kategori menu", icon: Tags },
   { href: "/admin/reconciliation", label: "Rekonsiliasi", icon: ShieldAlert },
 ] as const;

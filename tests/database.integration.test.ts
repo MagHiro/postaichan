@@ -164,6 +164,24 @@ test("PostgreSQL 16 production invariants, checkout, provider races, reconciliat
 
     currentShiftId = (await runtime.query("select public.open_cashier_shift($1::uuid, 'main integration shift', $2::jsonb)", [actor, JSON.stringify([{ productId: tracked, quantity: 100 }])])).rows[0].open_cashier_shift as string;
 
+    await t.test("receipt layout settings are admin-only, validated, persisted, and audited", async () => {
+      const before = (await runtime.query("select * from public.receipt_settings where id=true")).rows[0];
+      assert.ok(before);
+      assert.equal(before.paper_width_mm, 58);
+      assert.equal((await runtime.query("select has_table_privilege(current_user,'public.receipt_settings','UPDATE') as allowed")).rows[0].allowed, false);
+      assert.equal((await runtime.query("select has_function_privilege(current_user,'public.update_receipt_settings(text,text,text,integer,text,text,uuid)','EXECUTE') as allowed")).rows[0].allowed, true);
+      const sql = "select * from public.update_receipt_settings($1,$2,$3,$4,$5,$6,$7::uuid)";
+      const values = ["Bara & Burn", "Jl. Test No. 1", "Terima kasih", 80, "ffe0", "ffe1"];
+      await assert.rejects(runtime.query(sql, [...values, null]), /ADMIN_NOT_AUTHORIZED/);
+      await assert.rejects(runtime.query(sql, [...values.slice(0,3), 60, ...values.slice(4), actor]), /INVALID_RECEIPT_SETTINGS/);
+      const changed = (await runtime.query(sql, [...values, actor])).rows[0];
+      assert.equal(changed.merchant_name, "Bara & Burn");
+      assert.equal(changed.paper_width_mm, 80);
+      assert.equal((await runtime.query("select merchant_name from public.receipt_settings where id=true")).rows[0].merchant_name, "Bara & Burn");
+      assert.equal((await admin.query("select count(*) from public.audit_logs where action='receipt_settings_updated' and actor_id=$1", [actor])).rows[0].count, "1");
+    });
+
+
     await t.test("customer handoff names persist atomically; cashier/general QR require them; table QR makes them optional", async () => {
       const items = JSON.stringify(itemFor(free));
       const call = async (options: {

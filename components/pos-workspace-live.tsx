@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
-import { AlertTriangle, Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, LayoutDashboard, LogOut, Minus, Package, Plus, Power, QrCode, ReceiptText, RefreshCw, Search, Settings, ShoppingBag, ShoppingBasket, Store, TrendingUp, UtensilsCrossed, Wallet, X } from "lucide-react";
+import { AlertTriangle, Banknote, BookOpen, ChartNoAxesColumn, ChefHat, ClipboardList, Download, History, Home, Hourglass, LayoutDashboard, LogOut, Minus, Package, Plus, Power, QrCode, ReceiptText, RefreshCw, Search, Settings, Printer, ShoppingBag, ShoppingBasket, Store, TrendingUp, UtensilsCrossed, Wallet, X } from "lucide-react";
 import { formatCompactIDR, formatCountdown, formatIDR } from "@/lib/format";
 import type { CartItem, Category, Order, Product } from "@/lib/types";
 import { ALL_CATEGORIES_ID } from "@/components/order/constants";
@@ -21,6 +21,8 @@ import { formatShiftOpenedAt, ShiftCloseSheet, ShiftOpenSheet, useShiftStatus, t
 import { useDialogFocus } from "@/components/use-dialog-focus";
 import { ConfirmSheet, type ConfirmState } from "@/components/pos-confirm-sheet";
 import { playNewOrderSound, unlockOrderSound } from "@/lib/sound";
+import { indonesianOrderAnnouncement } from "@/lib/order-alerts";
+import { PosOrderAlerts } from "@/components/pos-order-alerts";
 
 type NavItem = "Overview" | "Orders" | "POS" | "Menu" | "Reports";
 type Detail = {
@@ -132,6 +134,89 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   const localOrderIds = useRef<Set<string>>(new Set());
   const soundEnabled = useRef(true);
   const [muted, setMuted] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">("unsupported");
+  const voiceRef = useRef(false);
+  const notificationRef = useRef(false);
+  const initializedPaidOrders = useRef(false);
+
+  useEffect(() => {
+    try {
+      const isMuted = window.localStorage.getItem("tt-order-chime-muted") === "1";
+      setMuted(isMuted); soundEnabled.current = !isMuted;
+      const voice = window.localStorage.getItem("tt-order-voice") === "1";
+      setVoiceEnabled(voice); voiceRef.current = voice;
+      const enabled = window.localStorage.getItem("tt-order-notifications") === "1";
+      const permission = "Notification" in window ? window.Notification.permission : "unsupported";
+      setNotificationPermission(permission);
+      setNotificationsEnabled(enabled && permission === "granted");
+      notificationRef.current = enabled && permission === "granted";
+    } catch { /* Storage may be restricted; defaults are safe. */ }
+  }, []);
+
+  function toggleMute(next: boolean) {
+    setMuted(next); soundEnabled.current = !next;
+    try { window.localStorage.setItem("tt-order-chime-muted", next ? "1" : "0"); } catch {}
+  }
+
+  function toggleVoice(next: boolean) {
+    if (next && !("speechSynthesis" in window)) {
+      showNotice("Narasi suara tidak didukung browser ini."); return;
+    }
+    setVoiceEnabled(next); voiceRef.current = next;
+    try { window.localStorage.setItem("tt-order-voice", next ? "1" : "0"); } catch {}
+    if (next) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance("Narasi pesanan aktif.");
+      utterance.lang = "id-ID";
+      utterance.rate = 0.95;
+      const voice = window.speechSynthesis.getVoices().find(v => v.lang.toLowerCase().startsWith("id"));
+      if (voice) utterance.voice = voice;
+      window.speechSynthesis.speak(utterance);
+    } else if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  }
+
+  async function toggleNotifications() {
+    if (notificationRef.current) {
+      notificationRef.current = false; setNotificationsEnabled(false);
+      try { window.localStorage.setItem("tt-order-notifications", "0"); } catch {}
+      return;
+    }
+    if (!("Notification" in window)) { showNotice("Notifikasi tidak tersedia di browser ini."); return; }
+    const permission = await window.Notification.requestPermission();
+    setNotificationPermission(permission);
+    if (permission !== "granted") { showNotice("Izin notifikasi belum diberikan."); return; }
+    notificationRef.current = true; setNotificationsEnabled(true);
+    try { window.localStorage.setItem("tt-order-notifications", "1"); } catch {}
+    showNotice("Notifikasi browser aktif untuk pesanan baru.");
+  }
+
+  function announceIncomingOrders(fresh: Order[]) {
+    if (!fresh.length) return;
+    if (soundEnabled.current) playNewOrderSound();
+    if (voiceRef.current && "speechSynthesis" in window) {
+      for (const order of fresh.slice(0, 3)) {
+        const utterance = new SpeechSynthesisUtterance(indonesianOrderAnnouncement(order));
+        utterance.lang = "id-ID"; utterance.rate = 0.94;
+        const voice = window.speechSynthesis.getVoices().find(v => v.lang.toLowerCase().startsWith("id"));
+        if (voice) utterance.voice = voice;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+    if (notificationRef.current && "Notification" in window && window.Notification.permission === "granted") {
+      for (const order of fresh.slice(0, 3)) {
+        try {
+          const notification = new window.Notification("Pesanan baru • " + order.number, {
+            body: [order.customer, order.table ?? "Ambil di kasir"].filter(Boolean).join(" • "),
+            tag: "postaichan-order-" + order.id,
+          });
+          notification.onclick = () => { window.focus(); setNav("Orders"); notification.close(); };
+        } catch { /* Some browsers expose Notification but disallow constructors. */ }
+      }
+    }
+  }
+
   const { shift, refresh: refreshShift } = useShiftStatus(showNotice);
   const [shiftSheet, setShiftSheet] = useState<"open" | "close" | null>(null);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -175,17 +260,18 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
   function noteNewPaidOrders(next: Order[]) {
     const known = paidOrderIds.current;
     // Seed silently on the first load so history does not chime.
-    if (known.size === 0 && orders.length === 0) {
+    if (!initializedPaidOrders.current) {
+      initializedPaidOrders.current = true;
       for (const order of next) known.set(order.id, paymentIsCaptured(order.paymentStatus));
       return;
     }
-    let fresh = false;
+    const fresh: Order[] = [];
     for (const order of next) {
       const isPaid = paymentIsCaptured(order.paymentStatus);
-      if (isPaid && known.get(order.id) !== true && !localOrderIds.current.has(order.id)) fresh = true;
+      if (isPaid && known.get(order.id) !== true && !localOrderIds.current.has(order.id)) fresh.push(order);
       known.set(order.id, isPaid);
     }
-    if (fresh && soundEnabled.current) playNewOrderSound();
+    announceIncomingOrders(fresh);
   }
 
   function markLocalOrder(orderId: string, paid: boolean) {
@@ -229,14 +315,19 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
 
-  const hasActive = orders.some(isActiveOrder);
-
   useEffect(() => {
-    if (!hasActive) return;
+    if (!cashierOpen) return;
     const timer = window.setInterval(() => void loadOperations(true), 15000);
-    return () => window.clearInterval(timer);
+    const refreshOnFocus = () => { if (!document.hidden) void loadOperations(true); };
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnFocus);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, hasActive]);
+  }, [date, cashierOpen]);
 
   async function advanceOrder(order: Order) {
     if (advancingId) return;
@@ -358,6 +449,12 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <PosOrderAlerts
+                prefs={{ muted, voice: voiceEnabled, notifications: notificationsEnabled }}
+                onMute={toggleMute} onVoice={toggleVoice} onNotifications={() => void toggleNotifications()}
+                notificationAvailable={notificationPermission !== "unsupported"}
+                notificationPermission={notificationPermission}
+              />
               {nav !== "POS" && (
                 <button
                   type="button"
@@ -389,23 +486,12 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
               <h1 className="mt-1 text-[22px] font-medium leading-snug tracking-tight">{pageTitle(nav)}</h1>
             </div>
             <div className="flex items-center gap-5">
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !muted;
-                  setMuted(next);
-                  soundEnabled.current = !next;
-                }}
-                aria-pressed={!muted}
-                title={muted ? "Nyalakan bunyi pesanan" : "Matikan bunyi pesanan"}
-                className={cn(
-                  "flex items-center gap-2 rounded-full px-3 py-2 text-xs",
-                  muted ? "bg-[#F3EFE6] text-[#78716C]" : "bg-[#FDBD2C]/20 font-medium text-[#1C1917]",
-                )}
-              >
-                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
-                {muted ? "Bunyi mati" : "Bunyi nyala"}
-              </button>
+              <PosOrderAlerts
+                prefs={{ muted, voice: voiceEnabled, notifications: notificationsEnabled }}
+                onMute={toggleMute} onVoice={toggleVoice} onNotifications={() => void toggleNotifications()}
+                notificationAvailable={notificationPermission !== "unsupported"}
+                notificationPermission={notificationPermission}
+              />
               <button
                 type="button"
                 onClick={() => setShiftSheet(cashierOpen ? "close" : "open")}
@@ -1523,6 +1609,12 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
             <h2 id="order-detail-title" className="mt-4 truncate text-lg font-medium leading-tight tracking-tight text-[#1C1917]">{detail.order.order_number}</h2>
             {detail.order.customer_name && <p className="mt-2 break-words text-[15px] font-semibold text-[#1C1917]">Atas nama: {detail.order.customer_name}</p>}
             <p className="mt-1 text-[13px] text-[#78716C]"><MetaInline parts={[createdAt.day, createdAt.time]} /></p>
+            <div className="mt-3">
+              <a href={`/pos/receipt/${detailId}`} target="_blank" rel="noopener noreferrer"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#FDBD2C] px-4 text-[13px] font-semibold text-[#1C1917]">
+                <Printer size={16} /> Cetak struk / Bluetooth
+              </a>
+            </div>
             <div className="mt-5 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-2 rounded-full bg-[#F3EFE6] px-4 py-2 text-[13px] text-[#78716C]">
                 {table ?? "Tanpa meja"}
@@ -1781,6 +1873,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
   const [manualPayment, setManualPayment] = useState<{ orderId: string; orderNumber: string; totalIdr: number; expiresAt?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [lastReceiptId, setLastReceiptId] = useState<string | null>(null);
   const intentKey = useRef<string | null>(null);
   const cartDialogRef = useRef<HTMLElement>(null);
   useDialogFocus(cartDialogRef, () => setCartOpen(false), cartOpen);
@@ -1906,7 +1999,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
         return;
       }
       if (paymentMethod === "cash") {
-        setCart([]); setCustomerName(""); intentKey.current = null; setCartOpen(false); await onOrderCreated?.(payload.orderId); onShowNotice(`${payload.orderNumber} lunas tunai.`); return;
+        setCart([]); setCustomerName(""); setLastReceiptId(payload.orderId); intentKey.current = null; setCartOpen(false); await onOrderCreated?.(payload.orderId); onShowNotice(`${payload.orderNumber} lunas tunai.`); return;
       }
       if (paymentMethod === "qris_manual") {
         setManualPayment({ orderId: payload.orderId, orderNumber: payload.orderNumber, totalIdr: payload.totalIdr, expiresAt: payload.expiresAt ?? undefined });
@@ -1946,15 +2039,41 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
         <PageHead title="Kasir" sub={<MetaInline parts={[tableId ? (tables.find((table) => table.id === tableId)?.label ?? "Meja") : "Tanpa meja / walk-in", paymentMethod === "cash" ? "Tunai" : paymentMethod === "qris_manual" ? "QRIS manual" : "QRIS otomatis"]} />} />
       </div>
 
-      <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_420px]">
+      {lastReceiptId && (
+        <a href={`/pos/receipt/${lastReceiptId}`} target="_blank" rel="noopener noreferrer"
+          className="mt-2 flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[#FDE8B6] px-4 text-[13px] font-semibold text-[#1C1917] lg:mt-4">
+          <Printer size={16} /> Cetak struk pesanan terakhir
+        </a>
+      )}
+      <div className="mt-2 grid items-start gap-3 lg:mt-6 lg:gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="min-w-0 overflow-hidden rounded-3xl border border-[#EFE7D6] bg-[#FFFEFB] shadow-soft">
-          <div className="border-b border-[#F1EBDC] bg-[#FAF7F1] p-4 sm:p-5">
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            <div className="flex flex-col gap-1 rounded-[20px] bg-[#EDE8DB] p-1 sm:flex-row" role="group" aria-label="Metode pembayaran">
-              {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris_manual", label: "QRIS manual", enabled: paymentSettings.qrisEnabled }, { key: "qris", label: "QRIS otomatis", enabled: paymentSettings.qrisEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-10 flex-1 rounded-xl text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "bg-[#FFFEFB] font-semibold text-[#1C1917] shadow-xs" : "text-[#78716C]")}>{method.label}</button>)}
+          <div className="border-b border-[#F1EBDC] bg-[#FAF7F1] p-3 sm:p-5">
+          <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_240px]">
+            <div className="grid grid-cols-3 gap-1 rounded-[16px] bg-[#EDE8DB] p-1" role="group" aria-label="Metode pembayaran">
+              {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris_manual", label: "QRIS manual", enabled: paymentSettings.qrisEnabled }, { key: "qris", label: "QRIS otomatis", enabled: paymentSettings.qrisEnabled }] as const).map((method) =>
+                <button type="button" key={method.key} disabled={!method.enabled} onClick={() => method.enabled && setPaymentMethod(method.key)}
+                  aria-pressed={paymentMethod === method.key}
+                  className={cn("min-h-11 min-w-0 rounded-xl px-1 text-[11px] leading-tight transition sm:text-[13px] disabled:opacity-30",
+                    paymentMethod === method.key ? "bg-[#FFFEFB] font-semibold text-[#1C1917] shadow-xs" : "text-[#78716C]")}>
+                  {method.key === "qris" ? <><span className="sm:hidden">QRIS auto</span><span className="hidden sm:inline">QRIS otomatis</span></> : method.label}
+                </button>
+              )}
             </div>
-            <div className="block text-[13px] font-medium text-[#1C1917]">
+            <div className="hidden lg:block">
               <WarmSelect id="cashier-table" label="Meja" value={tableId ?? ""} onChange={(next) => { setTableId(next || null); intentKey.current = null; }} placeholder="Meja — opsional" className="[&_button]:h-12 [&_button]:rounded-2xl [&_button]:bg-[#EDE8DB]" options={[{ value: "", label: "Tanpa meja / walk-in" }, ...tables.map((table) => ({ value: table.id, label: table.label }))]} />
+            </div>
+          </div>
+          <div className="mt-3 lg:hidden">
+            <p className="mb-1.5 text-[12px] font-semibold text-[#71675C]">Lokasi pesanan</p>
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Pilih meja">
+              {[{ id: "", label: "Tanpa meja" }, ...tables.map(t => ({ id: t.id, label: t.label }))].map(t =>
+                <button type="button" key={t.id} onClick={() => { setTableId(t.id || null); intentKey.current = null; }}
+                  aria-pressed={(tableId ?? "") === t.id}
+                  className={cn("min-h-10 shrink-0 rounded-full px-4 text-[12px] transition",
+                    (tableId ?? "") === t.id ? "bg-[#1C1917] font-semibold text-white" : "bg-[#EDE8DB] text-[#71675C]")}>
+                  {t.label}
+                </button>
+              )}
             </div>
           </div>
 
@@ -1972,25 +2091,31 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
               className="h-12 w-full rounded-2xl bg-[#EDE8DB] px-4 text-[13px] text-[#1C1917] outline-none transition placeholder:text-[#8F8679] focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
             />
           </div>
-          <div className="mt-2.5 grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_220px]">
-            <SearchField value={query} onChange={setQuery} placeholder="Cari menu… (contoh: sate taichan)" />
-            <CategoryDropdown
-              id="cashier-category"
-              value={category}
-              categories={categories}
-              onChange={setCategory}
-            />
+          <div className="mt-2.5 lg:grid lg:grid-cols-[minmax(0,1fr)_220px] lg:gap-2.5">
+            <SearchField value={query} onChange={setQuery} placeholder="Cari menu…" />
+            <div className="hidden lg:block">
+              <CategoryDropdown id="cashier-category" value={category} categories={categories} onChange={setCategory} />
+            </div>
+            <div className="mt-2.5 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:hidden" role="group" aria-label="Filter kategori">
+              {[{ id: ALL_CATEGORIES_ID, name: "Semua menu" }, ...categories].map(c =>
+                <button key={c.id} type="button" onClick={() => setCategory(c.id)} aria-pressed={category === c.id}
+                  className={cn("min-h-9 shrink-0 rounded-full px-4 text-[12px]",
+                    category === c.id ? "bg-[#FDBD2C] font-semibold text-[#1C1917]" : "bg-[#EDE8DB] text-[#71675C]")}>
+                  {c.name}
+                </button>
+              )}
+            </div>
           </div>
           </div>
 
-          <div className="p-5 sm:p-6">
+          <div className="p-3 sm:p-6">
           {filtered.length ? (
             <div>
               <div className="flex items-baseline justify-between">
                 <h3 className="text-sm font-semibold tracking-tight text-[#1C1917]">Menu</h3>
                 <span className="rounded-full bg-[#F3EFE6] px-2.5 py-0.5 text-xs font-medium tabular-nums text-[#78716C]">{filtered.length} item</span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-3">
+              <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 xl:grid-cols-3">
                 {filtered.map((product) => {
                   const qty = cart.filter((item) => item.product.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
                   const lowStock = product.stockTracked && product.available && (product.stockQuantity ?? 0) <= 5;

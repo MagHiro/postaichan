@@ -1,4 +1,7 @@
 import test from "node:test";
+import { indonesianOrderAnnouncement } from "../lib/order-alerts.ts";
+import { formatEscPos } from "../lib/receipt-escpos.ts";
+import type { ReceiptData } from "../lib/receipt-types.ts";
 import { cashierOrderSchema, checkoutSchema, customerNameSchema } from "../lib/schemas.ts";
 import assert from "node:assert/strict";
 import { calculateTotals, validateCheckoutLine, CheckoutDomainError } from "../lib/domain/checkout.ts";
@@ -139,4 +142,26 @@ test("customer handoff names are normalized and cashier checkout requires them",
   assert.equal(cashierOrderSchema.parse({ idempotencyKey: key, items: cart, paymentMethod: "cash", customerName: "  Budi  " }).customerName, "Budi");
   assert.equal(checkoutSchema.parse({ idempotencyKey: key, sessionToken: "s".repeat(32), items: cart }).customerName, undefined);
   assert.equal(checkoutSchema.parse({ idempotencyKey: key, sessionToken: "s".repeat(32), items: cart, customerName: "Rafi" }).customerName, "Rafi");
+});
+
+test("Indonesian narration and ESC/POS receipt preserve customer, order and payment details", () => {
+  assert.equal(indonesianOrderAnnouncement({ number: "TT-12", customer: "Rina", table: "Meja 3" }), "Pesanan baru atas nama Rina, Meja 3.");
+  assert.equal(indonesianOrderAnnouncement({ number: "TT-13" }), "Pesanan baru nomor TT-13, untuk pengambilan di kasir.");
+  const receipt: ReceiptData = {
+    orderNumber: "TT-1209", customerName: "Rina", tableLabel: "Meja 3",
+    createdAt: "2026-10-13T11:00:00.000Z",
+    paymentLabel: "Tunai", paymentStatus: "settled",
+    subtotalIdr: 25000, totalIdr: 25000,
+    lines: [{ name: "Sate Taichan", quantity: 1, unitPriceIdr: 25000, lineTotalIdr: 25000,
+      note: "Pedas", modifiers: ["Sambal ekstra"] }],
+    settings: { merchant_name: "Tempat Taichan", address: "Jl. Contoh 10", footer: "Terima kasih",
+      paper_width_mm: 58, ble_service_uuid: "ffe0", ble_characteristic_uuid: "ffe1" },
+  };
+  const bytes = formatEscPos(receipt);
+  assert.deepEqual(Array.from(bytes.slice(0, 2)), [0x1b, 0x40]);
+  assert.deepEqual(Array.from(bytes.slice(-3)), [0x1d, 0x56, 0x00]);
+  const text = new TextDecoder().decode(bytes.slice(2, -3));
+  for (const fragment of ["Tempat Taichan", "Rina", "Meja 3", "TT-1209", "Sate Taichan", "Terima kasih", "TOTAL"]) {
+    assert.ok(text.includes(fragment), fragment);
+  }
 });

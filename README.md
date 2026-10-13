@@ -41,6 +41,12 @@ For `CLIENT_IP_STRATEGY=trusted_header`, the ingress must remove any client-supp
 
 With `REQUIRE_ORDERING_QR=true`, table and general ordering routes require opaque QR tokens and the public table API omits internal table UUIDs. With it set to `false`, public walk-in ordering is intentionally enabled and can reserve tracked stock before payment. Network, session, QR/table, and global checkout limits apply, and the database atomically caps live pending QRIS reservations at 1,000 across all networks. Tracked inventory is also reserved against available stock. Decide this policy before opening public traffic.
 
+## Receipts and incoming-order alerts
+
+After migration `054_receipt_printer_settings.sql`, admins can edit the receipt title, address, footer, 58/80 mm paper width, and BLE GATT service/write-characteristic UUIDs at `/admin/receipt`. Staff print/reprint from the POS order detail, with a shortcut after cash checkout. The receipt page provides ordinary browser printing (including iPhone AirPrint) and direct Web Bluetooth ESC/POS for compatible **BLE** printers on supported browsers such as Chrome Android/desktop. Printer selection always requires a user gesture, UUIDs vary by printer, and Classic Bluetooth/SPP is not exposed by Web Bluetooth. BLE data delivery does not prove that paper printed; verify the first physical receipt with your device.
+
+In POS, tap the bell to enable optional Indonesian spoken order alerts and browser notifications. These settings are local to the browser. Permission is requested by a button, never in the background. Alerts are based on polling for **newly paid** orders (every 15 seconds while the cashier shift is open); they are not web push and cannot be guaranteed when the browser/POS tab is closed or suspended. iOS Safari notification support depends on installation/permissions. Keep the POS open on the cashier device.
+
 ## Customer handoff names
 
 Cashier and general-QR/open customer orders require a customer name (1–80 characters) before checkout; table-specific QR orders permit an optional name because the table remains the delivery location. The name is saved on `orders.customer_name`, visible in the cashier order queue and order detail, and stays unchanged when an idempotent payment request is retried. Deploy migration `053_customer_order_names.sql` **before** releasing the updated checkout endpoints; otherwise new checkout requests cannot create orders.
