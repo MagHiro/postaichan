@@ -33,12 +33,18 @@ export async function cancelOrderWithProvider(input: CancellationRequest): Promi
     "select id, provider, provider_order_id from public.payments where order_id = $1 and status = 'pending' order by created_at",
     [input.orderId],
   );
-  if (pendingPayments.rows.length) {
+  // Onsite manual QRIS has no Midtrans transaction to query or expire.
+  // The database cancellation atomically releases its local reservation.
+  const midtransPayments = pendingPayments.rows.filter((payment) => payment.provider === "midtrans");
+  if (pendingPayments.rows.some((payment) => !["midtrans", "manual_qris"].includes(payment.provider))) {
+    return { ok: false, code: "ORDER_CANCEL_PROVIDER_UNCONFIRMED", error: "Penyedia pembayaran tidak dikenali. Pembatalan ditunda agar status pembayaran tetap aman.", status: 503, retryable: true };
+  }
+  if (midtransPayments.length) {
     try {
       const provider = new MidtransProvider();
       const verified: Array<{ paymentId: string; status: ProviderPaymentStatus }> = [];
-      for (const payment of pendingPayments.rows) {
-        if (payment.provider !== "midtrans" || !payment.provider_order_id) {
+      for (const payment of midtransPayments) {
+        if (!payment.provider_order_id) {
           return { ok: false, code: "ORDER_CANCEL_PROVIDER_UNCONFIRMED", error: "Status pembayaran belum dapat dipastikan. Pesanan dan stok tetap tidak berubah; coba lagi sebentar.", status: 503, retryable: true };
         }
         const providerState = await providerStateBeforeCancellation(provider, payment.provider_order_id);
