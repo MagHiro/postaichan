@@ -181,6 +181,65 @@ test("PostgreSQL 16 production invariants, checkout, provider races, reconciliat
       await expire(first.payment_id);
     });
 
+    await t.test("manual QRIS keeps onsite scans out of Midtrans and requires audited staff verification", async () => {
+      const manualCheckout = async (sessionHash: string | null, actorId: string | null, tableId: string | null) => {
+        const result = await runtime.query<{
+          order_id: string; payment_id: string; payment_status: string;
+          amount_idr: number; qr_string: string | null;
+        }>(
+          "select * from public.create_manual_qris_intent($1::uuid,$2,$3,$4::uuid,$5::uuid,'qris'::public.payment_method,$6::jsonb)",
+          [randomUUID(), hash(randomUUID()), sessionHash, tableId, actorId, JSON.stringify(itemFor(free))],
+        );
+        return result.rows[0];
+      };
+
+      const guestSession = await createSession(table.id);
+      const guest = await manualCheckout(guestSession, null, null);
+      assert.equal(guest.payment_status, "pending");
+      assert.equal(guest.qr_string, null);
+      const guestPayment = (await admin.query(
+        "select provider,method,status,provider_transaction_id,qr_string from public.payments where id=$1",
+        [guest.payment_id],
+      )).rows[0];
+      assert.equal(guestPayment.provider, "manual_qris");
+      assert.equal(guestPayment.method, "qris");
+      assert.equal(guestPayment.status, "pending");
+      assert.equal(guestPayment.provider_transaction_id, null);
+      assert.equal(guestPayment.qr_string, null);
+
+      await assert.rejects(
+        runtime.query("select * from public.verify_manual_qris_payment($1::uuid,$2::uuid)", [guest.order_id, null]),
+        /STAFF_NOT_AUTHORIZED/,
+      );
+      const firstVerification = (await runtime.query(
+        "select * from public.verify_manual_qris_payment($1::uuid,$2::uuid)", [guest.order_id, actor],
+      )).rows[0];
+      assert.equal(firstVerification.payment_status, "settled");
+      assert.equal(firstVerification.order_status, "paid");
+      assert.equal(firstVerification.already_verified, false);
+      const replayVerification = (await runtime.query(
+        "select * from public.verify_manual_qris_payment($1::uuid,$2::uuid)", [guest.order_id, actor],
+      )).rows[0];
+      assert.equal(replayVerification.already_verified, true);
+      assert.equal((await admin.query(
+        "select count(*) from public.audit_logs where action='manual_qris_verified' and entity_id=$1",
+        [guest.order_id],
+      )).rows[0].count, "1");
+
+      const staff = await manualCheckout(null, actor, table.id);
+      assert.equal(staff.payment_status, "pending");
+      const staffRecord = (await admin.query(
+        "select provider,method,status from public.payments where id=$1", [staff.payment_id],
+      )).rows[0];
+      assert.equal(staffRecord.provider, "manual_qris");
+      assert.equal(staffRecord.method, "qris");
+      assert.equal(staffRecord.status, "pending");
+      const verifiedStaff = (await runtime.query(
+        "select * from public.verify_manual_qris_payment($1::uuid,$2::uuid)", [staff.order_id, actor],
+      )).rows[0];
+      assert.equal(verifiedStaff.payment_status, "settled");
+    });
+
     await t.test("simultaneous reservations and duplicate settlement consume stock once", async () => {
       await admin.query("update public.products set stock_quantity = 1 where id = $1", [tracked]);
       const firstSession = await createSession(table.id);
