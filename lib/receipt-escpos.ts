@@ -3,7 +3,7 @@ import type { ReceiptData } from "./receipt-types";
 // The Web Bluetooth API accepts 16/32-bit assigned numbers as a number,
 // whereas full 128-bit custom UUIDs are passed as their canonical string.
 export function bluetoothUuid(value: string): number | string {
-  return /^[a-f\\d]{4}(?:[a-f\\d]{4})?$/i.test(value) ? Number.parseInt(value, 16) : value;
+  return /^[0-9a-f]{4}(?:[0-9a-f]{4})?$/i.test(value) ? Number.parseInt(value, 16) : value;
 }
 
 // ESC/POS command bytes are only for Bluetooth LE printers that expose a
