@@ -310,7 +310,7 @@ export function PosWorkspaceLive({ role }: { role: "operator" | "admin" }) {
                   active ? "bg-[#FDBD2C]/20 font-medium text-[#1C1917]" : "font-normal text-[#78716C]",
                 )}
               >
-                <Icon size={17} strokeWidth={active ? 2 : 1.6} className="text-[#A8A29E]" />
+                <Icon size={17} strokeWidth={active ? 2 : 1.6} className="text-[#9C6C1D]" />
                 <span className="flex-1 text-left">{NAV_LABEL[item]}</span>
                 {item === "Orders" && activeCount > 0 && (
                   <span className="text-xs font-medium tabular-nums text-[#A8A29E]">{activeCount}</span>
@@ -590,10 +590,10 @@ function pageTitle(nav: NavItem) {
 
 function PageHead({ title, sub, action }: { title: string; sub?: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+    <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center" data-motion-stagger>
       <div className="min-w-0">
-        <h2 className="hidden text-[22px] font-medium leading-snug tracking-tight lg:block">{title}</h2>
-        {sub && <p className="text-[13px] text-[#78716C] lg:mt-1">{sub}</p>}
+        <h2 className="hidden text-[clamp(30px,3vw,42px)] font-semibold leading-tight tracking-[-.06em] lg:block">{title}</h2>
+        {sub && <p className="text-[13px] leading-relaxed text-[#84796C] lg:mt-2">{sub}</p>}
       </div>
       {action}
     </div>
@@ -602,7 +602,7 @@ function PageHead({ title, sub, action }: { title: string; sub?: React.ReactNode
 
 function Ornament({ icon: Icon, size = 18 }: { icon: typeof Wallet; size?: number }) {
   return (
-    <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F3EFE6]">
+    <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-[#F9ECCF]">
       <Icon size={size} strokeWidth={1.6} className="text-[#A8A29E]" />
     </span>
   );
@@ -618,7 +618,7 @@ function Metric({ label, value, detail, icon }: { label: string; value: string; 
           </span>
         )}
         <p className="truncate text-xs leading-tight text-[#A8A29E]">{label}</p>
-        <p className="mt-1 break-words text-[22px] font-medium tabular-nums leading-snug tracking-tight text-[#1C1917]">{value}</p>
+        <p className="mt-2 break-words text-[26px] font-semibold tabular-nums leading-snug tracking-[-.06em] text-[#1C1917]">{value}</p>
         <p className="mt-0.5 truncate text-[13px] leading-tight text-[#78716C]">{detail}</p>
       </div>
     </div>
@@ -1299,7 +1299,7 @@ function LiveOrders({
                       <div className="min-w-0">
                         <div className="min-w-0">
                           <p className="truncate text-[13px] font-medium text-[#1C1917]">{order.table ?? "Tanpa meja"}</p>
-                          <p className="mt-0.5 truncate text-xs text-[#A8A29E]"><MetaInline parts={[`${order.items} item`]} /></p>
+                          <p className="mt-0.5 truncate text-xs text-[#A8A29E]"><MetaInline parts={[`${order.items} item`, order.paymentLabel ?? order.payment]} /></p>
                         </div>
                       </div>
                       <p className="min-w-0 truncate text-left text-[13px] font-medium tabular-nums text-[#1C1917]">{formatCompactIDR(order.total)}</p>

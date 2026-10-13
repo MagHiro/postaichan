@@ -1,11 +1,7 @@
 import type { ReactNode } from "react";
 
 export function AdminHeader({
-  icon,
-  eyebrow = "Administrator",
-  title,
-  description,
-  actions,
+  icon, eyebrow, title, description, actions,
 }: {
   icon: ReactNode;
   eyebrow?: string;
@@ -14,18 +10,18 @@ export function AdminHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-      <div className="min-w-0">
-        <p className="text-xs text-[#A8A29E]">{eyebrow}</p>
-        <h1 className="mt-1 flex items-center gap-2 text-[22px] font-medium tracking-tight">
-          <span aria-hidden="true" className="text-[#A8A29E]">
-            {icon}
-          </span>
-          {title}
-        </h1>
-        {description && <p className="mt-1 text-[13px] text-[#78716C]">{description}</p>}
+    <div className="mb-7 flex flex-col justify-between gap-5 sm:flex-row sm:items-center" data-motion-stagger>
+      <div className="flex min-w-0 items-start gap-4">
+        <span aria-hidden="true" className="flex h-13 w-13 shrink-0 items-center justify-center rounded-[18px] bg-[#FDBD2C] text-[#1C1917] shadow-[0_12px_30px_-19px_rgba(191,116,13,.5)]">
+          {icon}
+        </span>
+        <div className="min-w-0">
+          {eyebrow && eyebrow !== "Administrator" && <p className="mb-1 text-[12px] text-[#958878]">{eyebrow}</p>}
+          <h1 className="text-[27px] font-semibold leading-[1.15] tracking-[-.06em] sm:text-[36px]">{title}</h1>
+          {description && <p className="mt-2 max-w-[650px] text-[13px] leading-[1.8] text-[#85776A]">{description}</p>}
+        </div>
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }
