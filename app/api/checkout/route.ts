@@ -10,11 +10,12 @@ import { createRequestId, structuredLog } from "@/lib/security/structured-log";
 
 export const runtime = "nodejs";
 
-function fingerprint(input: { items: Array<{ productId: string; quantity: number; variantOptionIds: string[]; addonOptionIds: string[]; note?: string }> }) {
+function fingerprint(input: { items: Array<{ productId: string; quantity: number; variantOptionIds: string[]; addonOptionIds: string[]; note?: string }>; paymentChoice?: "qris_manual" }) {
   const canonical = {
     items: input.items
       .map((item) => ({ ...item, variantOptionIds: [...item.variantOptionIds].sort(), addonOptionIds: [...item.addonOptionIds].sort() }))
       .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
+    ...(input.paymentChoice ? { paymentChoice: input.paymentChoice } : {}),
   };
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
@@ -45,8 +46,10 @@ export async function POST(request: Request) {
     let intentResult;
     try {
       intentResult = await query<{ order_id: string; order_number: string; payment_id: string; payment_status: string; amount_idr: number; provider_order_id: string; qr_string: string | null; created_at: string | Date | null; expires_at: string | Date | null; replayed: boolean }>(
-        `select * from public.create_checkout_intent($1::uuid, $2, $3, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`,
-        [input.idempotencyKey, fingerprint({ items: input.items }), sessionHash, null, null, "qris", JSON.stringify(input.items)],
+        input.paymentChoice === "qris_manual"
+          ? `select * from public.create_manual_qris_intent($1::uuid, $2, $3, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`
+          : `select * from public.create_checkout_intent($1::uuid, $2, $3, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`,
+        [input.idempotencyKey, fingerprint({ items: input.items, paymentChoice: input.paymentChoice === "qris_manual" ? "qris_manual" : undefined }), sessionHash, null, null, "qris", JSON.stringify(input.items)],
       );
     } catch (error) {
       const failure = checkoutDatabaseFailure(error, "customer");
@@ -63,19 +66,19 @@ export async function POST(request: Request) {
     let qrString: string | null = null;
     let qrImageUrl: string | null = null;
     let expiresAt = intent.expires_at ? new Date(intent.expires_at).toISOString() : null;
-    if (intent.payment_status === "pending") {
+    if (intent.payment_status === "pending" && input.paymentChoice !== "qris_manual") {
       const providerPayment = await createProviderPayment(intent, requestId);
       if (!providerPayment.ok) return NextResponse.json({ ...providerPayment, orderId: intent.order_id }, { status: providerPayment.status, headers: noStoreHeaders() });
       qrString = providerPayment.qrString;
       qrImageUrl = providerPayment.qrImageUrl;
       expiresAt = providerPayment.expiresAt;
     }
-    if (intent.payment_status === "pending" && !qrString && !qrImageUrl) {
+    if (intent.payment_status === "pending" && input.paymentChoice !== "qris_manual" && !qrString && !qrImageUrl) {
       const failure = checkoutQrMissing(intent.order_id);
       return NextResponse.json(failure, { status: failure.status, headers: noStoreHeaders() });
     }
     structuredLog("info", "checkout_completed", requestId, { orderId: intent.order_id, paymentId: intent.payment_id, paymentStatus: intent.payment_status, replayed: intent.replayed });
-    return NextResponse.json({ orderId: intent.order_id, orderNumber: intent.order_number, totalIdr: intent.amount_idr, qrString, qrImageUrl, expiresAt, paymentId: intent.payment_id, status: intent.payment_status, replayed: intent.replayed }, { status: intent.replayed ? 200 : 201, headers: noStoreHeaders() });
+    return NextResponse.json({ orderId: intent.order_id, orderNumber: intent.order_number, totalIdr: intent.amount_idr, qrString, qrImageUrl, expiresAt, paymentId: intent.payment_id, status: intent.payment_status, provider: input.paymentChoice === "qris_manual" ? "manual_qris" : "midtrans", requiresManualVerification: input.paymentChoice === "qris_manual", replayed: intent.replayed }, { status: intent.replayed ? 200 : 201, headers: noStoreHeaders() });
   } catch (error) {
     structuredLog("error", "checkout_failed", requestId, { errorType: error instanceof Error ? error.name : "unknown" });
     const failure = checkoutUnexpectedFailure("customer");

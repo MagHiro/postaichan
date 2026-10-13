@@ -49,7 +49,7 @@ async function getPaymentStatus(request: Request, { params }: Context, synchroni
       }
     }
     const qr = presentQrMaterial(paymentStatus === "pending" ? payment.qr_string : null);
-    return NextResponse.json({ orderNumber: order.order_number, orderStatus, paymentStatus, expiresAt: payment.expires_at, amountIdr: payment.amount_idr, ...qr }, { headers: noStoreHeaders() });
+    return NextResponse.json({ orderNumber: order.order_number, orderStatus, paymentStatus, expiresAt: payment.expires_at, amountIdr: payment.amount_idr, provider: payment.provider, ...qr }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("customer_payment_status_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ code: "PAYMENT_STATUS_INTERNAL_ERROR", error: "Status pembayaran belum dapat dicek karena server gagal membaca data pembayaran. Status belum diubah; coba lagi.", retryable: true }, { status: 503, headers: noStoreHeaders() });

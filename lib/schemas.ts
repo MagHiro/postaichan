@@ -11,6 +11,7 @@ export const checkoutItemSchema = z.object({
 export const checkoutSchema = z.object({
   idempotencyKey: z.string().uuid(),
   sessionToken: z.string().min(32).max(240),
+  paymentChoice: z.enum(["qris", "qris_manual"]).default("qris"),
   items: z.array(checkoutItemSchema).min(1).max(50),
 }).strict();
 

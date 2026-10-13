@@ -42,7 +42,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
       - name: Enable the pinned pnpm release
         run: corepack enable pnpm
       - name: Install locked dependencies
