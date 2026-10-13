@@ -173,7 +173,7 @@ export function WarmSelect({
           id={listId}
           role="listbox"
           aria-labelledby={`${fieldId}-label`}
-          className="ord-rise fixed z-[80] max-h-[320px] overflow-y-auto rounded-2xl border border-[#EFE7D6] bg-[#FFFEFB] p-1.5 shadow-soft"
+          className="modern-dropdown ord-rise fixed z-[80] max-h-[320px] overflow-y-auto p-1.5"
           style={{ top: panelStyle.top, left: panelStyle.left, width: panelStyle.width }}
         >
           {options.map((option, index) => {
