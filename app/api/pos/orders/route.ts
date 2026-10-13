@@ -11,8 +11,9 @@ import { createRequestId, structuredLog } from "@/lib/security/structured-log";
 
 export const runtime = "nodejs";
 
-function fingerprint(input: { tableId: string | null; paymentMethod: string; items: Array<{ productId: string; quantity: number; variantOptionIds: string[]; addonOptionIds: string[]; note?: string }> }) {
+function fingerprint(input: { customerName: string; tableId: string | null; paymentMethod: string; items: Array<{ productId: string; quantity: number; variantOptionIds: string[]; addonOptionIds: string[]; note?: string }> }) {
   const canonical = {
+    customerName: input.customerName,
     tableId: input.tableId,
     paymentMethod: input.paymentMethod,
     items: input.items
@@ -34,8 +35,8 @@ export async function GET(request: Request) {
       if (error instanceof Error && error.message === "INVALID_REPORT_DATE") return NextResponse.json({ error: "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });
       throw error;
     }
-    const ordersResult = await query<{ id: string; order_number: string; table_id: string | null; status: string; total_idr: number; created_at: string; table_label: string | null; payment_method: string | null; payment_provider: string | null; payment_status: string | null; payment_created_at: string | null; orphaned_settlement: boolean }>(
-      `select o.id, o.order_number, o.table_id, o.status, o.total_idr, o.created_at, rt.label as table_label,
+    const ordersResult = await query<{ id: string; order_number: string; table_id: string | null; status: string; total_idr: number; created_at: string; table_label: string | null; payment_method: string | null; payment_provider: string | null; payment_status: string | null; payment_created_at: string | null; orphaned_settlement: boolean; customer_name: string | null }>(
+      `select o.id, o.order_number, o.table_id, o.status, o.total_idr, o.created_at, o.customer_name, rt.label as table_label,
               lp.method as payment_method, lp.provider as payment_provider, lp.status as payment_status, lp.created_at as payment_created_at, coalesce(lp.orphaned_settlement, false) as orphaned_settlement
        from public.orders o
        left join public.restaurant_tables rt on rt.id = o.table_id
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
               : order.payment_status === "failed" ? "Failed"
                 : order.payment_status === "expired" ? "Expired"
                   : order.payment_status === "pending" ? "Pending" : "Unavailable";
-      return { id: order.id, number: order.order_number, table: order.table_label ?? undefined, items: counts.get(order.id) ?? 0, total: order.total_idr, payment: order.payment_method === "cash" ? "Cash" : "QRIS", paymentProvider: order.payment_provider, paymentLabel: order.payment_method === "cash" ? "Tunai" : order.payment_provider === "manual_qris" ? "QRIS manual" : "QRIS otomatis", paymentStatus, status, time: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(order.created_at)) };
+      return { id: order.id, number: order.order_number, customer: order.customer_name ?? undefined, table: order.table_label ?? undefined, items: counts.get(order.id) ?? 0, total: order.total_idr, payment: order.payment_method === "cash" ? "Cash" : "QRIS", paymentProvider: order.payment_provider, paymentLabel: order.payment_method === "cash" ? "Tunai" : order.payment_provider === "manual_qris" ? "QRIS manual" : "QRIS otomatis", paymentStatus, status, time: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(order.created_at)) };
     }) }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("pos_orders_failed", error instanceof Error ? error.name : "unknown");
@@ -85,10 +86,8 @@ export async function POST(request: Request) {
     let intentResult;
     try {
       intentResult = await query<{ order_id: string; order_number: string; payment_id: string; payment_status: string; amount_idr: number; provider_order_id: string; qr_string: string | null; created_at: string | Date | null; expires_at: string | Date | null; replayed: boolean }>(
-        input.paymentMethod === "qris_manual"
-          ? `select * from public.create_manual_qris_intent($1::uuid, $2, $3::text, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`
-          : `select * from public.create_checkout_intent($1::uuid, $2, $3::text, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`,
-        [input.idempotencyKey, fingerprint({ tableId: input.tableId ?? null, paymentMethod: input.paymentMethod, items: input.items }), null, input.tableId ?? null, auth.actorId, input.paymentMethod === "qris_manual" ? "qris" : input.paymentMethod, JSON.stringify(input.items)],
+        `select * from public.create_named_checkout_intent($1::uuid, $2, $3::text, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb, $8, $9)`,
+        [input.idempotencyKey, fingerprint({ customerName: input.customerName, tableId: input.tableId ?? null, paymentMethod: input.paymentMethod, items: input.items }), null, input.tableId ?? null, auth.actorId, input.paymentMethod === "qris_manual" ? "qris" : input.paymentMethod, JSON.stringify(input.items), input.customerName, input.paymentMethod === "qris_manual"],
       );
     } catch (error) {
       const failure = checkoutDatabaseFailure(error, "staff");

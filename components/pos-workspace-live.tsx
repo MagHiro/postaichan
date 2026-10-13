@@ -26,6 +26,7 @@ type NavItem = "Overview" | "Orders" | "POS" | "Menu" | "Reports";
 type Detail = {
   order: {
     order_number: string;
+    customer_name: string | null;
     status: string;
     subtotal_idr: number;
     total_idr: number;
@@ -872,7 +873,7 @@ function LiveOverview({
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-medium leading-tight text-[#1C1917]">{order.number}</span>
                       <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]">
-                        <MetaInline parts={[order.table ?? "Tanpa meja", `${order.items} item`, order.time, paymentStatusDetail(order.paymentStatus)]} />
+                        <MetaInline parts={[order.customer, order.table ?? "Tanpa meja", `${order.items} item`, order.time, paymentStatusDetail(order.paymentStatus)]} />
                       </span>
                       <span className="mt-1 block text-[13px] leading-none tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</span>
                     </span>
@@ -905,7 +906,7 @@ function LiveOverview({
                         {order.number} <MetaDot /> <span className="font-normal text-[#A8A29E]">{STATUS_LABEL[order.status]}</span>
                       </p>
                       <p className="mt-0.5 truncate text-xs text-[#A8A29E]">
-                        <MetaInline parts={[order.table ?? "Tanpa meja", `${order.items} item`, order.time, paymentStatusDetail(order.paymentStatus)]} />
+                        <MetaInline parts={[order.customer, order.table ?? "Tanpa meja", `${order.items} item`, order.time, paymentStatusDetail(order.paymentStatus)]} />
                       </p>
                       <p className="mt-1 text-[13px] tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</p>
                     </button>
@@ -1084,7 +1085,7 @@ function MobileOrderRow({ order, opening, onOpen }: { order: Order; opening: boo
     >
       <span className="min-w-0">
         <span className="block truncate text-[13px] font-medium leading-tight text-[#1C1917]">{order.number}</span>
-        <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]"><MetaInline parts={[order.table ?? "Tanpa meja", `${order.items} item`, order.time]} /></span>
+        <span className="mt-0.5 block truncate text-xs leading-tight text-[#A8A29E]"><MetaInline parts={[order.customer, order.table ?? "Tanpa meja", `${order.items} item`, order.time]} /></span>
         <span className="mt-1 block text-[13px] leading-none tabular-nums text-[#78716C]">{formatCompactIDR(order.total)}</span>
       </span>
       <span className={cn("rounded-full px-3 py-1.5 text-[11px] font-medium leading-none", mobileOrderStatusTone(order.status))}>
@@ -1128,7 +1129,7 @@ function LiveOrders({
   const counts = FILTERS.map(({ key }) => ({ key, n: key === "All" ? orders.length : orders.filter((o) => o.status === key).length }));
   const filtered = orders.filter(
     (order) =>
-      (selectedStatuses.length === 0 || selectedStatuses.includes(order.status)) && matchesOrderFilter(order, filter) && `${order.number} ${order.table ?? ""}`.toLowerCase().includes(query.toLowerCase()),
+      (selectedStatuses.length === 0 || selectedStatuses.includes(order.status)) && matchesOrderFilter(order, filter) && `${order.number} ${order.table ?? ""} ${order.customer ?? ""}`.toLowerCase().includes(query.toLowerCase()),
   );
 
   async function openDetail(order: Order) {
@@ -1298,8 +1299,8 @@ function LiveOrders({
                       </button>
                       <div className="min-w-0">
                         <div className="min-w-0">
-                          <p className="truncate text-[13px] font-medium text-[#1C1917]">{order.table ?? "Tanpa meja"}</p>
-                          <p className="mt-0.5 truncate text-xs text-[#A8A29E]"><MetaInline parts={[`${order.items} item`, order.paymentLabel ?? order.payment]} /></p>
+                          <p className="truncate text-[13px] font-medium text-[#1C1917]">{order.customer ?? order.table ?? "Tanpa meja"}</p>
+                          <p className="mt-0.5 truncate text-xs text-[#A8A29E]"><MetaInline parts={[order.customer ? (order.table ?? "Tanpa meja") : null, `${order.items} item`, order.paymentLabel ?? order.payment]} /></p>
                         </div>
                       </div>
                       <p className="min-w-0 truncate text-left text-[13px] font-medium tabular-nums text-[#1C1917]">{formatCompactIDR(order.total)}</p>
@@ -1520,6 +1521,7 @@ function OrderDetail({ detail, detailId, readOnly, onClose, onAdvance, onCancel,
               {rawStatusLabel(detail.order.status)}
             </div>
             <h2 id="order-detail-title" className="mt-4 truncate text-lg font-medium leading-tight tracking-tight text-[#1C1917]">{detail.order.order_number}</h2>
+            {detail.order.customer_name && <p className="mt-2 break-words text-[15px] font-semibold text-[#1C1917]">Atas nama: {detail.order.customer_name}</p>}
             <p className="mt-1 text-[13px] text-[#78716C]"><MetaInline parts={[createdAt.day, createdAt.time]} /></p>
             <div className="mt-5 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-2 rounded-full bg-[#F3EFE6] px-4 py-2 text-[13px] text-[#78716C]">
@@ -1772,6 +1774,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
   const [note, setNote] = useState("");
   const [tables, setTables] = useState<Array<{ id: string; label: string; active: boolean }>>([]);
   const [tableId, setTableId] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState("");
   const [category, setCategory] = useState<string>(ALL_CATEGORIES_ID);
   const [query, setQuery] = useState("");
   const [payment, setPayment] = useState<{ orderId: string; qrString?: string; qrImageUrl?: string; orderNumber: string; totalIdr: number; expiresAt: string } | null>(null);
@@ -1866,13 +1869,14 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
 
   async function createOrder() {
     if (!cart.length || saving) return;
+    if (!customerName.trim()) { onShowNotice("Isi nama pelanggan sebelum membuat pesanan."); return; }
     if (paymentMethod !== "cash" && !paymentSettings.qrisEnabled) { onShowNotice("QRIS sedang tidak tersedia."); return; }
     if (paymentMethod === "cash" && !paymentSettings.cashEnabled) { onShowNotice("Pembayaran tunai sedang tidak tersedia."); return; }
     if (paymentMethod === "cash") {
       const tableName = tableId ? (tables.find((table) => table.id === tableId)?.label ?? "Meja") : "Tanpa meja / walk-in";
       setConfirm({
         title: `Buat pesanan tunai ${formatIDR(total)}?`,
-        description: `${count} item · ${tableName}. Pesanan langsung lunas dan masuk antrean dapur.`,
+        description: `${count} item · ${customerName.trim()} · ${tableName}. Pesanan langsung lunas dan masuk antrean dapur.`,
         confirmLabel: "Buat pesanan",
         onConfirm: () => void submitOrder(),
       });
@@ -1882,7 +1886,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
   }
 
   async function submitOrder() {
-    if (!cart.length || saving) return;
+    if (!cart.length || saving || !customerName.trim()) return;
     setSaving(true);
     try {
       const response = await fetch("/api/pos/orders", {
@@ -1892,6 +1896,7 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
           idempotencyKey: intentKey.current ?? (intentKey.current = crypto.randomUUID()),
           tableId,
           paymentMethod,
+          customerName: customerName.trim(),
           items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity, variantOptionIds: item.variantOptionIds, addonOptionIds: item.addonOptionIds, note: item.note })),
         }),
       });
@@ -1901,16 +1906,20 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
         return;
       }
       if (paymentMethod === "cash") {
-        setCart([]); intentKey.current = null; setCartOpen(false); await onOrderCreated?.(payload.orderId); onShowNotice(`${payload.orderNumber} lunas tunai.`); return;
+        setCart([]); setCustomerName(""); intentKey.current = null; setCartOpen(false); await onOrderCreated?.(payload.orderId); onShowNotice(`${payload.orderNumber} lunas tunai.`); return;
       }
       if (paymentMethod === "qris_manual") {
         setManualPayment({ orderId: payload.orderId, orderNumber: payload.orderNumber, totalIdr: payload.totalIdr, expiresAt: payload.expiresAt ?? undefined });
+        intentKey.current = null;
+        setCustomerName("");
         setCart([]);
         setCartOpen(false);
         await onOrderCreated?.(payload.orderId);
         return;
       }
       setPayment({ orderId: payload.orderId, qrString: payload.qrString ?? undefined, qrImageUrl: payload.qrImageUrl ?? undefined, orderNumber: payload.orderNumber, totalIdr: payload.totalIdr, expiresAt: payload.expiresAt });
+      intentKey.current = null;
+      setCustomerName("");
       setCart([]);
       setCartOpen(false);
       await onOrderCreated?.(payload.orderId);
@@ -1945,10 +1954,24 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
               {([{ key: "cash", label: "Tunai", enabled: paymentSettings.cashEnabled }, { key: "qris_manual", label: "QRIS manual", enabled: paymentSettings.qrisEnabled }, { key: "qris", label: "QRIS otomatis", enabled: paymentSettings.qrisEnabled }] as const).map((method) => <button type="button" key={method.key} onClick={() => method.enabled && setPaymentMethod(method.key)} disabled={!method.enabled} aria-pressed={paymentMethod === method.key} className={cn("h-10 flex-1 rounded-xl text-[13px] transition disabled:opacity-30", paymentMethod === method.key ? "bg-[#FFFEFB] font-semibold text-[#1C1917] shadow-xs" : "text-[#78716C]")}>{method.label}</button>)}
             </div>
             <div className="block text-[13px] font-medium text-[#1C1917]">
-              <WarmSelect id="cashier-table" label="Meja" value={tableId ?? ""} onChange={(next) => setTableId(next || null)} placeholder="Meja — opsional" className="[&_button]:h-12 [&_button]:rounded-2xl [&_button]:bg-[#EDE8DB]" options={[{ value: "", label: "Tanpa meja / walk-in" }, ...tables.map((table) => ({ value: table.id, label: table.label }))]} />
+              <WarmSelect id="cashier-table" label="Meja" value={tableId ?? ""} onChange={(next) => { setTableId(next || null); intentKey.current = null; }} placeholder="Meja — opsional" className="[&_button]:h-12 [&_button]:rounded-2xl [&_button]:bg-[#EDE8DB]" options={[{ value: "", label: "Tanpa meja / walk-in" }, ...tables.map((table) => ({ value: table.id, label: table.label }))]} />
             </div>
           </div>
 
+          <div className="mt-3">
+            <label htmlFor="cashier-customer-name" className="mb-1.5 block text-[13px] font-medium text-[#1C1917]">Nama pelanggan <span className="text-[#9E6016]">*</span></label>
+            <input
+              id="cashier-customer-name"
+              type="text"
+              autoComplete="off"
+              maxLength={80}
+              required
+              value={customerName}
+              onChange={(event) => { setCustomerName(event.target.value); intentKey.current = null; }}
+              placeholder="Nama untuk dipanggil / pengambilan"
+              className="h-12 w-full rounded-2xl bg-[#EDE8DB] px-4 text-[13px] text-[#1C1917] outline-none transition placeholder:text-[#8F8679] focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
+            />
+          </div>
           <div className="mt-2.5 grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_220px]">
             <SearchField value={query} onChange={setQuery} placeholder="Cari menu… (contoh: sate taichan)" />
             <CategoryDropdown
@@ -2058,13 +2081,14 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
               </div>
             )}
           </div>
+          <p className="mt-3 truncate text-xs text-white/60">{customerName.trim() ? `Atas nama ${customerName.trim()}` : "Isi nama pelanggan sebelum membuat pembayaran."}</p>
           <div className="mt-4 flex items-baseline justify-between border-t border-white/10 pt-4">
             <span className="text-[13px] text-white/60">Total <span className="tabular-nums text-white/40">({count} item)</span></span>
             <span className="text-lg font-semibold tabular-nums">{formatIDR(total)}</span>
           </div>
           <button
             type="button"
-            disabled={!cart.length || saving}
+            disabled={!cart.length || saving || !customerName.trim()}
             onClick={() => void createOrder()}
             className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#FDBD2C] text-sm font-semibold text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
           >
@@ -2145,13 +2169,20 @@ function LiveCashier({ cashierOpen, onShowNotice, onOrderCreated, onOpenShift }:
               )}
             </div>
             <div className="border-t border-[#EFE7D6] bg-[#FFFEFB] px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+              <label htmlFor="cashier-cart-customer-name" className="mb-1.5 block text-[13px] font-medium">Nama pelanggan (wajib)</label>
+              <input id="cashier-cart-customer-name" type="text" autoComplete="off" maxLength={80} required
+                value={customerName}
+                onChange={(event) => { setCustomerName(event.target.value); intentKey.current = null; }}
+                placeholder="Nama untuk pengambilan"
+                className="mb-3 h-11 w-full rounded-2xl bg-[#F3EFE6] px-4 text-[13px] outline-none focus:ring-2 focus:ring-[#FDBD2C]/50"
+              />
               <div className="mb-3 flex items-baseline justify-between">
                 <span className="text-[13px] text-[#78716C]">Total <MetaDot /> {count} item</span>
                 <span className="text-base font-medium tabular-nums">{formatIDR(total)}</span>
               </div>
               <button
                 type="button"
-                disabled={!cart.length || saving}
+                disabled={!cart.length || saving || !customerName.trim()}
                 onClick={() => void createOrder()}
                 className="h-12 w-full rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
               >

@@ -15,6 +15,9 @@ export function CartSheet({
   checkoutDisabled = false,
   paymentChoice,
   onPaymentChoiceChange,
+  customerName,
+  onCustomerNameChange,
+  customerNameRequired,
 }: {
   cart: CartItem[];
   onUpdate: (key: string, delta: number) => void;
@@ -24,6 +27,9 @@ export function CartSheet({
   checkoutDisabled?: boolean;
   paymentChoice: "qris" | "qris_manual";
   onPaymentChoiceChange: (choice: "qris" | "qris_manual") => void;
+  customerName: string;
+  onCustomerNameChange: (name: string) => void;
+  customerNameRequired: boolean;
 }) {
   const total = cart.reduce(
     (sum, item) => sum + item.unitPrice * item.quantity,
@@ -58,6 +64,26 @@ export function CartSheet({
       </div>
 
       <div className="mt-7">
+        <label htmlFor="customer-order-name" className="mb-2 block text-[14px] font-semibold">
+          Nama pelanggan {customerNameRequired ? <span className="text-[#9E6016]">*</span> : <span className="font-normal text-[#78716C]">(opsional)</span>}
+        </label>
+        <input
+          id="customer-order-name"
+          type="text"
+          autoComplete="name"
+          maxLength={80}
+          value={customerName}
+          onChange={(event) => onCustomerNameChange(event.target.value)}
+          placeholder="Contoh: Rafi"
+          required={customerNameRequired}
+          aria-required={customerNameRequired}
+          className="h-12 w-full rounded-2xl bg-[#F3EEE4] px-4 text-[14px] text-[#1C1917] outline-none transition placeholder:text-[#A8A29E] focus:bg-white focus:ring-2 focus:ring-[#FDBD2C]/50"
+        />
+        <p className="mt-1.5 text-xs text-[#78716C]">
+          {customerNameRequired ? "Untuk memudahkan kasir memanggil atau menyerahkan pesanan." : "Nomor meja tetap menjadi acuan; nama membantu saat mengantar pesanan."}
+        </p>
+      </div>
+      <div className="mt-7">
         <h3 className="mb-3 text-[14px] font-semibold">Pilih cara pembayaran</h3>
         <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="Metode pembayaran QRIS">
           {([
@@ -86,7 +112,7 @@ export function CartSheet({
         </div>
         <button
           onClick={onCheckout}
-          disabled={checkoutLoading || checkoutDisabled || cart.length === 0}
+          disabled={checkoutLoading || checkoutDisabled || cart.length === 0 || (customerNameRequired && !customerName.trim())}
           className="mt-3 flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-40"
         >
           {checkoutLoading ? "Menyiapkan pembayaran…" : "Bayar"}

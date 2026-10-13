@@ -1,4 +1,5 @@
 import test from "node:test";
+import { cashierOrderSchema, checkoutSchema, customerNameSchema } from "../lib/schemas.ts";
 import assert from "node:assert/strict";
 import { calculateTotals, validateCheckoutLine, CheckoutDomainError } from "../lib/domain/checkout.ts";
 import { canTransitionOrder } from "../lib/domain/order-state.ts";
@@ -125,4 +126,17 @@ test("shift gate failures explain the closed register", () => {
   assert.match(staffClosed.error, /Buka kasir/);
   const guestClosed = checkoutDatabaseFailure(new Error("SHIFT_CLOSED"), "customer");
   assert.match(guestClosed.error, /Kasir sedang tutup/);
+});
+
+test("customer handoff names are normalized and cashier checkout requires them", () => {
+  const cart = [{ productId: "00000000-0000-4000-8000-000000000001", quantity: 1 }];
+  const key = "00000000-0000-4000-8000-000000000002";
+  assert.equal(customerNameSchema.parse("  Mbak Rina  "), "Mbak Rina");
+  assert.equal(customerNameSchema.safeParse("   ").success, false);
+  assert.equal(customerNameSchema.safeParse("A".repeat(81)).success, false);
+  assert.equal(customerNameSchema.safeParse("Someone\nElse").success, false);
+  assert.equal(cashierOrderSchema.safeParse({ idempotencyKey: key, items: cart, paymentMethod: "cash" }).success, false);
+  assert.equal(cashierOrderSchema.parse({ idempotencyKey: key, items: cart, paymentMethod: "cash", customerName: "  Budi  " }).customerName, "Budi");
+  assert.equal(checkoutSchema.parse({ idempotencyKey: key, sessionToken: "s".repeat(32), items: cart }).customerName, undefined);
+  assert.equal(checkoutSchema.parse({ idempotencyKey: key, sessionToken: "s".repeat(32), items: cart, customerName: "Rafi" }).customerName, "Rafi");
 });

@@ -8,10 +8,17 @@ export const checkoutItemSchema = z.object({
   note: z.string().trim().max(240).optional(),
 }).strict();
 
+export const customerNameSchema = z.string().trim().min(1, "Nama pelanggan wajib diisi.").max(80, "Nama pelanggan maksimal 80 karakter.")
+  .refine((name) => !Array.from(name).some((char) => {
+    const code = char.charCodeAt(0);
+    return code < 32 || code === 127;
+  }), "Nama pelanggan mengandung karakter tidak valid.");
+
 export const checkoutSchema = z.object({
   idempotencyKey: z.string().uuid(),
   sessionToken: z.string().min(32).max(240),
   paymentChoice: z.enum(["qris", "qris_manual"]).default("qris"),
+  customerName: customerNameSchema.optional(),
   items: z.array(checkoutItemSchema).min(1).max(50),
 }).strict();
 
@@ -49,6 +56,7 @@ export const cashierOrderSchema = z.object({
   idempotencyKey: z.string().uuid(),
   tableId: z.string().uuid().nullable().optional(),
   paymentMethod: z.enum(["qris", "qris_manual", "cash"]).default("qris"),
+  customerName: customerNameSchema,
   items: z.array(checkoutItemSchema).min(1).max(50),
 }).strict();
 

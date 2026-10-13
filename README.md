@@ -41,6 +41,10 @@ For `CLIENT_IP_STRATEGY=trusted_header`, the ingress must remove any client-supp
 
 With `REQUIRE_ORDERING_QR=true`, table and general ordering routes require opaque QR tokens and the public table API omits internal table UUIDs. With it set to `false`, public walk-in ordering is intentionally enabled and can reserve tracked stock before payment. Network, session, QR/table, and global checkout limits apply, and the database atomically caps live pending QRIS reservations at 1,000 across all networks. Tracked inventory is also reserved against available stock. Decide this policy before opening public traffic.
 
+## Customer handoff names
+
+Cashier and general-QR/open customer orders require a customer name (1–80 characters) before checkout; table-specific QR orders permit an optional name because the table remains the delivery location. The name is saved on `orders.customer_name`, visible in the cashier order queue and order detail, and stays unchanged when an idempotent payment request is retried. Deploy migration `053_customer_order_names.sql` **before** releasing the updated checkout endpoints; otherwise new checkout requests cannot create orders.
+
 ## Database roles and migrations
 
 Migrations 001–027 are historical and stay unchanged. New production fixes are additive migrations. CI starts with an empty PostgreSQL 16 database and applies the entire chain in numeric order.

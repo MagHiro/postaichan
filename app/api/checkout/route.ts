@@ -10,8 +10,9 @@ import { createRequestId, structuredLog } from "@/lib/security/structured-log";
 
 export const runtime = "nodejs";
 
-function fingerprint(input: { items: Array<{ productId: string; quantity: number; variantOptionIds: string[]; addonOptionIds: string[]; note?: string }>; paymentChoice?: "qris_manual" }) {
+function fingerprint(input: { customerName?: string; items: Array<{ productId: string; quantity: number; variantOptionIds: string[]; addonOptionIds: string[]; note?: string }>; paymentChoice?: "qris_manual" }) {
   const canonical = {
+    customerName: input.customerName ?? null,
     items: input.items
       .map((item) => ({ ...item, variantOptionIds: [...item.variantOptionIds].sort(), addonOptionIds: [...item.addonOptionIds].sort() }))
       .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
@@ -46,10 +47,8 @@ export async function POST(request: Request) {
     let intentResult;
     try {
       intentResult = await query<{ order_id: string; order_number: string; payment_id: string; payment_status: string; amount_idr: number; provider_order_id: string; qr_string: string | null; created_at: string | Date | null; expires_at: string | Date | null; replayed: boolean }>(
-        input.paymentChoice === "qris_manual"
-          ? `select * from public.create_manual_qris_intent($1::uuid, $2, $3, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`
-          : `select * from public.create_checkout_intent($1::uuid, $2, $3, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`,
-        [input.idempotencyKey, fingerprint({ items: input.items, paymentChoice: input.paymentChoice === "qris_manual" ? "qris_manual" : undefined }), sessionHash, null, null, "qris", JSON.stringify(input.items)],
+        `select * from public.create_named_checkout_intent($1::uuid, $2, $3, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb, $8, $9)`,
+        [input.idempotencyKey, fingerprint({ customerName: input.customerName, items: input.items, paymentChoice: input.paymentChoice === "qris_manual" ? "qris_manual" : undefined }), sessionHash, null, null, "qris", JSON.stringify(input.items), input.customerName ?? null, input.paymentChoice === "qris_manual"],
       );
     } catch (error) {
       const failure = checkoutDatabaseFailure(error, "customer");

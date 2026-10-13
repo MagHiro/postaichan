@@ -45,6 +45,8 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
   const [payment, setPayment] = useState<PaymentAttempt | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [paymentChoice, setPaymentChoice] = useState<"qris" | "qris_manual">("qris");
+  const [customerName, setCustomerName] = useState("");
+  const customerNameRequired = !tableToken;
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [variantOptionIds, setVariantOptionIds] = useState<string[]>([]);
@@ -143,9 +145,10 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
     let cancelled = false;
     void (async () => {
       try {
-        const reference = JSON.parse(activePayment) as { orderId?: string; idempotencyKey?: string };
+        const reference = JSON.parse(activePayment) as { orderId?: string; idempotencyKey?: string; customerName?: string };
         if (!reference.orderId) return;
         if (reference.idempotencyKey) checkoutIntentKey.current = reference.idempotencyKey;
+        if (reference.customerName) setCustomerName(reference.customerName);
         const response = await fetch(`/api/customer/payments/${reference.orderId}`, { method: "POST", headers: { "x-order-access-token": session.token }, cache: "no-store" });
         const payload = await response.json().catch(() => null);
         if (cancelled || !response.ok || !payload) return;
@@ -292,6 +295,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
 
   async function beginCheckout() {
     if (cart.length === 0) return;
+    if (customerNameRequired && !customerName.trim()) { setCheckoutError("Isi nama pelanggan sebelum membayar."); return; }
     if (!cashierOpen) { setCheckoutError("Kasir sedang tutup. Coba lagi nanti atau hubungi kasir."); return; }
     if ((tableToken || generalToken) && !session) { setCheckoutError(sessionError ?? "QR pemesanan sudah tidak aktif."); return; }
     setCheckoutLoading(true);
@@ -323,6 +327,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
           idempotencyKey: checkoutIntentKey.current,
           sessionToken: activeSessionToken,
           paymentChoice,
+          customerName: customerName.trim() || undefined,
           items: cart.map((item) => ({
             productId: item.product.id,
             quantity: item.quantity,
@@ -346,7 +351,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
         provider: payload.provider === "manual_qris" ? "manual_qris" : "midtrans",
       });
       setStep("payment");
-      window.sessionStorage.setItem("tt-active-payment", JSON.stringify({ orderId: payload.orderId, idempotencyKey: checkoutIntentKey.current }));
+      window.sessionStorage.setItem("tt-active-payment", JSON.stringify({ orderId: payload.orderId, idempotencyKey: checkoutIntentKey.current, customerName: customerName.trim() }));
     } catch (error) {
       setCheckoutError(
         error instanceof Error ? error.message : "Checkout gagal tanpa detail. Coba lagi; jika berulang, muat ulang menu.",
@@ -396,6 +401,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
               orderNumber: payment.orderNumber,
               amountIdr: payment.amountIdr,
               tableLabel,
+              customerName: customerName.trim() || null,
               time: new Date().toLocaleTimeString("id-ID", {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -423,6 +429,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
     return (
       <SuccessView
         tableLabel={tableLabel}
+        customerName={customerName.trim() || null}
         amount={payment?.amountIdr ?? subtotal}
         orderNumber={payment?.orderNumber ?? "—"}
         onHome={() => {
@@ -598,6 +605,9 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                         checkoutDisabled={Boolean((tableToken || generalToken) && !session)}
                         paymentChoice={paymentChoice}
                         onPaymentChoiceChange={(choice) => { setPaymentChoice(choice); resetCheckoutIntent(); }}
+                        customerName={customerName}
+                        onCustomerNameChange={(value) => { setCustomerName(value); resetCheckoutIntent(); setCheckoutError(null); }}
+                        customerNameRequired={customerNameRequired}
                       />
                     </div>
                   </div>
@@ -617,7 +627,7 @@ export function OrderExperience({ tableToken, generalToken }: { tableToken?: str
                               {order.orderNumber}
                             </p>
                             <p className="mt-0.5 text-xs text-[#A8A29E]">
-                              <MetaInline parts={[order.tableLabel ?? "Tanpa meja", order.time]} />
+                              <MetaInline parts={[order.customerName, order.tableLabel ?? "Tanpa meja", order.time]} />
                             </p>
                           </div>
                           <p className="shrink-0 text-[13px] tabular-nums text-[#78716C]">

@@ -164,6 +164,59 @@ test("PostgreSQL 16 production invariants, checkout, provider races, reconciliat
 
     currentShiftId = (await runtime.query("select public.open_cashier_shift($1::uuid, 'main integration shift', $2::jsonb)", [actor, JSON.stringify([{ productId: tracked, quantity: 100 }])])).rows[0].open_cashier_shift as string;
 
+    await t.test("customer handoff names persist atomically; cashier/general QR require them; table QR makes them optional", async () => {
+      const items = JSON.stringify(itemFor(free));
+      const call = async (options: {
+        name: string | null; sessionHash?: string | null; actorId?: string | null;
+        tableId?: string | null; method?: "cash" | "qris"; manual?: boolean;
+        key?: string; fingerprint?: string;
+      }) => {
+        const key = options.key ?? randomUUID();
+        const fingerprint = options.fingerprint ?? hash(JSON.stringify({ items, name: options.name, key }));
+        const result = await runtime.query<{
+          order_id: string; payment_id: string; payment_status: string; replayed: boolean;
+        }>(
+          "select * from public.create_named_checkout_intent($1::uuid,$2,$3,$4::uuid,$5::uuid,$6::public.payment_method,$7::jsonb,$8,$9)",
+          [key, fingerprint, options.sessionHash ?? null, options.tableId ?? null,
+           options.actorId ?? null, options.method ?? "qris", items, options.name, options.manual ?? false],
+        );
+        return result.rows[0];
+      };
+
+      await assert.rejects(call({ name: null, actorId: actor, method: "cash", tableId: table.id }), /CUSTOMER_NAME_REQUIRED/);
+      const cashier = await call({ name: "Bu Rina", actorId: actor, method: "cash", tableId: table.id });
+      assert.equal(cashier.payment_status, "settled");
+      assert.equal((await admin.query("select customer_name from public.orders where id=$1", [cashier.order_id])).rows[0].customer_name, "Bu Rina");
+
+      const generalQr = (await runtime.query(
+        "select * from public.create_general_qr($1,$2,$3::uuid)",
+        [`Name test ${randomUUID()}`, hash(randomUUID()), actor],
+      )).rows[0];
+      const qrRow = (await admin.query("select id,token_version from public.ordering_qr_codes where id=$1", [generalQr.id])).rows[0];
+      const generalSession = await createSession(table.id, { orderingQrId: qrRow.id, orderingQrVersion: qrRow.token_version });
+      await assert.rejects(call({ name: null, sessionHash: generalSession }), /CUSTOMER_NAME_REQUIRED/);
+      const general = await call({ name: "Pak Agus", sessionHash: generalSession, manual: true });
+      assert.equal((await admin.query("select customer_name from public.orders where id=$1", [general.order_id])).rows[0].customer_name, "Pak Agus");
+      assert.equal((await admin.query("select provider from public.payments where id=$1", [general.payment_id])).rows[0].provider, "manual_qris");
+      await expire(general.payment_id);
+
+      const tableSession = await createSession(table.id, { sourceTableId: table.id, sourceTableQrVersion: table.qr_token_version });
+      const tableOrder = await call({ name: null, sessionHash: tableSession });
+      assert.equal((await admin.query("select customer_name from public.orders where id=$1", [tableOrder.order_id])).rows[0].customer_name, null);
+      await expire(tableOrder.payment_id);
+
+      const namedTableSession = await createSession(table.id, { sourceTableId: table.id, sourceTableQrVersion: table.qr_token_version });
+      const key = randomUUID();
+      const fingerprint = hash("named-table-identical-cart");
+      const named = await call({ name: "Dita", sessionHash: namedTableSession, key, fingerprint });
+      assert.equal((await admin.query("select customer_name from public.orders where id=$1", [named.order_id])).rows[0].customer_name, "Dita");
+      const replay = await call({ name: "Dita", sessionHash: namedTableSession, key, fingerprint });
+      assert.equal(replay.replayed, true);
+      assert.equal(replay.order_id, named.order_id);
+      await assert.rejects(call({ name: "Dita Baru", sessionHash: namedTableSession, key, fingerprint }), /IDEMPOTENCY_KEY_REUSED/);
+      await expire(named.payment_id);
+    });
+
     await t.test("cash checkout, QRIS checkout, idempotency replay, and fingerprint conflict", async () => {
       const cash = await checkout({ productId: free, actorId: actor, tableId: table.id, method: "cash" });
       assert.equal(cash.payment_status, "settled");

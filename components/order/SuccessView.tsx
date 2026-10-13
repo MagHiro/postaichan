@@ -4,12 +4,14 @@ import { formatIDR } from "@/lib/format";
 
 export function SuccessView({
   tableLabel,
+  customerName,
   amount,
   orderNumber,
   onHome,
   onViewOrders,
 }: {
   tableLabel: string | null;
+  customerName: string | null;
   amount: number;
   orderNumber: string;
   onHome: () => void;
@@ -35,6 +37,12 @@ export function SuccessView({
               </span>
               <span className="text-[13px] font-medium">{orderNumber}</span>
             </div>
+            {customerName && (
+              <div className="flex items-center justify-between gap-3 py-3.5">
+                <span className="shrink-0 text-[13px] text-[#A8A29E]">Nama pelanggan</span>
+                <span className="break-words text-right text-[13px] font-medium">{customerName}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between py-3.5">
               <span className="text-[13px] text-[#A8A29E]">Total</span>
               <span className="text-[13px] font-medium tabular-nums">
