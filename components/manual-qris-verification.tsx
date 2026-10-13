@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, QrCode, ShieldCheck, X } from "lucide-react";
 import { formatIDR } from "@/lib/format";
@@ -19,7 +19,12 @@ export function ManualQrisVerification({
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const expired = payment.expiresAt ? new Date(payment.expiresAt).getTime() <= Date.now() : false;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const expired = payment.expiresAt ? new Date(payment.expiresAt).getTime() <= now : false;
 
   async function verify() {
     if (busy || !confirmed || expired) return;
