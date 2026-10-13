@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, Store } from "lucide-react";
 import { MetaDot } from "@/components/meta";
 import { formatCountdown, formatIDR } from "@/lib/format";
 import type { PaymentAttempt } from "./constants";
@@ -30,7 +30,7 @@ export function PaymentView({
   const [expired, setExpired] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [statusMessage, setStatusMessage] = useState(
-    "Menunggu pembayaran terverifikasi",
+    payment.provider === "manual_qris" ? "Menunggu verifikasi pembayaran oleh kasir" : "Menunggu pembayaran terverifikasi",
   );
   const paidRef = useRef(false);
   const checkingRef = useRef(false);
@@ -53,6 +53,7 @@ export function PaymentView({
   const expiresAtMs = new Date(payment.expiresAt).getTime();
   const remainingMs = expiresAtMs - now;
   const isExpired = expired || remainingMs <= 0;
+  const isManual = payment.provider === "manual_qris";
 
   async function cancelOrder() {
     if (!onCancel || cancelling) return;
@@ -94,7 +95,7 @@ export function PaymentView({
         setStatusMessage("Kode kedaluwarsa. Buat pembayaran baru.");
       } else {
         setStatusMessage(
-          "Belum terdeteksi. Kalau sudah bayar, cek lagi.",
+          payment.provider === "manual_qris" ? "Kasir belum memverifikasi pembayaran. Tunjukkan bukti transaksi onsite." : "Belum terdeteksi. Kalau sudah bayar, cek lagi.",
         );
       }
     } catch {
@@ -103,7 +104,7 @@ export function PaymentView({
       checkingRef.current = false;
       setChecking(false);
     }
-  }, [payment.orderId, sessionToken, onPaid]);
+  }, [payment.orderId, payment.provider, sessionToken, onPaid]);
 
   useEffect(() => {
     if (isExpired || paidRef.current) return;
@@ -114,8 +115,8 @@ export function PaymentView({
   }, [checkPayment, isExpired]);
 
   return (
-    <main className="flex min-h-screen justify-center bg-[#FAF7F1] text-[#1C1917] antialiased selection:bg-[#FDBD2C] selection:text-[#1C1917]">
-      <div className="w-full max-w-[440px] px-5 pb-10 pt-[calc(1.25rem+env(safe-area-inset-top))]">
+    <main className="modern-order flex min-h-screen justify-center bg-[#FAF7F1] text-[#1C1917] antialiased selection:bg-[#FDBD2C] selection:text-[#1C1917]">
+      <div className="w-full max-w-[560px] px-5 pb-10 pt-[calc(1.25rem+env(safe-area-inset-top))]">
         <button
           type="button"
           onClick={onBack}
@@ -128,7 +129,7 @@ export function PaymentView({
             Order {payment.orderNumber} <MetaDot /> {tableLabel ?? "Tanpa meja"}
           </p>
           <h1 className="mt-3 text-[22px] font-medium leading-snug tracking-tight">
-            Bayar pesanan
+            {isManual ? "QRIS di kasir" : "Bayar pesanan"}
           </h1>
           <p className="mt-2 text-3xl font-medium tabular-nums tracking-tight">
             {formatIDR(payment.amountIdr)}
@@ -138,8 +139,14 @@ export function PaymentView({
               ? "Kode kedaluwarsa"
               : `Berlaku ${formatCountdown(remainingMs)}`}
           </p>
-          <div className="shadow-soft mx-auto mt-8 w-fit rounded-3xl border border-[#EFE7D6] bg-[#FFFEFB] p-4">
-            {payment.qrImageUrl && !isExpired ? (
+          <div className="modern-surface mx-auto mt-8 w-fit p-5">
+            {isManual && !isExpired ? (
+              <div className="flex h-[220px] w-[220px] flex-col items-center justify-center rounded-[22px] bg-[#F8EACB] p-5 text-center">
+                <Store size={32} strokeWidth={1.5} className="text-[#956716]" />
+                <p className="mt-4 text-[15px] font-semibold">Scan QRIS di lokasi</p>
+                <p className="mt-2 text-[12px] leading-relaxed text-[#76644E]">Gunakan QRIS merchant yang tersedia di kasir. Ini bukan QR dari Midtrans.</p>
+              </div>
+            ) : payment.qrImageUrl && !isExpired ? (
               <img src={payment.qrImageUrl} alt={`QRIS pembayaran untuk pesanan ${payment.orderNumber}`} width={220} height={220} decoding="async" className="h-[220px] w-[220px] rounded-2xl bg-[#FFFEFB]" />
             ) : qrDataUrl && !isExpired ? (
               <img
@@ -162,7 +169,7 @@ export function PaymentView({
             )}
           </div>
           <p className="mt-6 text-[13px] text-[#A8A29E]">
-            Scan dengan e-wallet apa pun
+            {isManual ? "Setelah scan, tunjukkan bukti pembayaran kepada kasir." : "Scan dengan e-wallet apa pun"}
           </p>
           <div className="mx-auto mt-8 max-w-[280px] space-y-3">
             {isExpired ? (
@@ -180,7 +187,7 @@ export function PaymentView({
                 disabled={checking}
                 className="flex h-12 w-full items-center justify-center rounded-full bg-[#FDBD2C] text-sm font-medium text-[#1C1917] transition hover:bg-[#ECA90F] active:scale-[0.98] disabled:opacity-60"
               >
-                {checking ? "Mengecek…" : "Saya sudah bayar"}
+                {checking ? "Mengecek…" : isManual ? "Cek verifikasi kasir" : "Saya sudah bayar"}
               </button>
             )}
             <p role="status" aria-live="polite" className="text-xs text-[#A8A29E]">{statusMessage}</p>

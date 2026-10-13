@@ -60,7 +60,7 @@ export function MenuRow({
         aria-label={`Tambah ${product.name}`}
         onClick={() => onQuickAdd(product)}
         disabled={!product.available}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#E5DCC8] transition active:scale-95 disabled:opacity-30"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#FDBD2C] transition active:scale-95 disabled:opacity-30"
       >
         <Plus size={14} />
       </button>
