@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { getMigrationDatabaseUrl, getServerConfig } from "../lib/config-values.mjs";
+import { isSafeProductionDatabaseRole } from "../lib/security/production-database-role.ts";
 import { rateLimitKey, requestAddress } from "../lib/security/http.ts";
 import { canStartCustomerSession, publicTableDirectory } from "../lib/security/public-ordering.ts";
 
@@ -41,6 +42,23 @@ test("production configuration requires explicit safe database, origin, provider
       && !error.message.includes("postgres")
       && !error.message.includes("never-print-this"),
   );
+});
+
+test("production startup accepts the documented dual-role login and rejects unsafe database roles", () => {
+  const safeRole = {
+    is_superuser: false,
+    owns_public_schema: true,
+    owns_app_objects: false,
+    runtime_member: true,
+    ddl_member: true,
+    runtime_group_safe: true,
+    ddl_group_safe: true,
+  };
+  assert.equal(isSafeProductionDatabaseRole(safeRole), true);
+  assert.equal(isSafeProductionDatabaseRole(null), false);
+  for (const key of Object.keys(safeRole) as Array<keyof typeof safeRole>) {
+    assert.equal(isSafeProductionDatabaseRole({ ...safeRole, [key]: !safeRole[key] }), false, `Unsafe role configuration: ${key}`);
+  }
 });
 
 test("both public-ordering policies are deliberate and QR-required listings hide internal table UUIDs", () => {

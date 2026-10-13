@@ -58,6 +58,12 @@ jobs:
           psql "$DATABASE_ADMIN_URL" -v ON_ERROR_STOP=1
           -c "CREATE ROLE postaichan_ci LOGIN PASSWORD 'ci-only-password';
           GRANT postaichan_runtime TO postaichan_ci;"
+      - name: Provision dual-role production startup login
+        run: >-
+          psql "$DATABASE_ADMIN_URL" -v ON_ERROR_STOP=1
+          -c "CREATE ROLE postaichan_smoke LOGIN PASSWORD 'ci-smoke-only-password';
+          GRANT postaichan_runtime TO postaichan_smoke WITH INHERIT TRUE, SET TRUE;
+          GRANT postaichan_ddl TO postaichan_smoke WITH INHERIT FALSE, SET TRUE;"
       - name: Unit tests
         run: pnpm run test:unit
       - name: Database and concurrency integration tests
@@ -69,7 +75,7 @@ jobs:
       - name: Production build with CSP and production configuration
         env:
           NODE_ENV: production
-          DATABASE_URL: postgresql://postaichan_ci:ci-only-password@127.0.0.1:5432/postaichan_ci_test
+          DATABASE_URL: postgresql://postaichan_smoke:ci-smoke-only-password@127.0.0.1:5432/postaichan_ci_test
           APP_ORIGIN: https://postaichan.example.test
           MIDTRANS_SERVER_KEY: ci-only-not-a-provider-credential
           MIDTRANS_IS_PRODUCTION: "false"
@@ -81,7 +87,7 @@ jobs:
       - name: Render public, POS, and admin pages with production CSP
         env:
           NODE_ENV: production
-          DATABASE_URL: postgresql://postaichan_ci:ci-only-password@127.0.0.1:5432/postaichan_ci_test
+          DATABASE_URL: postgresql://postaichan_smoke:ci-smoke-only-password@127.0.0.1:5432/postaichan_ci_test
           APP_ORIGIN: https://postaichan.example.test
           MIDTRANS_SERVER_KEY: ci-only-not-a-provider-credential
           MIDTRANS_IS_PRODUCTION: "false"

@@ -49,7 +49,7 @@ Use separate privilege groups but a single production login:
 
 - `postaichan_ddl` is a non-login owner role for the `public` schema and application database objects. Migration DDL runs with `SET ROLE postaichan_ddl`.
 - `postaichan_runtime` is a non-login privilege group with the runtime read access, narrow direct writes, and RPC execute allowlist.
-- The one login in `DATABASE_URL` must be a non-superuser member of both groups. It must not directly own application tables, functions, or the `public` schema; those objects stay owned by `postaichan_ddl`.
+- The one login in `DATABASE_URL` must be a non-superuser member of both groups. It must not directly own application tables, functions, or the `public` schema; those objects stay owned by `postaichan_ddl`. Grant `postaichan_ddl` membership with `INHERIT FALSE, SET TRUE` so normal application queries do not inherit DDL permissions, but the one-shot migration/seed jobs can explicitly `SET ROLE postaichan_ddl`.
 
 Provision the login through the database provider or secret manager; do not put passwords in migration SQL. As a database owner, run this idempotent role setup, substituting the actual login and database role identifiers below:
 
@@ -62,8 +62,8 @@ DO $$ BEGIN
     CREATE ROLE postaichan_runtime NOLOGIN;
   END IF;
 END $$;
-GRANT postaichan_runtime TO application_login;
-GRANT postaichan_ddl TO application_login;
+GRANT postaichan_runtime TO application_login WITH INHERIT TRUE, SET TRUE;
+GRANT postaichan_ddl TO application_login WITH INHERIT FALSE, SET TRUE;
 GRANT CREATE ON DATABASE application_database TO postaichan_ddl;
 ALTER SCHEMA public OWNER TO postaichan_ddl;
 ```
