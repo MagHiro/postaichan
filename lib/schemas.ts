@@ -47,7 +47,7 @@ export const midtransWebhookSchema = z.object({
 export const cashierOrderSchema = z.object({
   idempotencyKey: z.string().uuid(),
   tableId: z.string().uuid().nullable().optional(),
-  paymentMethod: z.enum(["qris", "cash"]).default("qris"),
+  paymentMethod: z.enum(["qris", "qris_manual", "cash"]).default("qris"),
   items: z.array(checkoutItemSchema).min(1).max(50),
 }).strict();
 

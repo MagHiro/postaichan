@@ -34,12 +34,12 @@ export async function GET(request: Request) {
       if (error instanceof Error && error.message === "INVALID_REPORT_DATE") return NextResponse.json({ error: "Tanggal laporan tidak valid." }, { status: 400, headers: noStoreHeaders() });
       throw error;
     }
-    const ordersResult = await query<{ id: string; order_number: string; table_id: string | null; status: string; total_idr: number; created_at: string; table_label: string | null; payment_method: string | null; payment_status: string | null; payment_created_at: string | null; orphaned_settlement: boolean }>(
+    const ordersResult = await query<{ id: string; order_number: string; table_id: string | null; status: string; total_idr: number; created_at: string; table_label: string | null; payment_method: string | null; payment_provider: string | null; payment_status: string | null; payment_created_at: string | null; orphaned_settlement: boolean }>(
       `select o.id, o.order_number, o.table_id, o.status, o.total_idr, o.created_at, rt.label as table_label,
-              lp.method as payment_method, lp.status as payment_status, lp.created_at as payment_created_at, coalesce(lp.orphaned_settlement, false) as orphaned_settlement
+              lp.method as payment_method, lp.provider as payment_provider, lp.status as payment_status, lp.created_at as payment_created_at, coalesce(lp.orphaned_settlement, false) as orphaned_settlement
        from public.orders o
        left join public.restaurant_tables rt on rt.id = o.table_id
-       left join lateral (select p.method, p.status, p.created_at, p.orphaned_settlement from public.payments p where p.order_id = o.id order by p.created_at desc limit 1) lp on true
+       left join lateral (select p.method, p.provider, p.status, p.created_at, p.orphaned_settlement from public.payments p where p.order_id = o.id order by p.created_at desc limit 1) lp on true
        where o.created_at >= $1 and o.created_at < $2 and o.status <> 'draft'
        order by o.created_at desc`,
       [range.start, range.end],
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
               : order.payment_status === "failed" ? "Failed"
                 : order.payment_status === "expired" ? "Expired"
                   : order.payment_status === "pending" ? "Pending" : "Unavailable";
-      return { id: order.id, number: order.order_number, table: order.table_label ?? undefined, items: counts.get(order.id) ?? 0, total: order.total_idr, payment: order.payment_method === "cash" ? "Cash" : "QRIS", paymentStatus, status, time: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(order.created_at)) };
+      return { id: order.id, number: order.order_number, table: order.table_label ?? undefined, items: counts.get(order.id) ?? 0, total: order.total_idr, payment: order.payment_method === "cash" ? "Cash" : "QRIS", paymentProvider: order.payment_provider, paymentLabel: order.payment_method === "cash" ? "Tunai" : order.payment_provider === "manual_qris" ? "QRIS manual" : "QRIS otomatis", paymentStatus, status, time: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(order.created_at)) };
     }) }, { headers: noStoreHeaders() });
   } catch (error) {
     console.error("pos_orders_failed", error instanceof Error ? error.name : "unknown");
@@ -85,8 +85,10 @@ export async function POST(request: Request) {
     let intentResult;
     try {
       intentResult = await query<{ order_id: string; order_number: string; payment_id: string; payment_status: string; amount_idr: number; provider_order_id: string; qr_string: string | null; created_at: string | Date | null; expires_at: string | Date | null; replayed: boolean }>(
-        `select * from public.create_checkout_intent($1::uuid, $2, $3::text, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`,
-        [input.idempotencyKey, fingerprint({ tableId: input.tableId ?? null, paymentMethod: input.paymentMethod, items: input.items }), null, input.tableId ?? null, auth.actorId, input.paymentMethod, JSON.stringify(input.items)],
+        input.paymentMethod === "qris_manual"
+          ? `select * from public.create_manual_qris_intent($1::uuid, $2, $3::text, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`
+          : `select * from public.create_checkout_intent($1::uuid, $2, $3::text, $4::uuid, $5::uuid, $6::public.payment_method, $7::jsonb)`,
+        [input.idempotencyKey, fingerprint({ tableId: input.tableId ?? null, paymentMethod: input.paymentMethod, items: input.items }), null, input.tableId ?? null, auth.actorId, input.paymentMethod === "qris_manual" ? "qris" : input.paymentMethod, JSON.stringify(input.items)],
       );
     } catch (error) {
       const failure = checkoutDatabaseFailure(error, "staff");
@@ -98,6 +100,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ ...failure, error: failure.error.replace("Checkout", "Pesanan kasir") }, { status: failure.status, headers: noStoreHeaders() });
     }
     if (input.paymentMethod === "cash") return NextResponse.json({ orderId: intent.order_id, orderNumber: intent.order_number, totalIdr: intent.amount_idr, paymentStatus: "settled", replayed: intent.replayed }, { status: intent.replayed ? 200 : 201, headers: noStoreHeaders() });
+    // An onsite QRIS scan is never a Midtrans transaction. A staff member must
+    // independently inspect the merchant payment receipt before verification.
+    if (input.paymentMethod === "qris_manual") return NextResponse.json({
+      orderId: intent.order_id, orderNumber: intent.order_number, totalIdr: intent.amount_idr,
+      paymentStatus: intent.payment_status, provider: "manual_qris", expiresAt: intent.expires_at,
+      requiresManualVerification: true, replayed: intent.replayed,
+    }, { status: intent.replayed ? 200 : 201, headers: noStoreHeaders() });
     if (intent.payment_status === "settled") return NextResponse.json({ code: "ORDER_ALREADY_PAID", error: "Pesanan ini sudah lunas. Tidak perlu membuat QR baru.", orderId: intent.order_id, orderNumber: intent.order_number, paymentStatus: intent.payment_status }, { status: 409, headers: noStoreHeaders() });
     let qrString: string | null = null;
     let qrImageUrl: string | null = null;
